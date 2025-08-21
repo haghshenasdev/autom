@@ -22,7 +22,7 @@ class CustomerResource extends Resource
     protected static ?string $navigationGroup = 'مراجعه کننده';
 
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
     protected static ?string $label = "مراجعه کننده";
 

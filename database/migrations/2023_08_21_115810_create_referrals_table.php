@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('to_user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('letter_id')->constrained('letters')->cascadeOnDelete();
             $table->timestamps();
-            $table->boolean('checked');
+            $table->boolean('checked')->nullable();
         });
     }
 

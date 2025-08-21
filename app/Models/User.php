@@ -55,4 +55,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Referral::class);
     }
+
+    public function task_created()
+    {
+        return $this->hasMany(Task::class,'created_by');
+    }
+
+    public function task_responsible()
+    {
+        return $this->hasMany(Task::class,'responsible_id');
+    }
 }

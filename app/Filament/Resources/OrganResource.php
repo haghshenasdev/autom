@@ -21,7 +21,7 @@ class OrganResource extends Resource
     protected static ?string $navigationGroup = 'مراجع دریافت نامه';
 
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
 
     protected static ?string $label = "سازمان";
 

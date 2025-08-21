@@ -21,7 +21,7 @@ class ReferralResource extends Resource
 
     protected static ?string $navigationGroup = 'دستور';
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-paper-airplane';
 
     protected static ?string $label = "ارجاع";
 

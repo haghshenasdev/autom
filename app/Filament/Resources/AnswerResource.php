@@ -26,7 +26,7 @@ class AnswerResource extends Resource
     protected static ?int $navigationSort = 1;
 
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-envelope-open';
 
     protected static ?string $label = "جواب نامه";
 

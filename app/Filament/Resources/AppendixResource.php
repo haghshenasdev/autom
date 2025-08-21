@@ -26,7 +26,7 @@ class AppendixResource extends Resource
     protected static ?int $navigationSort = 4;
 
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-folder-plus';
 
     protected static ?string $label = "ضمیمه";
 
