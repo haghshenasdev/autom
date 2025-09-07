@@ -26,6 +26,11 @@ class Project extends Model
         return $this->belongsToMany(Task::class);
     }
 
+    public function letters()
+    {
+        return $this->belongsToMany(Letter::class, 'letter_project');
+    }
+
     public function group()
     {
         return $this->belongsToMany(ProjectGroup::class);

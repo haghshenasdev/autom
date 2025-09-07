@@ -16,12 +16,15 @@ class Task extends Model
     protected $fillable = [
         'name',
         'status',
+        'progress',
         'description',
         'completed',
         'completed_at',
         'started_at',
         'ended_at',
         'repeat',
+        'city_id',
+        'minutes_id',
         'task_group_id',
         'created_by',
         'Responsible_id'
@@ -45,6 +48,15 @@ class Task extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+    public function city()
+    {
+        return $this->belongsTo(City::class);
+    }
+
+    public function minutes()
+    {
+        return $this->belongsTo(Minutes::class);
+    }
 
     // ارتباط با مدل User به عنوان مسئول
     public function responsible()
@@ -64,18 +76,24 @@ class Task extends Model
 
             Forms\Components\Toggle::make('completed')->label('انجام شده'),
             Forms\Components\Toggle::make('repeat')->label('تکرار'),
-            Forms\Components\DatePicker::make('started_at')->jalali()->label('زمان شروع'),
-            Forms\Components\DatePicker::make('ended_at')->jalali()->label('زمان پایان'),
-            Forms\Components\DatePicker::make('completed_at')->jalali()->label('تکمیل'),
+            Forms\Components\DateTimePicker::make('started_at')->jalali()->label('زمان شروع'),
+            Forms\Components\DateTimePicker::make('ended_at')->jalali()->label('زمان پایان'),
+            Forms\Components\DateTimePicker::make('completed_at')->jalali()->label('تکمیل'),
             Forms\Components\Select::make('Responsible_id')->label('مسئول')
                 ->relationship('responsible', 'name')
+                ->searchable()->preload(),
+            Forms\Components\Select::make('city_id')->label('شهر')
+                ->relationship('city', 'name')
                 ->searchable()->preload(),
             Forms\Components\Select::make('task_group_id')->label('دسته بندی')
                 ->relationship('task_group', 'name')
                 ->searchable()->preload()->multiple()->createOptionForm(TaskGroup::formSchema()),
             Forms\Components\Select::make('status')
                 ->options(self::getStatusListDefine())->label('وضعیت')
-                ->default(null)
+                ->default(null),
+            Forms\Components\TextInput::make('progress')->numeric()->nullable()
+                ->label('درصد انجام')->minValue(0)
+                ->maxValue(100)->suffix('%'),
         ];
     }
 

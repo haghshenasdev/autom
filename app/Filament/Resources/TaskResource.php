@@ -10,9 +10,11 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use IbrahimBougaoua\FilaProgress\Tables\Columns\ProgressBar;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 
 class TaskResource extends Resource
 {
@@ -36,6 +38,10 @@ class TaskResource extends Resource
         $schema[] = Forms\Components\Select::make('project_id')->label('پروژه')
             ->relationship('project', 'name')
             ->searchable()->preload()->multiple();
+
+        $schema[] = Forms\Components\Select::make('minutes_id')->label('صورت جلسه')
+            ->relationship('minutes', 'title')
+            ->searchable()->preload();
         return $form
             ->schema($schema);
     }
@@ -72,6 +78,13 @@ class TaskResource extends Resource
                     ->jalaliDateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                ProgressBar::make('progress')->label('پیشرفت')
+                    ->getStateUsing(function ($record) {
+                        return [
+                            'total' => 100,
+                            'progress' => $record->progress,
+                        ];
+                    })->toggleable(isToggledHiddenByDefault: true)->sortable(),
             ])
             ->filters([
                 //
@@ -83,6 +96,7 @@ class TaskResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
+                ExportBulkAction::make()->label('دریافت فایل exel'),
             ])
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),

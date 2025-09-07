@@ -37,6 +37,23 @@ Route::get('/private-dl/{path}',function ($path){
 //    );
 })->middleware('auth')->where('path', '.*');;
 
+Route::get('/minutes-dl/{path}',function ($path){
+//    $path = request()->get('path');
+    if (!Storage::disk('private2')->exists($path)) {
+        abort(404);
+    }
+
+    $path = config('filesystems.disks.private2.root') . DIRECTORY_SEPARATOR . $path;
+
+    return response()->file($path);
+// for download
+//    return Storage::disk('private')->download(
+//        $path,basename($path),[
+//            'Content-Length' => Storage::disk('private')->size($path)
+//        ]
+//    );
+})->middleware('auth')->where('path', '.*');;
+
 Route::get('/login',function (){
     return redirect('admin');
 })->name('login');

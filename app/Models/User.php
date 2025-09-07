@@ -3,15 +3,19 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasAvatar;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements HasAvatar
 {
     use HasApiTokens, HasFactory, Notifiable , HasRoles;
 
@@ -22,6 +26,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'avatar_url',
         'email',
         'password',
     ];
@@ -56,6 +61,11 @@ class User extends Authenticatable
         return $this->hasMany(Referral::class);
     }
 
+    public function minutes(): HasMany
+    {
+        return $this->hasMany(Minutes::class);
+    }
+
     public function task_created()
     {
         return $this->hasMany(Task::class,'created_by');
@@ -65,4 +75,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Task::class,'responsible_id');
     }
+
+    public function getFilamentAvatarUrl(): ?string
+    {
+        return $this->avatar_url ? Storage::url($this->avatar_url) : null ;
+    }
+
 }

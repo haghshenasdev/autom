@@ -22,4 +22,9 @@ class City extends Model
     {
         return $this->hasMany(Customer::class);
     }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
 }

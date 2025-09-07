@@ -31,35 +31,7 @@ class TitleholderResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->label('نام')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('official')
-                    ->required()
-                    ->label('سمت'),
-                Forms\Components\TextInput::make('phone')
-                    ->label('شماره تماس')
-                    ->tel(),
-                Forms\Components\Select::make('organ_id')
-                    ->label('سازمان')
-                    ->relationship('organ', 'name')
-                    ->searchable()
-                    ->required()
-                    ->preload()
-                    ->createOptionForm([
-                        Forms\Components\TextInput::make('name')
-                            ->required()
-                            ->label('نام')
-                            ->maxLength(255),
-                        Forms\Components\TextInput::make('address')
-                            ->label('آدرس'),
-                        Forms\Components\TextInput::make('phone')
-                            ->label('شماره تماس')
-                            ->tel(),
-                    ]),
-            ]);
+            ->schema(Titleholder::formSchema());
     }
 
     public static function table(Table $table): Table

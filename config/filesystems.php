@@ -41,6 +41,12 @@ return [
             'url' => env('APP_URL').'/private-dl/',
             'throw' => false,
         ],
+        'private2' => [
+            'driver' => 'local',
+            'root' => storage_path('app/Minutes'),
+            'url' => env('APP_URL').'/minutes-dl/',
+            'throw' => false,
+        ],
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

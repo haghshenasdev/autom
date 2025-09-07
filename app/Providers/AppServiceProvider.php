@@ -5,6 +5,7 @@ namespace App\Providers;
 use Filament\Facades\Filament;
 use Filament\Navigation\NavigationGroup;
 use Filament\Navigation\NavigationItem;
+use Filament\Tables\Table;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,5 +34,6 @@ class AppServiceProvider extends ServiceProvider
                     ->sort(3),
             ]);
         });
+        Table::$defaultDateTimeDisplayFormat = 'Y/m/d H:i:s';
     }
 }

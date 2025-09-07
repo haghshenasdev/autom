@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use AlperenErsoy\FilamentExport\Actions\FilamentExportBulkAction;
 use App\Filament\Resources\CustomerLetterResource\RelationManagers\CustomersRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\LettersRelationManager;
 use App\Filament\Resources\LetterResource\Pages;
@@ -31,7 +32,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
-use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 
 class LetterResource extends Resource
 {
@@ -164,6 +164,11 @@ class LetterResource extends Resource
                                         ->tel(),
                                 ]),
                         ]),
+                    Forms\Components\Select::make('projects')
+                        ->label('پروژه')->multiple()
+                        ->relationship('projects', 'name')
+                        ->searchable()
+                        ->preload(),
                     Forms\Components\Select::make('cartables')
                         ->label('گیرنده درخواست (افزودن به کارپوشه)')
                         ->relationship('users', 'name')

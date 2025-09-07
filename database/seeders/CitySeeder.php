@@ -34,7 +34,10 @@ class CitySeeder extends Seeder
             "علی آبادچی",
             "پروانه",
             "مورچه خورت",
-            "مورچه خورت",
+            "موته",
+            "لایبید",
+            "حسن رباط",
+            "لوشاب",
         ];
 
         foreach ($cities as $city) {

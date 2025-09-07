@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +25,10 @@ class Titleholder extends Model
         return $this->belongsTo(Organ::class);
     }
 
+    public function minutes(){
+        return $this->belongsToMany(Minutes::class);
+    }
+
     public function Replications(): HasMany
     {
         return $this->hasMany(Replication::class);
@@ -31,5 +37,28 @@ class Titleholder extends Model
     public function letters(): HasMany
     {
         return $this->hasMany(letter::class);
+    }
+
+    public static function formSchema()
+    {
+        return [
+            TextInput::make('name')
+                ->required()
+                ->label('نام')
+                ->maxLength(255),
+            TextInput::make('official')
+                ->required()
+                ->label('سمت'),
+            TextInput::make('phone')
+                ->label('شماره تماس')
+                ->tel(),
+            Select::make('organ_id')
+                ->label('سازمان')
+                ->relationship('organ', 'name')
+                ->searchable()
+                ->required()
+                ->preload()
+                ->createOptionForm(Organ::formSchema()),
+        ];
     }
 }

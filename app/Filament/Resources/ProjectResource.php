@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use IbrahimBougaoua\FilaProgress\Tables\Columns\ProgressBar;
+use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 
 class ProjectResource extends Resource
 {
@@ -58,7 +59,7 @@ class ProjectResource extends Resource
                 Tables\Columns\TextColumn::make('name')->label("عنوان")
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')->label("توضیحات")
-                    ->searchable(),
+                    ->searchable()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('user_id')->label("ایجاد کننده")
                     ->state(function (Model $record): string {
                         return $record->user()->first('name')->name;
@@ -71,6 +72,7 @@ class ProjectResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
                 ProgressBar::make('پیشرفت')
                     ->getStateUsing(function ($record) {
                         $total = $record->tasks()->count();
@@ -90,16 +92,16 @@ class ProjectResource extends Resource
                             ->enableBranchNode(),
                     ])
                     ->query(function (Builder $query, array $data) {
-
                         return $query->when($data['group'], function ($query, $categories) {
-                            return $query->whereHas('group', fn($query) => $query->whereIn('id', [$categories]));
+                            return $query->whereHas('group', fn($query) => $query->whereIn('project_groups.id', $categories));
                         });
                     })
                     ->indicateUsing(function (array $data): ?string {
                         if (! $data['group']) {
                             return null;
                         }
-                        return __('Categories') . ': ' . implode(', ', ProjectGroup::query()->whereIn('id', [$data['group']])->get()->pluck('name')->toArray());
+
+                        return __('group') . ': ' . implode(', ', ProjectGroup::whereIn('id', $data['group'])->get()->pluck('name')->toArray());
                     })
             ])
             ->actions([
@@ -112,6 +114,7 @@ class ProjectResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
+                ExportBulkAction::make()->label('دریافت فایل exel'),
             ])
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),
@@ -122,6 +125,7 @@ class ProjectResource extends Resource
     {
         return [
             RelationManagers\TasksRelationManager::class,
+            RelationManagers\LettersRelationManager::class,
         ];
     }
 

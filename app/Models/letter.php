@@ -68,6 +68,10 @@ class letter extends Model
     {
         return $this->hasMany(Replication::class);
     }
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class, 'letter_project');
+    }
 
     public function Appendix(): HasMany
     {
