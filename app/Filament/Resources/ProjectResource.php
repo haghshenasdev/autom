@@ -84,9 +84,9 @@ class ProjectResource extends Resource
                     }),
             ])
             ->filters([
-                Filter::make('tree')
+                Filter::make('tree')->label('دسته بندی')
                     ->form([
-                        SelectTree::make('group')
+                        SelectTree::make('group')->label('دسته بندی')
                             ->relationship('group', 'name', 'parent_id')
                             ->independent(false)
                             ->enableBranchNode(),

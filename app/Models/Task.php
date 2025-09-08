@@ -37,6 +37,11 @@ class Task extends Model
         return $this->belongsToMany(Project::class);
     }
 
+    public function group()
+    {
+        return $this->belongsToMany(TaskGroup::class);
+    }
+
     // ارتباط با مدل TaskGroup
     public function task_group()
     {

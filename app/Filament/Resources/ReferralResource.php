@@ -50,6 +50,7 @@ class ReferralResource extends Resource
                     ->searchable()
                     ->required()
                     ->preload(),
+                Forms\Components\Toggle::make('checked')->label('بررسی شده'),
             ]);
     }
 
@@ -69,8 +70,8 @@ class ReferralResource extends Resource
                         return $record->users()->first('name')->name;
                     })
                 ,
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد'),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش'),
+                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
+                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime(),
             ])
             ->filters([
                 //

@@ -5,10 +5,13 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\TaskResource\Pages;
 use App\Filament\Resources\TaskResource\RelationManagers;
 use App\Models\Task;
+use App\Models\TaskGroup;
+use CodeWithDennis\FilamentSelectTree\SelectTree;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use IbrahimBougaoua\FilaProgress\Tables\Columns\ProgressBar;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,9 +53,10 @@ class TaskResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')->label('عنوان'),
+                Tables\Columns\TextColumn::make('name')->label('عنوان')->searchable(),
                 Tables\Columns\TextColumn::make('project.name')->label('پروژه'),
-                Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده'),
+                Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('completed')->label('وضعیت انجام')
@@ -87,7 +91,37 @@ class TaskResource extends Resource
                     })->toggleable(isToggledHiddenByDefault: true)->sortable(),
             ])
             ->filters([
-                //
+                Filter::make('tree')
+                    ->form([
+                        SelectTree::make('group')->label('دسته بندی')
+                            ->relationship('group', 'name', 'parent_id')
+                            ->independent(false)
+                            ->enableBranchNode(),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        return $query->when($data['group'], function ($query, $categories) {
+                            return $query->whereHas('group', fn($query) => $query->whereIn('task_groups.id', $categories));
+                        });
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if (! $data['group']) {
+                            return null;
+                        }
+
+                        return __('group') . ': ' . implode(', ', TaskGroup::whereIn('id', $data['group'])->get()->pluck('name')->toArray());
+                    }),
+                Tables\Filters\SelectFilter::make('project_id')->label('پروژه')
+                    ->relationship('project', 'name')
+                    ->searchable()->preload()->multiple(),
+                Tables\Filters\SelectFilter::make('minutes_id')->label('صورت جلسه')
+                    ->relationship('minutes', 'title')
+                    ->searchable()->preload(),
+                Tables\Filters\SelectFilter::make('city_id')->label('شهر')
+                    ->relationship('city', 'name')
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('Responsible_id')->label('مسئول')
+                    ->relationship('responsible', 'name')
+                    ->searchable()->preload(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
