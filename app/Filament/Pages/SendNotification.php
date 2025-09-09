@@ -66,6 +66,7 @@ class SendNotification extends Page implements HasForms
 
         Notification::make()
             ->title($this->data['title'])
+            ->body($this->data['body'])
             ->sendToDatabase(auth()->user());
 
         Notification::make()
