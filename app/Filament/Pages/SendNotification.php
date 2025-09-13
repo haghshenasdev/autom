@@ -12,6 +12,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Concerns\InteractsWithForms;
+use Illuminate\Contracts\View\View;
 
 class SendNotification extends Page implements HasForms
 {
@@ -21,6 +22,9 @@ class SendNotification extends Page implements HasForms
     protected static ?string $navigationLabel = 'ارسال نوتیفیکیشن';
     protected static ?string $navigationIcon = 'heroicon-o-bell';
     protected static ?string $slug = 'send-notification';
+
+    protected static ?string $navigationGroup = 'اطلاع رسانی';
+
 
     // اگر می‌خواهی عنوان صفحه را ستاتیک ست کنی:
     protected static ?string $title = 'ارسال نوتیفیکیشن';
@@ -45,9 +49,8 @@ class SendNotification extends Page implements HasForms
                     ->required(),
 
                 Textarea::make('body')
-                    ->label('متن نوتیف')
-                    ->rows(5)
-                    ->required(),
+                    ->label('توضیحات')
+                    ->rows(5)   ,
 
                 Select::make('recipient_id')
                     ->label('گیرنده')

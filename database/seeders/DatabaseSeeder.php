@@ -17,5 +17,11 @@ class DatabaseSeeder extends Seeder
             ['name' => 'جلسه'],
             ['name' => 'کار'],
         ]);
+
+        $this->call([
+            CitySeeder::class,
+            OrganSeeder::class,
+            UserSeeder::class
+        ]);
     }
 }

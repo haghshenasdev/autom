@@ -20,6 +20,7 @@ use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Jeffgreco13\FilamentBreezy\BreezyCore;
+use Rmsramos\Activitylog\ActivitylogPlugin;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 
 class AdminPanelProvider extends PanelProvider
@@ -73,9 +74,9 @@ class AdminPanelProvider extends PanelProvider
                     ->timezone(config('app.timezone'))
                     ->locale(config('app.locale'))
                     ->plugins(['dayGrid','timeGrid'])
-                    ->config([])
-            ])->resources([
-                config('filament-logger.activity_resource')
+                    ->config([]),
+                ActivitylogPlugin::make()
+                    ->navigationGroup('سیستم'),
             ]);
     }
 }

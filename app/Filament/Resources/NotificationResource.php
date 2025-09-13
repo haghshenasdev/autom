@@ -22,7 +22,16 @@ class NotificationResource extends Resource
 {
     protected static ?string $model = \Illuminate\Notifications\DatabaseNotification::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-bell-alert';
+
+    protected static ?string $label = "اطلاع رسانی";
+
+    protected static ?string $navigationGroup = 'اطلاع رسانی';
+
+
+    protected static ?string $pluralModelLabel = "اطلاع رسانی ها";
+
+    protected static ?string $pluralLabel = "اطلاع رسانی";
 
     public static function form(Form $form): Form
     {
@@ -72,7 +81,6 @@ class NotificationResource extends Resource
     {
         return [
             'index' => Pages\ListNotifications::route('/'),
-            'create' => Pages\CreateNotification::route('/create'),
             'edit' => Pages\EditNotification::route('/{record}/edit'),
         ];
     }

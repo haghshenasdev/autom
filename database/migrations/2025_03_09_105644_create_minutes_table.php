@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('title');
             $table->string('text')->nullable();
             $table->string('file');
-            $table->timestamps('date');
+            $table->timestamp('date');
             $table->foreignId('typer_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
