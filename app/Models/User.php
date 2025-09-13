@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use JaOcero\FilaChat\Traits\HasFilaChat;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -19,7 +20,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements HasAvatar
 {
-    use HasApiTokens, HasFactory, Notifiable , HasRoles,LogsActivity;
+    use HasApiTokens, HasFactory, Notifiable , HasRoles,LogsActivity,HasFilaChat;
 
     /**
      * The attributes that are mass assignable.

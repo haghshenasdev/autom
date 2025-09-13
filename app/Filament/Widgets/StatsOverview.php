@@ -19,7 +19,7 @@ class StatsOverview extends BaseWidget
         return [
             Stat::make('تعداد نامه ها', letter::query()->count())->icon('heroicon-o-envelope'),
             Stat::make('تعداد پروژه ها', Project::query()->count())->icon('heroicon-o-archive-box'),
-            Stat::make('کار ها', Task::query()->count())->icon('heroicon-o-briefcase'),
+            Stat::make('کار یا جلسه', Task::query()->count())->icon('heroicon-o-briefcase'),
             Stat::make('صورت جلسه ها', Minutes::query()->count())->icon('heroicon-o-document-text'),
         ];
     }

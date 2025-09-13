@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Filament\Resources\ProjectResource\Pages;
 use App\Filament\Resources\ProjectResource\RelationManagers;
 use App\Models\Project;
@@ -44,11 +45,12 @@ class ProjectResource extends Resource
                 Forms\Components\TextInput::make('name')->label("عنوان")
                     ->required()
                     ->maxLength(255),
-                Forms\Components\Textarea::make('description')->label('توضیحات')
-                    ->maxLength(255),
+                Forms\Components\Textarea::make('description')->label('توضیحات'),
                 SelectTree::make('group_id')->label('دسته بندی')
                     ->relationship('group', 'name', 'parent_id')
-                    ->enableBranchNode()->createOptionForm(ProjectGroup::formSchema())
+                    ->enableBranchNode()->createOptionForm(ProjectGroup::formSchema()),
+                Forms\Components\TextInput::make('required_amount')->numeric()->nullable()
+                    ->label('چشم انداز کار یا جلسه مورد نیاز')->minValue(0),
             ]);
     }
 
@@ -75,7 +77,7 @@ class ProjectResource extends Resource
                 Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
                 ProgressBar::make('پیشرفت')
                     ->getStateUsing(function ($record) {
-                        $total = $record->tasks()->count();
+                        $total = $record->required_amount != null ? $record->required_amount : $record->tasks()->count();
                         $progress = $record->tasks()->where('completed',true)->count();
                         return [
                             'total' => $total,
@@ -115,6 +117,14 @@ class ProjectResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
                 ExportBulkAction::make()->label('دریافت فایل exel'),
+            ])->headerActions([
+                Action::make('print')
+                    ->label('چاپ جدول')
+                    ->icon('heroicon-o-printer')
+                    ->extraAttributes([
+                        'onclick' => 'window.print()',
+                    ]),
+                FilamentExportHeaderAction::make('Export'),
             ])
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),

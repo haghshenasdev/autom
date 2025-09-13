@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->mediumInteger('status')->nullable();
             $table->mediumInteger('progress')->nullable();
-            $table->string('description')->nullable();
+            $table->text('description')->nullable();
             $table->boolean('completed')->nullable();
             $table->dateTime('completed_at')->nullable();
             $table->dateTime('started_at')->nullable();
@@ -25,7 +25,7 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('Responsible_id')->nullable()->constrained('users')->onDelete('cascade'); // مسئول
             $table->foreignId('city_id')->nullable()->constrained('cities')->nullOnDelete(); // مسئول
-            $table->foreignId('minutes_id')->constrained('minutes')->cascadeOnDelete();
+            $table->foreignId('minutes_id')->nullable()->constrained('minutes')->cascadeOnDelete();
             $table->timestamps();
         });
     }

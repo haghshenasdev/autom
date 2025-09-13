@@ -64,13 +64,11 @@ class SendNotification extends Page implements HasForms
 
     public function submit(): void
     {
-        $recipient = User::find($this->data['recipient_id']);
-
 
         Notification::make()
             ->title($this->data['title'])
             ->body($this->data['body'])
-            ->sendToDatabase(auth()->user());
+            ->sendToDatabase(User::find($this->data['recipient_id']));
 
         Notification::make()
             ->title('نوتیفیکیشن با موفقیت ارسال شد')

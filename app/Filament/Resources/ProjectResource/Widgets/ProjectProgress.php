@@ -16,7 +16,7 @@ class ProjectProgress extends Widget
         $this->record = $record;
 
         // محاسبه درصد پیشرفت
-        $totalTasks = $this->record->tasks()->count();
+        $totalTasks = $record->required_amount != null ? $record->required_amount : $this->record->tasks()->count();
         $completedTasks = $this->record->tasks()->where('completed', true)->count();
 
         $this->progress = $totalTasks > 0 ? ($completedTasks / $totalTasks) * 100 : 0;

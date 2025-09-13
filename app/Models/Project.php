@@ -15,6 +15,7 @@ class Project extends Model
         'description',
         'user_id',
         'group_id',
+        'required_amount',
     ];
 
     public function user()
@@ -40,9 +41,9 @@ class Project extends Model
     {
         parent::boot();
 
-        static::creating(function ($model) {
-            $model->user_id = Auth::id();
-        });
+//        static::creating(function ($model) {
+//            $model->user_id = Auth::id();
+//        });
     }
 
 }

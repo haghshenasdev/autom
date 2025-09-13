@@ -115,7 +115,9 @@ class Task extends Model
             if ($model->isDirty('completed')) {
                 if ($model->completed) {
                     // اگر completed true شد، completed_at را به زمان حال تنظیم کنید
-                    $model->completed_at = Carbon::now();
+                    if ($model->completed_at == null){
+                        $model->completed_at = Carbon::now();
+                    }
                 } else {
                     // اگر completed false شد، completed_at را null کنید
                     $model->completed_at = null;

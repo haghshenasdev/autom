@@ -16,12 +16,19 @@ class DatabaseSeeder extends Seeder
         DB::table('project_groups')->insert([
             ['name' => 'جلسه'],
             ['name' => 'کار'],
+            ['name' => 'برنامه ریزی'],
+        ]);
+
+        DB::table('task_groups')->insert([
+            ['name' => 'جلسه'],
+            ['name' => 'کار'],
         ]);
 
         $this->call([
             CitySeeder::class,
             OrganSeeder::class,
-            UserSeeder::class
+            UserSeeder::class,
+            ProjectSeeder::class,
         ]);
     }
 }

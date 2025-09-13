@@ -19,6 +19,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use JaOcero\FilaChat\FilaChatPlugin;
 use Jeffgreco13\FilamentBreezy\BreezyCore;
 use Rmsramos\Activitylog\ActivitylogPlugin;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
@@ -77,6 +78,7 @@ class AdminPanelProvider extends PanelProvider
                     ->config([]),
                 ActivitylogPlugin::make()
                     ->navigationGroup('سیستم'),
+                FilaChatPlugin::make()
             ]);
     }
 }
