@@ -21,6 +21,7 @@ class lastReferralTablewidget extends BaseWidget
     protected static ?int $sort = 2;
     protected static ?string $heading= 'آخرین ارجاع ها';
 
+
     public function table(Table $table): Table
     {
         return $table
@@ -45,6 +46,6 @@ class lastReferralTablewidget extends BaseWidget
                 Action::make('Open')->label('نامه مربوطه')->iconButton()->icon('heroicon-o-envelope')
                     ->url(fn (Referral $record): string => LetterResource::getUrl('edit',[$record->letter()->first()->id]))
                     ->openUrlInNewTab(),
-            ]);
+            ])->emptyStateHeading('هیچ موردی یافت نشد');
     }
 }

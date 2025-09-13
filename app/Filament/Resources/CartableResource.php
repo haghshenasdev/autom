@@ -7,11 +7,14 @@ use App\Filament\Resources\CartableResource\RelationManagers;
 use App\Models\Cartable;
 use App\Models\Referral;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CartableResource extends Resource
 {
-    protected static ?string $model = Referral::class;
+    protected static ?string $model = Cartable::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-folder';
 
@@ -59,36 +62,52 @@ class CartableResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->query(Referral::where('to_user_id',auth()->id()))
             ->columns([
-
-                TextColumn::make('id'),
-                Tables\Columns\TextColumn::make('rule')->label('دستور'),
-                Tables\Columns\TextColumn::make('letter_id')->label('نامه'),
-                TextColumn::make('by_user_id')->label('توسط')
-                    ->state(function (Model $record): string {
-                        return $record->by_users()->first('name')->name; /// درست بودن رابطه چک شود
-                    }),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد'),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش'),
-
-                TextColumn::make('id'),
+                Tables\Columns\TextColumn::make('letter.subject')->label('نامه'),
+                Tables\Columns\TextColumn::make('letter.customers.name')->label('صاحب نامه'),
+                Tables\Columns\TextColumn::make('letter.created_at')->jalaliDateTime()->label('تاریخ نامه'),
+                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime(),
                 Tables\Columns\CheckboxColumn::make('checked')->label('بررسی شده'),
             ])
             ->filters([
-                //
+                Filter::make('checked')
+                    ->label('بررسی شده'),
+                Filter::make('no checked')
+                    ->label('بررسی نشده')->query(fn (Builder  $query): Builder  => $query->where('checked', false)),
+
+                Filter::make('created_at')
+                    ->form([
+                        Fieldset::make('تاریخ ویرایش')->schema([
+                            DatePicker::make('created_from')->label('از')->jalali(),
+                            DatePicker::make('created_until')->label('لغایت')->jalali(),
+                        ]),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['created_from'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('updated_at', '>=', $date),
+                            )
+                            ->when(
+                                $data['created_until'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('updated_at', '<=', $date),
+                            );
+                    })
+                ,
             ])
             ->actions([
                 Action::make('Open')->label('نمایش نامه')
-                    ->url(fn (Referral $record): string => LetterResource::getUrl('edit',[$record->letter()->first('id')->id]))
+                    ->url(fn (Cartable $record): string => LetterResource::getUrl('edit',[$record->letter_id]))
                     ->openUrlInNewTab(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ])
+            ])->recordUrl(fn ($record) => null) // غیرفعال کردن لینک پیش‌فرض
+            ->recordAction(null)
             ->emptyStateActions([
 //                Tables\Actions\CreateAction::make(),
             ]);

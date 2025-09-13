@@ -59,6 +59,6 @@ class LatestTasks extends BaseWidget
                 Action::make('Open')->label('نمایش')
                     ->url(fn (Task $record): string => TaskResource::getUrl('edit',[$record->id]))
                     ->openUrlInNewTab(),
-            ]);
+            ])->emptyStateHeading('هیچ موردی یافت نشد');
     }
 }
