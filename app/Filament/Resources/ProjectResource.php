@@ -108,7 +108,7 @@ class ProjectResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Action::make('Open')->label('گزارش گیری')
+                Action::make('Open')->label('گزارش گیری')->icon('heroicon-o-chart-pie')->iconButton()
                     ->url(fn ($record) => route('filament.admin.resources.projects.record',['id' => $record->id]))
                     ->openUrlInNewTab(),
             ])

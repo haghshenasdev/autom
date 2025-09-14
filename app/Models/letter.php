@@ -16,6 +16,7 @@ class letter extends Model
 
     protected $fillable = [
         'subject',
+        'description',
         'file',
         'type_id',
         'status',

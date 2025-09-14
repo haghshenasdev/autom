@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('letter_id')->constrained('letters')->cascadeOnDelete();
             $table->string('result')->nullable();
             $table->text('summary')->nullable();
-            $table->string('file');
+            $table->string('file')->nullable();
             $table->foreignId('titleholder_id')->nullable()->constrained('titleholders')->nullOnDelete();
             $table->timestamps();
         });

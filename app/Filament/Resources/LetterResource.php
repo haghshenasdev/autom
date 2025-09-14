@@ -64,6 +64,8 @@ class LetterResource extends Resource
                 Forms\Components\TextInput::make('subject')
                     ->label('موضوع')
                     ->required(),
+                Forms\Components\Textarea::make('description')
+                    ->label('توضیحات'),
                 Forms\Components\Select::make('status')
                     ->options(letter::getStatusListDefine())->label('وضعیت')
                     ->hiddenOn('create')
@@ -189,7 +191,7 @@ class LetterResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('id')->label('ثبت')->searchable(),
+                TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
                 TextColumn::make('subject')->label('موضوع')->searchable(),
                 TextColumn::make('customer_id')->label('صاحب')
                     ->html()->alignCenter()

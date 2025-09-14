@@ -44,7 +44,7 @@ class AnswerResource extends Resource
                     ->relationship('letter', 'id')
                     ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->subject}")
                     ->searchable()
-                    ->preload(),
+                    ->preload()->required(),
                 Forms\Components\TextInput::make('result')
                     ->label('نتیجه')
                     ->maxLength(255)
@@ -64,7 +64,6 @@ class AnswerResource extends Resource
                     ->downloadable()
                     ->visibility('private')
                     ->imageEditor()
-                    ->required()
                     ->getUploadedFileNameForStorageUsing( fn (TemporaryUploadedFile $file,?Model $record) => self::getFileNamePath($file, $record))
                 ,
             ]);

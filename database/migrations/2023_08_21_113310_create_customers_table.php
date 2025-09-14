@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name')->index();
             $table->date('birth_date')->nullable();
-            $table->char('code_melli',10)->unique();
-            $table->char('phone',11);
+            $table->char('code_melli',10)->unique()->nullable();
+            $table->char('phone',11)->nullable();
             $table->foreignId('city_id')->nullable()->constrained('cities')->nullOnDelete();
             $table->timestamps();
         });
