@@ -73,7 +73,8 @@ class AnswerRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('result')
             ->columns([
-                Tables\Columns\TextColumn::make('result'),
+                Tables\Columns\TextColumn::make('result')->label('نتیجه'),
+                Tables\Columns\TextColumn::make('summary')->label('خلاصه'),
             ])
             ->filters([
                 //

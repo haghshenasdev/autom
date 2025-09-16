@@ -189,7 +189,7 @@ class LetterResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table
+        return $table->defaultSort('id','desc')
             ->columns([
                 TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
                 TextColumn::make('subject')->label('موضوع')->searchable(),
@@ -205,11 +205,11 @@ class LetterResource extends Resource
                 }),
                 TextColumn::make('status')->label('وضعیت')->state(function (Model $record): string {
                     return letter::getStatusLabel($record->status);
-                }),
-                TextColumn::make('type.name')->label('نوع'),
-                TextColumn::make('user.name')->label('ثبت کننده'),
+                })->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('type.name')->label('نوع')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('user.name')->label('ثبت کننده')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime(),
+                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('customers')
@@ -272,9 +272,9 @@ class LetterResource extends Resource
     public static function getRelations(): array
     {
         return [
+            RelationManagers\AnswerRelationManager::class,
             RelationManagers\AppendixRelationManager::class,
             RelationManagers\ReferralsRelationManager::class,
-            RelationManagers\AnswerRelationManager::class,
             RelationManagers\ReplicationsRelationManager::class,
         ];
     }
