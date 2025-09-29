@@ -52,7 +52,18 @@ Route::get('/minutes-dl/{path}',function ($path){
 //            'Content-Length' => Storage::disk('private')->size($path)
 //        ]
 //    );
-})->middleware('auth')->where('path', '.*');;
+})->middleware('auth')->where('path', '.*');
+
+Route::get('/appendix-other-dl/{path}',function ($path){
+//    $path = request()->get('path');
+    if (!Storage::disk('private_appendix_other')->exists($path)) {
+        abort(404);
+    }
+
+    $path = config('filesystems.disks.private_appendix_other.root') . DIRECTORY_SEPARATOR . $path;
+
+    return response()->file($path);
+})->middleware('auth')->where('path', '.*');
 
 Route::get('/login',function (){
     return redirect('admin');

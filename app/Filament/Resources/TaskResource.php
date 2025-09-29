@@ -51,10 +51,12 @@ class TaskResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table
+        return $table->defaultSort('id','desc')
             ->columns([
-                Tables\Columns\TextColumn::make('name')->label('عنوان')->searchable(),
-                Tables\Columns\TextColumn::make('project.name')->label('پروژه'),
+                Tables\Columns\TextColumn::make('id')->label('ثبت')
+                    ->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
+                Tables\Columns\TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks(),
                 Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
@@ -140,7 +142,7 @@ class TaskResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RelationManagers\AppendixOthersRelationManager::class,
         ];
     }
 

@@ -17,6 +17,11 @@ class Organ extends Model
         'address',
     ];
 
+    public function approve()
+    {
+        return $this->belongsToMany(Approve::class);
+    }
+
     public function Titleholders(): HasMany
     {
         return $this->hasMany(Titleholder::class);

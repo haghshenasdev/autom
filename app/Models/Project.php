@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Traits\HasStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 class Project extends Model
 {
-    use HasFactory;
+    use HasFactory,HasStatus;
 
     protected $fillable = [
         'name',
@@ -16,15 +17,23 @@ class Project extends Model
         'user_id',
         'group_id',
         'required_amount',
+        'status',
+        'amount', // کل اعتبار اخذ شده
     ];
 
-    public function user()
+    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function tasks(){
+    public function tasks(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
         return $this->belongsToMany(Task::class);
+    }
+
+    public function approvs(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Approve::class);
     }
 
     public function letters()

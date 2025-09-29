@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('minutes', function (Blueprint $table) {
+        Schema::create('appendix_others', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->string('text')->nullable();
+            $table->bigInteger('appendix_other_id');
+            $table->string('appendix_other_type',100);
+            $table->string('title')->nullable();
+            $table->string('description')->nullable();
             $table->string('file');
-            $table->timestamp('date');
-            $table->foreignId('typer_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
     }
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('minutes');
+        Schema::dropIfExists('appendix_others');
     }
 };

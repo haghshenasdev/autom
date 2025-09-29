@@ -10,6 +10,12 @@ class EditMinutes extends EditRecord
 {
     protected static string $resource = MinutesResource::class;
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['file'] = $this->record->getFilePath();
+        return $data;
+    }
+
     protected function getHeaderActions(): array
     {
         return [

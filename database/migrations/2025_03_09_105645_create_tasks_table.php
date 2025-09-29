@@ -25,7 +25,6 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('Responsible_id')->nullable()->constrained('users')->onDelete('cascade'); // مسئول
             $table->foreignId('city_id')->nullable()->constrained('cities')->nullOnDelete(); // مسئول
-            $table->foreignId('minutes_id')->nullable()->constrained('minutes')->cascadeOnDelete();
             $table->timestamps();
         });
     }

@@ -47,6 +47,12 @@ return [
             'url' => env('APP_URL').'/minutes-dl/',
             'throw' => false,
         ],
+        'private_appendix_other' => [
+            'driver' => 'local',
+            'root' => storage_path('app/appendix_other'),
+            'url' => env('APP_URL').'/appendix-other-dl/',
+            'throw' => false,
+        ],
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

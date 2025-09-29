@@ -37,6 +37,11 @@ class Task extends Model
         return $this->belongsToMany(Project::class);
     }
 
+    public function appendix_others()
+    {
+        return $this->morphMany(AppendixOther::class, 'appendix_other');
+    }
+
     public function group()
     {
         return $this->belongsToMany(TaskGroup::class);
@@ -147,5 +152,14 @@ class Task extends Model
         }
 
         return $i;
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function (Task $model) {
+            $model->appendix_others()->each(function ($appendix_other) {
+                $appendix_other->delete();
+            });
+        });
     }
 }

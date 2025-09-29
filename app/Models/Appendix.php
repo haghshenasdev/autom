@@ -37,6 +37,10 @@ class Appendix extends Model
     public static string $FolderName = 'apds';
     public static string $FilePrefix  = 'apd-';
 
+    public static string $RelatedName = 'letter';
+
+    public static string $disk = 'private';
+
     protected static function booted(): void
     {
         static::created(function (Appendix $model) {

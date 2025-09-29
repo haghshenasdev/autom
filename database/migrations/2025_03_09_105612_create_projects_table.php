@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->integer('required_amount')->nullable();
             $table->foreignId('user_id')->constrained('users');
+            $table->smallInteger('status')->nullable();
+            $table->bigInteger('amount')->nullable();
             $table->timestamps();
         });
     }

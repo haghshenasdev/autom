@@ -10,6 +10,8 @@ use App\Models\ProjectGroup;
 use App\Models\Referral;
 use CodeWithDennis\FilamentSelectTree\SelectTree;
 use Filament\Forms;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -51,6 +53,14 @@ class ProjectResource extends Resource
                     ->enableBranchNode()->createOptionForm(ProjectGroup::formSchema()),
                 Forms\Components\TextInput::make('required_amount')->numeric()->nullable()
                     ->label('چشم انداز کار یا جلسه مورد نیاز')->minValue(0),
+                Select::make('status')
+                    ->options(Project::getStatusListDefine())->label('وضعیت')
+                    ->default(null),
+                Forms\Components\Select::make('user_id')->label('مسئول')
+                    ->relationship('user', 'name')
+                    ->searchable()->preload(),
+                TextInput::make('amount')
+                    ->label('اعتبار اخذ شده')->numeric()->nullable()->suffix('ریال'),
             ]);
     }
 
@@ -62,7 +72,7 @@ class ProjectResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')->label("توضیحات")
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('user_id')->label("ایجاد کننده")
+                Tables\Columns\TextColumn::make('user_id')->label("مسئول")
                     ->state(function (Model $record): string {
                         return $record->user()->first('name')->name;
                     }),

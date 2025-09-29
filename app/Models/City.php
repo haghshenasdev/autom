@@ -25,6 +25,11 @@ class City extends Model
         return $this->hasMany(Customer::class);
     }
 
+    public function approves(): HasMany
+    {
+        return $this->hasMany(Approve::class);
+    }
+
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);

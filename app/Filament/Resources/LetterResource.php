@@ -218,7 +218,7 @@ class LetterResource extends Resource
                     ->relationship('customers','name')
                     ->searchable()
                     ->getSearchResultsUsing(fn (string $search): array => Customer::query()->where('name', 'like', "%{$search}%")->orWhere('code_melli','like',"%$search%")->selectRaw("id, concat(name, '-', code_melli) as code_name")->limit(10)->pluck('code_name', 'id')->toArray())
-                    ->getOptionLabelsUsing(fn (Model $record) => "{$record->name} {$record->code_melli}")
+                    ->getOptionLabelsUsing(fn (?Model $record) => $record ? "{$record->name} {$record->code_melli}" : [])
                 ,
                 SelectFilter::make('type')
                     ->relationship('type','name')

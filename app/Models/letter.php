@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\HasStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\File;
 
 class letter extends Model
 {
-    use HasFactory;
+    use HasFactory,HasStatus;
 
     protected $fillable = [
         'subject',
@@ -110,26 +111,4 @@ class letter extends Model
         });
     }
 
-    public static function getStatusListDefine(): array
-    {
-        return [
-            0 => 'بایگانی',
-            1 => 'اتمام',
-            2 => 'در حال پیگیری',
-            3 => 'غیرقابل پیگیری',
-        ];
-    }
-
-    public static function getStatusLabel(int|null $i): int|string
-    {
-        $data = self::getStatusListDefine();
-
-        if (array_key_exists($i,$data)){
-            return $data[$i];
-        }elseif (is_null($i)){
-            return 'بدون وضعیت';
-        }
-
-        return $i;
-    }
 }
