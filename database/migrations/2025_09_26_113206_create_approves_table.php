@@ -14,10 +14,12 @@ return new class extends Migration
         Schema::create('approves', function (Blueprint $table) {
             $table->id();
             $table->string('title')->index();
-            $table->string('description',500)->nullable();
+            $table->text('description')->nullable();
             $table->smallInteger('status')->nullable();
             $table->foreignId('city_id')->nullable()->constrained('cities')->nullOnDelete();
+            $table->foreignId('task_id')->nullable()->constrained('tasks')->nullOnDelete();
             $table->bigInteger('amount')->nullable();
+            $table->integer('time')->nullable(); //مدت
             $table->foreignId('minute_id')->constrained('minutes')->cascadeOnDelete();
             $table->timestamps();
         });

@@ -51,22 +51,13 @@ class MinutesResource extends Resource
                     ->searchable(),
                 TextColumn::make('typer.name')->label('نویسنده')->toggleable(),
                 TextColumn::make('task_creator.name')->label('جلسه')->words(10)->toggleable(),
-                TextColumn::make('titleholder')->label('امضا کنندگان')
-                    ->html()->alignCenter()
-                    ->state(function (Model $record): string {
-                        $customers = $record->titleholder()->get();
-                        $string = '';
-                        foreach ($customers as $recordi){
-                            $string .= $recordi->name ."-". $recordi->official . " ، ".$recordi->organ()->first('name')->name . "<br>";
-                        }
-                        return $string;
-                    }),
+                TextColumn::make('organ.name')->label('امضا کنندگان'),
                 TextColumn::make('tasks_count')
                     ->counts('tasks')
-                    ->label('تعداد کارها')
+                    ->label('تعداد کارها')->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('approves_count')
-                    ->label('تعداد مصوبه')
+                    ->label('تعداد مصوبه')->sortable()
                     ->counts('approves')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('date')->label(' تاریخ')->jalaliDateTime(),
@@ -107,8 +98,8 @@ class MinutesResource extends Resource
                 Tables\Filters\SelectFilter::make('task_id')->label('جلسه')
                     ->relationship('task_creator', 'name')
                     ->searchable(),
-                Tables\Filters\SelectFilter::make('titleholder_id')->label('امضا کننده')
-                    ->relationship('titleholder', 'name')->multiple()->preload()
+                Tables\Filters\SelectFilter::make('organ_id')->label('امضا کننده')
+                    ->relationship('organ', 'name')->multiple()->preload()
                     ->searchable(),
             ])
             ->actions([

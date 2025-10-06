@@ -15,7 +15,13 @@ class Organ extends Model
         'name',
         'phone',
         'address',
+        'organ_type_id',
     ];
+
+    public function type()
+    {
+        return $this->belongsTo(OrganType::class,'organ_type_id');
+    }
 
     public function approve()
     {
@@ -25,6 +31,17 @@ class Organ extends Model
     public function Titleholders(): HasMany
     {
         return $this->hasMany(Titleholder::class);
+    }
+
+
+    public function minutes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Minutes::class);
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
     }
 
     public static function formSchema()

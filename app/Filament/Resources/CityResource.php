@@ -46,7 +46,7 @@ class CityResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('id'),
-                TextColumn::make('name')->label('نام'),
+                TextColumn::make('name')->label('نام')->searchable(),
             ])
             ->filters([
                 //

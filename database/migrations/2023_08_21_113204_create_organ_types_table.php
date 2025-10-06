@@ -11,13 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('organs', function (Blueprint $table) {
+        Schema::create('organ_types', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('address')->nullable();
-            $table->char('phone',10)->nullable();
-            $table->foreignId('organ_type_id')->constrained('organ_types');
-            $table->timestamps();
+            $table->string('description')->nullable();
         });
     }
 
@@ -26,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('organs');
+        Schema::dropIfExists('organ_types');
     }
 };

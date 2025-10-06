@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\Approve;
 use App\Models\Customer;
 use App\Models\letter;
 use App\Models\Minutes;
@@ -23,7 +24,7 @@ class StatsOverview extends BaseWidget
             Stat::make('تعداد پروژه ها', $this->formatShortNumber(Project::query()->count()))->icon('heroicon-o-archive-box'),
             Stat::make('کار یا جلسه', $this->formatShortNumber(Task::query()->count()))->icon('heroicon-o-briefcase'),
             Stat::make('صورت جلسه ها', $this->formatShortNumber(Minutes::query()->count()))->icon('heroicon-o-document-text'),
-            Stat::make('مصوبه ها', $this->formatShortNumber(Minutes::query()->count()))->icon('heroicon-o-document-check'),
+            Stat::make('مصوبه ها', $this->formatShortNumber(Approve::query()->count()))->icon('heroicon-o-document-check'),
         ];
     }
 

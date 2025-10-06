@@ -37,9 +37,9 @@ class Minutes extends Model
         return $this->belongsToMany(MinutesGroup::class);
     }
 
-    public function titleholder()
+    public function organ()
     {
-        return $this->belongsToMany(Titleholder::class);
+        return $this->belongsToMany(Organ::class,'minute_organ','minute_id','organ_id');
     }
 
     public function tasks(){
@@ -63,13 +63,12 @@ class Minutes extends Model
             Textarea::make('text')
                 ->label('متن')
             ,
-            Select::make('titleholder')
+            Select::make('organ')
                 ->label('امضا کنندگان')
                 ->required()
-                ->relationship('titleholder', 'name')->multiple()
-                ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->name} - {$record->official} ، {$record->organ()->first('name')->name}")
+                ->relationship('organ', 'name')->multiple()
                 ->searchable()
-                ->preload()->createOptionForm(Titleholder::formSchema()),
+                ->preload()->createOptionForm(Organ::formSchema()),
             Select::make('typer_id')->label('نویسنده')
                 ->relationship('typer', 'name')
                 ->searchable()->preload(),

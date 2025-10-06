@@ -25,9 +25,6 @@ class Titleholder extends Model
         return $this->belongsTo(Organ::class);
     }
 
-    public function minutes(){
-        return $this->belongsToMany(Minutes::class);
-    }
 
     public function Replications(): HasMany
     {

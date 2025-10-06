@@ -27,7 +27,8 @@ class Task extends Model
         'minutes_id',
         'task_group_id',
         'created_by',
-        'Responsible_id'
+        'Responsible_id',
+        'organ_id',
     ];
 
 
@@ -35,6 +36,11 @@ class Task extends Model
     public function project()
     {
         return $this->belongsToMany(Project::class);
+    }
+
+    public function organ(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Organ::class);
     }
 
     public function appendix_others()
@@ -78,7 +84,7 @@ class Task extends Model
     {
         return [
 
-            Forms\Components\TextInput::make('name')->label('عنوان')
+            Forms\Components\Textarea::make('name')->label('عنوان')
                 ->required()
                 ->maxLength(255),
             Forms\Components\Textarea::make('description')->label('توضیحات')
@@ -101,6 +107,8 @@ class Task extends Model
             Forms\Components\Select::make('status')
                 ->options(self::getStatusListDefine())->label('وضعیت')
                 ->default(null),
+            Forms\Components\Select::make('organ_id')->label('دستگاه مربوطه')
+                ->relationship('organ', 'name'),
             Forms\Components\TextInput::make('progress')->numeric()->nullable()
                 ->label('درصد انجام')->minValue(0)
                 ->maxValue(100)->suffix('%'),

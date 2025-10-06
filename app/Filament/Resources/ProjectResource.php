@@ -14,9 +14,11 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Support\RawJs;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -59,8 +61,16 @@ class ProjectResource extends Resource
                 Forms\Components\Select::make('user_id')->label('مسئول')
                     ->relationship('user', 'name')
                     ->searchable()->preload(),
+                Forms\Components\Select::make('city_id')->label('شهر/روستا')
+                    ->relationship('city', 'name')
+                    ->searchable()->preload(),
+                Forms\Components\Select::make('organ_id')->label('دستگاه مربوطه')
+                    ->relationship('organ', 'name')
+                    ->searchable()->preload(),
                 TextInput::make('amount')
-                    ->label('اعتبار اخذ شده')->numeric()->nullable()->suffix('ریال'),
+                    ->label('اعتبار اخذ شده')->numeric()->nullable()->suffix('ریال')
+                    ->mask(RawJs::make('$money($input)'))
+                    ->stripCharacters(','),
             ]);
     }
 
@@ -68,14 +78,22 @@ class ProjectResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')->label('ثبت')
+                    ->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('name')->label("عنوان")
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')->label("توضیحات")
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('user_id')->label("مسئول")
+                Tables\Columns\TextColumn::make('user.name')->label("مسئول"),
+                Tables\Columns\TextColumn::make('city.name')->label("شهر")->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('organ.name')->label("دستگاه اجرایی")->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('وضعیت')
+                    ->badge()
+                    ->color(fn (string $state): string => Project::getStatusColor($state))
                     ->state(function (Model $record): string {
-                        return $record->user()->first('name')->name;
-                    }),
+                        return Project::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
+                Tables\Columns\TextColumn::make('amount')->label('اعتبار')->toggleable()->sortable()->numeric()->suffix('ریال'),
                 Tables\Columns\TextColumn::make('created_at')->label("ایجاد")
                     ->jalaliDateTime()
                     ->sortable()
@@ -85,6 +103,10 @@ class ProjectResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
+                Tables\Columns\TextColumn::make('tasks_count')
+                    ->counts('tasks')->sortable()
+                    ->label('تعداد کارها')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 ProgressBar::make('پیشرفت')
                     ->getStateUsing(function ($record) {
                         $total = $record->required_amount != null ? $record->required_amount : $record->tasks()->count();
@@ -114,7 +136,18 @@ class ProjectResource extends Resource
                         }
 
                         return __('group') . ': ' . implode(', ', ProjectGroup::whereIn('id', $data['group'])->get()->pluck('name')->toArray());
-                    })
+                    }),
+                SelectFilter::make('city_id')
+                    ->label('شهر')->multiple()->preload()
+                    ->relationship('city','name'),
+                SelectFilter::make('organ_id')
+                    ->label('اداره')->multiple()->preload()
+                    ->relationship('organ','name'),
+                SelectFilter::make('status')->multiple()
+                    ->options(Project::getStatusListDefine())->label('وضعیت'),
+                SelectFilter::make('user_id')
+                    ->label('مسئول')->multiple()->preload()
+                    ->relationship('user','name'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

@@ -42,8 +42,9 @@ class OrganResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('id'),
-                TextColumn::make('name')->label('عنوان'),
+                TextColumn::make('id')->searchable()->sortable(),
+                TextColumn::make('name')->label('عنوان')->searchable(),
+                TextColumn::make('type.name')->label('نوع'),
             ])
             ->filters([
                 //

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('text')->nullable();
-            $table->string('file');
+            $table->string('file')->nullable();
             $table->timestamp('date');
             $table->foreignId('typer_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('task_id')->nullable()->constrained('tasks')->nullOnDelete();

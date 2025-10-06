@@ -93,6 +93,10 @@ class TaskResource extends Resource
                     })->toggleable(isToggledHiddenByDefault: true)->sortable(),
             ])
             ->filters([
+                Filter::make('completed')
+                    ->label('انجام شده')->query(fn (Builder  $query): Builder  => $query->where('completed', true)),
+                Filter::make('no completed')
+                    ->label('انجام نشده')->query(fn (Builder  $query): Builder  => $query->where('completed', null)),
                 Filter::make('tree')
                     ->form([
                         SelectTree::make('group')->label('دسته بندی')

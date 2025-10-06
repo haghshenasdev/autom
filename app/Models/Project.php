@@ -15,6 +15,8 @@ class Project extends Model
         'name',
         'description',
         'user_id',
+        'organ_id',
+        'city_id',
         'group_id',
         'required_amount',
         'status',
@@ -24,6 +26,16 @@ class Project extends Model
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function organ(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Organ::class);
+    }
+
+    public function city(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(City::class);
     }
 
     public function tasks(): \Illuminate\Database\Eloquent\Relations\BelongsToMany

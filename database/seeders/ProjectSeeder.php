@@ -33,10 +33,10 @@ class ProjectSeeder extends Seeder
 
         foreach ($projects as $city) {
             $project = Project::create([
-                'name' => $city[0],
+                'name' => $city[0] . '1404',
                 'description' => $city[1],
                 'required_amount' => $city[2],
-                'user_id' => 1, // باید ایجاد آیدی خودکار در مدل را به طور موقط غیر فعال کنی
+                'user_id' => 20, // باید ایجاد آیدی خودکار در مدل را به طور موقط غیر فعال کنی
             ]);
 
             $project->group()->attach(3);

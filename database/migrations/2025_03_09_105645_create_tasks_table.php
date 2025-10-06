@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name',350);
             $table->mediumInteger('status')->nullable();
             $table->mediumInteger('progress')->nullable();
             $table->text('description')->nullable();
@@ -25,6 +25,7 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('Responsible_id')->nullable()->constrained('users')->onDelete('cascade'); // مسئول
             $table->foreignId('city_id')->nullable()->constrained('cities')->nullOnDelete(); // مسئول
+            $table->foreignId('organ_id')->nullable()->constrained('organs')->nullOnDelete(); // محل
             $table->timestamps();
         });
     }
