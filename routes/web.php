@@ -37,6 +37,18 @@ Route::get('/private-dl/{path}',function ($path){
 //    );
 })->middleware('auth')->where('path', '.*');;
 
+Route::get('/private-show/{path}',function ($path){
+    if (!Storage::disk('private')->exists($path)) {
+        abort(404);
+    }
+
+    $path = config('filesystems.disks.private.root') . DIRECTORY_SEPARATOR . $path;
+
+    return response()->file($path,[
+        'Content-Type' => mime_content_type($path),
+    ]);
+})->middleware('auth')->where('path', '.*');;
+
 Route::get('/minutes-dl/{path}',function ($path){
 //    $path = request()->get('path');
     if (!Storage::disk('private2')->exists($path)) {
@@ -54,6 +66,7 @@ Route::get('/minutes-dl/{path}',function ($path){
 //    );
 })->middleware('auth')->where('path', '.*');
 
+
 Route::get('/appendix-other-dl/{path}',function ($path){
 //    $path = request()->get('path');
     if (!Storage::disk('private_appendix_other')->exists($path)) {
@@ -63,6 +76,19 @@ Route::get('/appendix-other-dl/{path}',function ($path){
     $path = config('filesystems.disks.private_appendix_other.root') . DIRECTORY_SEPARATOR . $path;
 
     return response()->file($path);
+})->middleware('auth')->where('path', '.*');
+
+Route::get('/appendix-other-show/{path}',function ($path){
+//    $path = request()->get('path');
+    if (!Storage::disk('private_appendix_other')->exists($path)) {
+        abort(404);
+    }
+
+    $path = config('filesystems.disks.private_appendix_other.root') . DIRECTORY_SEPARATOR . $path;
+
+    return response()->file($path,[
+        'Content-Type' => mime_content_type($path),
+    ]);
 })->middleware('auth')->where('path', '.*');
 
 Route::get('/login',function (){

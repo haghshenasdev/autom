@@ -14,6 +14,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\FontWeight;
 use Filament\Support\RawJs;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
@@ -81,6 +82,7 @@ class ProjectResource extends Resource
                 Tables\Columns\TextColumn::make('id')->label('ثبت')
                     ->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('name')->label("عنوان")
+                    ->weight(FontWeight::Bold)
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')->label("توضیحات")
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),

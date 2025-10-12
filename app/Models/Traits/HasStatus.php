@@ -28,6 +28,19 @@ trait HasStatus
         return $i;
     }
 
+    public static function getKindLabel(int|null $i): int|string
+    {
+        $data = self::getKindListDefine();
+
+        if (array_key_exists($i,$data)){
+            return $data[$i];
+        }elseif (is_null($i)){
+            return '';
+        }
+
+        return $i;
+    }
+
     public static function getStatusColor($stateLabel): string
     {
         return match ($stateLabel) {

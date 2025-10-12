@@ -33,6 +33,11 @@ class Organ extends Model
         return $this->hasMany(Titleholder::class);
     }
 
+    public function letters(): HasMany
+    {
+        return $this->hasMany(letter::class);
+    }
+
 
     public function minutes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {

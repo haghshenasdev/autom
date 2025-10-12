@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Letter;
 use App\Models\Titleholder;
 use Filament\Forms;
+use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Fieldset;
@@ -22,17 +23,23 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\FontWeight;
 use Filament\Tables;
 use Filament\Tables\Actions\ExportBulkAction;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Hugomyb\FilamentMediaAction\Forms\Components\Actions\MediaAction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Date;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Morilog\Jalali\Jalalian;
 
 class LetterResource extends Resource
 {
@@ -59,13 +66,17 @@ class LetterResource extends Resource
                     ->label('شماره ثبت')
                     ->readOnly()
                     ->disabled()
-                    ->hiddenOn('create')
-                ,
+                    ->hiddenOn('create'),
                 Forms\Components\TextInput::make('subject')
-                    ->label('موضوع')
+                    ->label('موضوع')->autocomplete()
                     ->required(),
+                Forms\Components\TextInput::make('mokatebe')
+                    ->label('شماره مکاتبه'),
+                Forms\Components\DateTimePicker::make('created_at')->default(Date::now())->jalali()->label('تاریخ'),
                 Forms\Components\Textarea::make('description')
                     ->label('توضیحات'),
+                Forms\Components\Textarea::make('summary')
+                    ->label('خلاصه'),
                 Forms\Components\Select::make('status')
                     ->options(letter::getStatusListDefine())->label('وضعیت')
                     ->hiddenOn('create')
@@ -81,15 +92,34 @@ class LetterResource extends Resource
                             ->maxLength(255),
                     ])
                 ,
+                Forms\Components\Select::make('kind')
+                    ->options(Letter::getKindListDefine())->label('نوع ورودی')
+                    ->default(1)->required(),
                 Select::make('customers')
                     ->label('صاحب')
+                    ->suffixActions([
+                        Action::make('سابقه')
+                            ->label('دیدن سابقه')
+                            ->url(fn(?Model $record) => $record
+                                ? env('APP_URL') . '/admin/customers/' . $record->id . '/edit'
+                                : '#', shouldOpenInNewTab: true)
+                            ->icon('heroicon-o-arrow-top-right-on-square'),
+                    ])
                     ->multiple()
                     ->required()
-                    ->relationship(null,'name')
-                    ->searchable()
-                    ->getSearchResultsUsing(fn (string $search): array => Customer::query()->where('name', 'like', "%{$search}%")->orWhere('code_melli','like',"%$search%")->selectRaw("id, concat(name, '-', code_melli) as code_name")->limit(10)->pluck('code_name', 'id')->toArray())
-//                    ->getOptionLabelsUsing(fn (array $values): array => Customer::query()->whereIn('id', $values)->selectRaw("id, concat(name, '-', code_melli) as code_name")->pluck('code_name', 'id')->toArray())
-                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->name} {$record->code_melli}")->lazy()
+                    ->relationship('customers','name')
+                    ->searchable(['name','code_melli'])
+                    ->getOptionLabelFromRecordUsing(function (Model $record) {
+                        $lastLetter = $record->letters()->latest('created_at')->first();
+
+                        $subject = $lastLetter?->subject ?? 'بدون موضوع';
+                        $date = $lastLetter?->created_at
+                            ? Jalalian::fromDateTime($lastLetter->created_at)->format('%Y/%m/%d')
+                            : 'بدون تاریخ';
+
+                        return "{$record->name} - {$record->code_melli} - {$subject} - {$date}";
+                    })->optionsLimit(5)
+                    ->lazy()
                     ->createOptionForm([
                         Forms\Components\TextInput::make('name')
                             ->required()
@@ -121,6 +151,53 @@ class LetterResource extends Resource
                         ,
                     ])
                 ,
+                Forms\Components\Select::make('daftar')
+                    ->label('دفتر')
+                    ->relationship('daftar', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                    ->searchable(['id','name'])
+                    ->preload(),
+                Forms\Components\Select::make('organ')
+                    ->label('گیرنده نامه')
+                    ->relationship('organ', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                    ->searchable(['id','name'])
+                    ->preload()
+                    ->createOptionForm([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->label('نام')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('official')
+                            ->required()
+                            ->label('سمت'),
+                        Forms\Components\TextInput::make('phone')
+                            ->label('شماره تماس')
+                            ->tel(),
+                        Forms\Components\Select::make('organ_id')
+                            ->label('اداره')
+                            ->relationship('organ', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->required()
+                                    ->label('نام')
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('address')
+                                    ->label('آدرس'),
+                                Forms\Components\TextInput::make('phone')
+                                    ->label('شماره تماس')
+                                    ->tel(),
+                            ]),
+                    ]),
+                Forms\Components\Select::make('projects')
+                    ->label('پروژه')->multiple()
+                    ->relationship('projects', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                    ->searchable(['projects.id', 'projects.name'])
+                    ->preload(),
                 FileUpload::make('file')
                     ->label('فایل')
                     ->disk('private')
@@ -129,49 +206,15 @@ class LetterResource extends Resource
                     ->visibility('private')
                     ->preserveFilenames()
                     ->imageEditor()
+                    ->hintAction(
+                            Action::make('باز کردن لینک')
+                                ->label('نمایش فایل')
+                                ->url(fn($record) => env('APP_URL').'/private-show/'.$record->getFilePath(), shouldOpenInNewTab: true)
+                                ->color('primary')
+                                ->icon('heroicon-o-arrow-top-right-on-square'),
+                    )
                     ->hiddenOn('create'),
-
                 Section::make('امکانات بیشتر')->schema([
-                    Forms\Components\Select::make('titleholder')
-                        ->label('گیرنده نامه')
-                        ->relationship(null, 'name')
-                        ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->name} - {$record->official} ، {$record->organ()->first('name')->name}")
-                        ->searchable()
-                        ->preload()
-                        ->createOptionForm([
-                            Forms\Components\TextInput::make('name')
-                                ->required()
-                                ->label('نام')
-                                ->maxLength(255),
-                            Forms\Components\TextInput::make('official')
-                                ->required()
-                                ->label('سمت'),
-                            Forms\Components\TextInput::make('phone')
-                                ->label('شماره تماس')
-                                ->tel(),
-                            Forms\Components\Select::make('organ_id')
-                                ->label('اداره')
-                                ->relationship('organ', 'name')
-                                ->searchable()
-                                ->preload()
-                                ->required()
-                                ->createOptionForm([
-                                    Forms\Components\TextInput::make('name')
-                                        ->required()
-                                        ->label('نام')
-                                        ->maxLength(255),
-                                    Forms\Components\TextInput::make('address')
-                                        ->label('آدرس'),
-                                    Forms\Components\TextInput::make('phone')
-                                        ->label('شماره تماس')
-                                        ->tel(),
-                                ]),
-                        ]),
-                    Forms\Components\Select::make('projects')
-                        ->label('پروژه')->multiple()
-                        ->relationship('projects', 'name')
-                        ->searchable()
-                        ->preload(),
                     Forms\Components\Select::make('cartables')
                         ->label('گیرنده درخواست (افزودن به کارپوشه)')
                         ->relationship('users', 'name')
@@ -180,7 +223,8 @@ class LetterResource extends Resource
                     Forms\Components\Select::make('peiroow_letter_id')
                         ->label('پیرو')
                         ->relationship('letter', 'subject')
-                        ->searchable()
+                        ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->subject}")
+                        ->searchable(['id','subject'])
                         ->preload()
                     ,
                 ])->collapsed(),
@@ -192,25 +236,35 @@ class LetterResource extends Resource
         return $table->defaultSort('id','desc')
             ->columns([
                 TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
-                TextColumn::make('subject')->label('موضوع')->searchable(),
-                TextColumn::make('customer_id')->label('صاحب')
-                    ->html()->alignCenter()
+                TextColumn::make('subject')->label('موضوع')
+                    ->weight(FontWeight::Bold)
+                    ->words(10)->searchable(),
+                TextColumn::make('customers.name')->label('صاحب')
+                    ->toggleable(isToggledHiddenByDefault: true)->sortable(),
+                TextColumn::make('organ.name')->label('گیرنده نامه')
+                    ->toggleable(isToggledHiddenByDefault: false)
+                    ->sortable(),
+                TextColumn::make('daftar.name')->label('دفتر')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->sortable(),
+                TextColumn::make('projects.name')->label('پروژه')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->listWithLineBreaks()->sortable(),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('وضعیت')
+                    ->badge()
+                    ->color(fn (string $state): string => Letter::getStatusColor($state))
                     ->state(function (Model $record): string {
-                    $customers = $record->customers()->get(['name','code_melli']);
-                    $string = '';
-                    foreach ($customers as $customer){
-                        $string .= $customer->name .'-'. $customer->code_melli . "<br>";
-                    }
-                    return $string;
-                }),
-                TextColumn::make('status')->label('وضعیت')->state(function (Model $record): string {
-                    return letter::getStatusLabel($record->status);
-                })->toggleable(isToggledHiddenByDefault: true),
+                        return Letter::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
+                TextColumn::make('kind')->label('نوع ورودی')->sortable()
+                    ->state(function (Model $record): string {
+                        return letter::getKindLabel($record->kind);
+                    })->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('type.name')->label('نوع')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('user.name')->label('ثبت کننده')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
                 Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-            ])
+        ])
             ->filters([
                 SelectFilter::make('customers')
                     ->label('صاحب')
@@ -227,13 +281,18 @@ class LetterResource extends Resource
                 SelectFilter::make('status')
                     ->options(letter::getStatusListDefine())->label('وضعیت')
                 ,
-                SelectFilter::make('titleholder')
+                SelectFilter::make('organ')
                     ->label('گیرنده نامه')
-                    ->relationship('titleholder', 'name')
-                    ->getOptionLabelsUsing(fn (Model $record) => "{$record->name} - {$record->official} ، {$record->organ()->first('name')->name}")
-                    ->searchable()
+                    ->relationship('organ', 'name')
+                    ->getOptionLabelsUsing(fn (Model $record) => "{$record->id} - {$record->name}}")
+                    ->searchable(['id','name'])
                     ->preload()
                 ,
+                SelectFilter::make('daftar')->label('دفتر')
+                    ->relationship('daftar', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                    ->searchable(['id','name'])
+                    ->preload(),
                 Filter::make('created_at')
                     ->form([
                         Fieldset::make('تاریخ ایجاد')->schema([
@@ -276,6 +335,7 @@ class LetterResource extends Resource
             RelationManagers\AppendixRelationManager::class,
             RelationManagers\ReferralsRelationManager::class,
             RelationManagers\ReplicationsRelationManager::class,
+            RelationManagers\LetterProjectRelationManager::class,
         ];
     }
 

@@ -11,15 +11,33 @@ return new class extends Migration
      */
     public function up(): void
     {
+//        Schema::create('letters', function (Blueprint $table) {
+//            $table->id();
+//            $table->string('subject')->index();
+//            $table->string('description')->nullable();
+//            $table->string('file')->nullable();
+//            $table->foreignId('type_id')->nullable()->constrained('types')->nullOnDelete();
+//            $table->mediumInteger('status')->nullable();
+//            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+//            $table->foreignId('titleholder_id')->nullable()->constrained('titleholders')->nullOnDelete();
+//            $table->foreignId('peiroow_letter_id')->nullable()->constrained('letters')->nullOnDelete();
+//            $table->timestamps();
+//        });
+
+
         Schema::create('letters', function (Blueprint $table) {
             $table->id();
-            $table->string('subject')->index();
-            $table->string('description')->nullable();
+            $table->string('subject',500)->index();
+            $table->text('description')->nullable();
+            $table->string('summary',1000)->nullable();
             $table->string('file')->nullable();
+            $table->string('mokatebe',25)->nullable(); // شماره مکاتبه
+            $table->tinyInteger('kind'); // صادره یا وراده
             $table->foreignId('type_id')->nullable()->constrained('types')->nullOnDelete();
             $table->mediumInteger('status')->nullable();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('titleholder_id')->nullable()->constrained('titleholders')->nullOnDelete();
+            $table->foreignId('organ_id')->nullable()->constrained('organs')->nullOnDelete();
+            $table->foreignId('daftar_id')->nullable()->constrained('organs')->nullOnDelete();
             $table->foreignId('peiroow_letter_id')->nullable()->constrained('letters')->nullOnDelete();
             $table->timestamps();
         });

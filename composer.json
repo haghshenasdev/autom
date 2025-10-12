@@ -18,6 +18,7 @@
         "filament/notifications": "^3.3",
         "flowframe/laravel-trend": "^0.4.0",
         "guzzlehttp/guzzle": "^7.2",
+        "hugomyb/filament-media-action": "v3.1.1.9",
         "ibrahim-bougaoua/filaprogress": "^0.1.0",
         "jaocero/filachat": "^0.2.0@alpha",
         "jeffgreco13/filament-breezy": "^2.6",
@@ -30,7 +31,8 @@
         "phpsa/filament-password-reveal": "^2.0",
         "pxlrbt/filament-excel": "^2.1",
         "rmsramos/activitylog": "^2.0",
-        "saade/filament-fullcalendar": "3.0"
+        "saade/filament-fullcalendar": "3.0",
+        "ext-fileinfo": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",

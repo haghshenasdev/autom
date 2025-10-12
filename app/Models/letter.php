@@ -21,6 +21,7 @@ class letter extends Model
         'file',
         'type_id',
         'status',
+        'kind',
         'user_id',
         'titleholder_id',
         'peiroow_letter_id',
@@ -29,6 +30,15 @@ class letter extends Model
     public function letter(): BelongsTo
     {
         return $this->belongsTo(letter::class,'peiroow_letter_id');
+    }
+
+
+    public static function getKindListDefine(): array
+    {
+        return [
+            0 => 'وارده',
+            1 => 'صادره',
+        ];
     }
 
     public function customers(): BelongsToMany
@@ -51,9 +61,14 @@ class letter extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function titleholder(): BelongsTo
+    public function organ(): BelongsTo
     {
-        return $this->belongsTo(Titleholder::class);
+        return $this->belongsTo(Organ::class);
+    }
+
+    public function daftar(): BelongsTo
+    {
+        return $this->belongsTo(Organ::class,'daftar_id')->where('organ_type_id',20);
     }
 
     public function Answer(): HasMany

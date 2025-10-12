@@ -31,6 +31,10 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
+            ->brandLogo(asset('karnama.png'))
+            ->brandLogoHeight('4rem')
+            ->favicon(asset('karnama2.png'))
+            ->sidebarCollapsibleOnDesktop()
             ->path('admin')
             ->login()
             ->colors([

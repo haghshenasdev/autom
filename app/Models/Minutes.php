@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Traits\FileEventHandler;
 use CodeWithDennis\FilamentSelectTree\SelectTree;
+use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
@@ -82,6 +83,13 @@ class Minutes extends Model
                 ->visibility('private')
                 ->imageEditor()
                 ->required()
+                ->hintAction(
+                    Action::make('باز کردن لینک')
+                        ->label('نمایش فایل')
+                        ->url(fn($record) => env('APP_URL').'/appendix-other-show/'.$record->getFilePath(), shouldOpenInNewTab: true)
+                        ->color('primary')
+                        ->icon('heroicon-o-arrow-top-right-on-square'),
+                )
                 ->getUploadedFileNameForStorageUsing( fn (TemporaryUploadedFile $file,?Model $record) => self::getFileNamePath($file,$record)),
             SelectTree::make('group_id')->label('دسته بندی')
                 ->relationship('group', 'name', 'parent_id')

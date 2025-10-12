@@ -15,6 +15,7 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
+use Hugomyb\FilamentMediaAction\Tables\Actions\MediaAction;
 use IbrahimBougaoua\FilaProgress\Tables\Columns\ProgressBar;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -104,6 +105,8 @@ class MinutesResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                MediaAction::make('media-url')
+                    ->media(fn($record) => env('APP_URL').'/appendix-other-dl/'.$record->getFilePath())
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

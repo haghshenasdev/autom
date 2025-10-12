@@ -58,7 +58,7 @@ class AppendixOthersRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('title')
             ->columns([
-                Tables\Columns\TextColumn::make('title'),
+                Tables\Columns\TextColumn::make('title')->label('عنوان'),
             ])
             ->filters([
                 //
@@ -68,6 +68,11 @@ class AppendixOthersRelationManager extends RelationManager
                 Tables\Actions\AssociateAction::make(),
             ])
             ->actions([
+                Tables\Actions\Action::make('باز کردن لینک')
+                    ->label('نمایش فایل')
+                    ->url(fn($record) => env('APP_URL').'/appendix-other-show/'.$record->getFilePath(), shouldOpenInNewTab: true)
+                    ->color('primary')
+                    ->icon('heroicon-o-arrow-top-right-on-square'),
                 Tables\Actions\EditAction::make()->mutateRecordDataUsing(function (array $data){
                     $data['file'] = $this->cachedMountedTableActionRecord->getFilePath($this->ownerRecord->id);
                     return $data;
