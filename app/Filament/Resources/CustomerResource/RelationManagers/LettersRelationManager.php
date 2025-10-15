@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\CustomerResource\RelationManagers;
 
 use App\Filament\Resources\LetterResource;
-use App\Models\letter;
+use App\Models\Letter;
 use App\Models\Referral;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -46,7 +46,7 @@ class LettersRelationManager extends RelationManager
                 TextColumn::make('id')->label('ثبت')->searchable(),
                 TextColumn::make('subject')->label('موضوع')->searchable(),
                 TextColumn::make('status')->label('وضعیت')->state(function (Model $record): string {
-                    return letter::getStatusLabel($record->status);
+                    return Letter::getStatusLabel($record->status);
                 }),
                 TextColumn::make('type.name')->label('نوع'),
                 TextColumn::make('user.name')->label('ثبت کننده'),
@@ -60,7 +60,7 @@ class LettersRelationManager extends RelationManager
             ])
             ->actions([
                 Action::make('Open')->label('نمایش نامه')
-                    ->url(fn (letter $record): string => LetterResource::getUrl('edit',[$record->id]))
+                    ->url(fn (Letter $record): string => LetterResource::getUrl('edit',[$record->id]))
                     ->openUrlInNewTab(),
                 Tables\Actions\DeleteAction::make(),
             ])

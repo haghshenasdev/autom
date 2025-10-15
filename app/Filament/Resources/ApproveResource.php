@@ -5,7 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ApproveResource\Pages;
 use App\Filament\Resources\ApproveResource\RelationManagers;
 use App\Models\Approve;
-use App\Models\letter;
+use App\Models\Letter;
 use App\Models\Minutes;
 use Filament\Forms;
 use Filament\Forms\Components\Select;

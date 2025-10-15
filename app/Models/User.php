@@ -56,7 +56,7 @@ class User extends Authenticatable implements HasAvatar
 
     public function letters(): BelongsToMany
     {
-        return $this->belongsToMany(letter::class,'cartables');
+        return $this->belongsToMany(Letter::class,'cartables');
     }
 
     public function referral(): HasMany

@@ -38,12 +38,12 @@ class Organ extends Model
 
     public function letters(): HasMany
     {
-        return $this->hasMany(letter::class);
+        return $this->hasMany(Letter::class);
     }
 
     public function letters_owner(): \Illuminate\Database\Eloquent\Relations\MorphToMany
     {
-        return $this->morphToMany(letter::class, 'owner','owner_letter');
+        return $this->morphToMany(Letter::class, 'owner','owner_letter');
     }
 
 

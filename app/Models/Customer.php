@@ -28,6 +28,6 @@ class Customer extends Model
 
     public function letters(): \Illuminate\Database\Eloquent\Relations\MorphToMany
     {
-        return $this->morphToMany(letter::class, 'owner','owner_letter');
+        return $this->morphToMany(Letter::class, 'owner','owner_letter');
     }
 }

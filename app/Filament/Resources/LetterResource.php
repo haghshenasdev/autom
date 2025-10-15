@@ -85,7 +85,7 @@ class LetterResource extends Resource
                 Forms\Components\Textarea::make('summary')
                     ->label('خلاصه (هامش)'),
                 Forms\Components\Select::make('status')
-                    ->options(letter::getStatusListDefine())->label('وضعیت')
+                    ->options(Letter::getStatusListDefine())->label('وضعیت')
                     ->hiddenOn('create')
                     ->default(null)
                 ,
@@ -324,7 +324,7 @@ class LetterResource extends Resource
                         return Letter::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
                 TextColumn::make('kind')->label('نوع ورودی')->sortable()
                     ->state(function (Model $record): string {
-                        return letter::getKindLabel($record->kind);
+                        return Letter::getKindLabel($record->kind);
                     })->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('type.name')->label('نوع')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('user.name')->label('ثبت کننده')->toggleable(isToggledHiddenByDefault: true),
@@ -345,7 +345,7 @@ class LetterResource extends Resource
                     ->label('نوع')
                 ,
                 SelectFilter::make('status')
-                    ->options(letter::getStatusListDefine())->label('وضعیت')
+                    ->options(Letter::getStatusListDefine())->label('وضعیت')
                 ,
                 SelectFilter::make('organ')
                     ->label('گیرنده نامه')

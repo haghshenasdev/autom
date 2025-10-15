@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\ProjectResource\RelationManagers;
 
-use App\Models\letter;
+use App\Models\Letter;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -53,7 +53,7 @@ class LettersRelationManager extends RelationManager
                         return $string;
                     }),
                 TextColumn::make('status')->label('وضعیت')->state(function (Model $record): string {
-                    return letter::getStatusLabel($record->status);
+                    return Letter::getStatusLabel($record->status);
                 }),
                 TextColumn::make('type.name')->label('نوع'),
             ])

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\LetterResource\RelationManagers;
 
-use App\Models\letter;
+use App\Models\Letter;
 use App\Models\Project;
 use Filament\Forms;
 use Filament\Forms\Components\Select;

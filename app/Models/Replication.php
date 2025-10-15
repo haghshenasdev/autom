@@ -17,7 +17,7 @@ class Replication extends Model
 
     public function letter(): BelongsTo
     {
-        return $this->belongsTo(letter::class);
+        return $this->belongsTo(Letter::class);
     }
 
     public function organ(): BelongsTo

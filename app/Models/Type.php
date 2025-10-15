@@ -19,6 +19,6 @@ class Type extends Model
 
     public function letter(): HasMany
     {
-        return $this->hasMany(letter::class);
+        return $this->hasMany(Letter::class);
     }
 }

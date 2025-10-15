@@ -17,6 +17,6 @@ class Cartable extends Model
 
     public function letter()
     {
-        return $this->belongsTo(letter::class);
+        return $this->belongsTo(Letter::class);
     }
 }

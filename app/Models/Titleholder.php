@@ -33,7 +33,7 @@ class Titleholder extends Model
 
     public function letters(): HasMany
     {
-        return $this->hasMany(letter::class);
+        return $this->hasMany(Letter::class);
     }
 
     public static function formSchema()

@@ -5,7 +5,7 @@ namespace App\Filament\Widgets;
 use App\Filament\Resources\LetterResource;
 use App\Filament\Resources\ReferralResource;
 use App\Filament\Resources\TaskResource;
-use App\Models\letter;
+use App\Models\Letter;
 use App\Models\Referral;
 use App\Models\Task;
 use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;

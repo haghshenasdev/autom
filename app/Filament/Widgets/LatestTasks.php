@@ -3,7 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\TaskResource;
-use App\Models\letter;
+use App\Models\Letter;
 use App\Models\Task;
 use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Carbon\Carbon;

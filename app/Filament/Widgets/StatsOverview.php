@@ -4,7 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Approve;
 use App\Models\Customer;
-use App\Models\letter;
+use App\Models\Letter;
 use App\Models\Minutes;
 use App\Models\Project;
 use App\Models\Task;
@@ -21,7 +21,7 @@ class StatsOverview extends BaseWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('تعداد نامه ها', $this->formatShortNumber(letter::query()->count()))->icon('heroicon-o-envelope'),
+            Stat::make('تعداد نامه ها', $this->formatShortNumber(Letter::query()->count()))->icon('heroicon-o-envelope'),
             Stat::make('مراجعه کننده ها', $this->formatShortNumber(Customer::query()->count()))->icon('heroicon-o-user'),
             Stat::make('تعداد پروژه ها', $this->formatShortNumber(Project::query()->count()))->icon('heroicon-o-archive-box'),
             Stat::make('کار یا جلسه', $this->formatShortNumber(Task::query()->count()))->icon('heroicon-o-briefcase'),
