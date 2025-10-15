@@ -33,9 +33,9 @@ class AppendixOther extends Model
     public static function formSchema() : array
     {
         return [
-            TextInput::make('title')
+            TextInput::make('title')->label('عنوان')
                 ->maxLength(255),
-            TextInput::make('description')
+            TextInput::make('description')->label('توضیحات')
                 ->maxLength(255),
         ];
     }

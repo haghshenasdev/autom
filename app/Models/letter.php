@@ -10,10 +10,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\File;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class letter extends Model
 {
-    use HasFactory,HasStatus;
+    use HasFactory,HasStatus,LogsActivity;
 
     protected $fillable = [
         'subject',
@@ -41,9 +43,14 @@ class letter extends Model
         ];
     }
 
-    public function customers(): BelongsToMany
+    public function customers()
     {
-        return $this->belongsToMany(Customer::class);
+        return $this->morphedByMany(Customer::class, 'owner','owner_letter');
+    }
+
+    public function organs_owner()
+    {
+        return $this->morphedByMany(Organ::class, 'owner','owner_letter');
     }
 
     public function users(): BelongsToMany
@@ -87,7 +94,7 @@ class letter extends Model
     }
     public function projects()
     {
-        return $this->belongsToMany(Project::class, 'letter_project');
+        return $this->belongsToMany(Project::class, 'letter_project')->withPivot('summary');
     }
 
     public function Appendix(): HasMany
@@ -126,4 +133,8 @@ class letter extends Model
         });
     }
 
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults();
+    }
 }

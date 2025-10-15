@@ -36,5 +36,4 @@ class EditLetter extends EditRecord
 
         return $data;
     }
-
 }

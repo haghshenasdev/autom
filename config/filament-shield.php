@@ -68,14 +68,19 @@ return [
         'enabled' => true,
 
         'pages' => [
-            'Dashboard',
+            'Dashboard',\App\Filament\Pages\Calendar::class,\App\Filament\Pages\SendNotification::class,
         ],
 
         'widgets' => [
-            'AccountWidget', 'FilamentInfoWidget',
+            'AccountWidget', 'FilamentInfoWidget',\App\Filament\Widgets\lastReferralTablewidget::class,\App\Filament\Widgets\LatestTasks::class,
+            \App\Filament\Widgets\StatsOverview::class
         ],
 
-        'resources' => [],
+        'resources' => [
+            \App\Filament\Resources\ApproveResource::class,
+            \App\Filament\Resources\MinutesResource::class,
+
+        ],
     ],
 
     'discovery' => [

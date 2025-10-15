@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\User;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Components\Select;
@@ -16,7 +17,7 @@ use Illuminate\Contracts\View\View;
 
 class SendNotification extends Page implements HasForms
 {
-    use InteractsWithForms;
+    use InteractsWithForms, HasPageShield;
 
     // عنوان‌های ناوبری/صفحه (اینها protected هستند و نباید مستقیماً دسترسی داده شوند)
     protected static ?string $navigationLabel = 'ارسال نوتیفیکیشن';

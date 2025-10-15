@@ -96,7 +96,7 @@ trait FileEventHandler
     {
         File::delete(
             self::getRootPath()
-            . $model->getFilePath()
+            . $model->getFilePath($model->getOriginal('letter_id'))
         );
     }
 }

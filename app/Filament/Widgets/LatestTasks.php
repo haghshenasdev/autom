@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Filament\Resources\TaskResource;
 use App\Models\letter;
 use App\Models\Task;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Carbon\Carbon;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
@@ -16,6 +17,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class LatestTasks extends BaseWidget
 {
+
+    use HasWidgetShield;
+
     protected static ?int $sort = 2;
     protected static ?string $heading= 'آخرین کار ها';
 

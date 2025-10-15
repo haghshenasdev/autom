@@ -5,11 +5,14 @@ namespace App\Models;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Organ extends Model
 {
-    use HasFactory;
+    use HasFactory,LogsActivity;
 
     protected $fillable = [
         'name',
@@ -38,6 +41,11 @@ class Organ extends Model
         return $this->hasMany(letter::class);
     }
 
+    public function letters_owner(): \Illuminate\Database\Eloquent\Relations\MorphToMany
+    {
+        return $this->morphToMany(letter::class, 'owner','owner_letter');
+    }
+
 
     public function minutes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
@@ -62,5 +70,10 @@ class Organ extends Model
                 ->label('شماره تماس')
                 ->tel(),
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults();
     }
 }

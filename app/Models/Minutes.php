@@ -11,14 +11,19 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\File;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Minutes extends Model
 {
-    use HasFactory;
+    use HasFactory,LogsActivity;
 
     protected $fillable = [
         'title',
@@ -64,12 +69,45 @@ class Minutes extends Model
             Textarea::make('text')
                 ->label('متن')
             ,
+//            Select::make('organ')
+//                ->label('امضا کنندگان')
+//                ->required()
+//                ->relationship('organ', 'name')->multiple()
+//                ->searchable()
+//                ->preload()->createOptionForm(Organ::formSchema()),
+
             Select::make('organ')
-                ->label('امضا کنندگان')
-                ->required()
-                ->relationship('organ', 'name')->multiple()
-                ->searchable()
-                ->preload()->createOptionForm(Organ::formSchema()),
+                ->prefixActions([
+                    Action::make('updateAuthor')
+                        ->icon('heroicon-o-arrows-pointing-out')
+                        ->label('انتخاب بر اساس نوع')
+                        ->action(function (array $data,Set $set,Get $get): void {
+                            $organ_owners = $get('organ');
+                            $set('organ', array_merge($organ_owners,$data['organ_selected']));
+                        })
+                        ->form([
+                            Select::make('organ_type_id')
+                                ->label('نوع')
+                                ->options(OrganType::query()->pluck('name', 'id'))
+                                ->live()
+                                ->searchable()
+                                ->required(),
+                            Select::make('organ_selected')
+                                ->label('ارگان')
+                                ->options(fn (Get $get) => $get('organ_type_id')
+                                    ? Organ::where('organ_type_id', $get('organ_type_id'))->pluck('name', 'id')
+                                    : [])
+                                ->multiple()
+                                ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                                ->searchable()
+                                ->preload()
+                        ])
+                ])
+                ->relationship('organ','name')
+                ->multiple()
+                ->searchable(['name','id'])
+                ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                ->label('امضا کنندگان'),
             Select::make('typer_id')->label('نویسنده')
                 ->relationship('typer', 'name')
                 ->searchable()->preload(),
@@ -86,7 +124,7 @@ class Minutes extends Model
                 ->hintAction(
                     Action::make('باز کردن لینک')
                         ->label('نمایش فایل')
-                        ->url(fn($record) => env('APP_URL').'/appendix-other-show/'.$record->getFilePath(), shouldOpenInNewTab: true)
+                        ->url(fn($record) => $record ? env('APP_URL').'/appendix-other-show/'.$record->getFilePath() : null, shouldOpenInNewTab: true)
                         ->color('primary')
                         ->icon('heroicon-o-arrow-top-right-on-square'),
                 )
@@ -94,7 +132,7 @@ class Minutes extends Model
             SelectTree::make('group_id')->label('دسته بندی')
                 ->relationship('group', 'name', 'parent_id')
                 ->enableBranchNode()->createOptionForm(MinutesGroup::formSchema()),
-            DateTimePicker::make('date')->default(Date::now())->jalali()->label('تاریخ')->required(),
+            DateTimePicker::make('date')->default(Date::now())->jalali()->label('تاریخ')->required()->closeOnDateSelection(),
         ];
     }
 
@@ -160,9 +198,14 @@ class Minutes extends Model
         });
 
         static::updating(function (Minutes $model) {
-            self::BootFileUpdateEvent($model);
+            if (!is_null($model->getOriginal('file')) && $model->file != $model->getOriginal('file')) {
+                File::delete(
+                    self::getRootPath() .
+                    self::getFilePathByArray($model->id,$model->getOriginal(),$model->appendix_other_type ?? null)
+                );
+                if (str_contains($model->file,'.')) self::renameFile($model);
+            }
         });
-
         static::deleting(function (Minutes $model) {
             $model->appendix_others()->each(function ($appendix_other) {
                 $appendix_other->delete();
@@ -170,5 +213,9 @@ class Minutes extends Model
         });
     }
 
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults();
+    }
 
 }

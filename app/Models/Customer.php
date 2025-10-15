@@ -26,8 +26,8 @@ class Customer extends Model
         return $this->belongsTo(City::class);
     }
 
-    public function letters(): BelongsToMany
+    public function letters(): \Illuminate\Database\Eloquent\Relations\MorphToMany
     {
-        return $this->belongsToMany(letter::class);
+        return $this->morphToMany(letter::class, 'owner','owner_letter');
     }
 }

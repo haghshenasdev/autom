@@ -8,6 +8,7 @@ use App\Filament\Resources\TaskResource;
 use App\Models\letter;
 use App\Models\Referral;
 use App\Models\Task;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class lastReferralTablewidget extends BaseWidget
 {
+
+    use HasWidgetShield;
 
     protected static ?int $sort = 2;
     protected static ?string $heading= 'آخرین ارجاع ها';

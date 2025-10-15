@@ -9,19 +9,24 @@ use App\Filament\Resources\LetterResource\Pages;
 use App\Filament\Resources\LetterResource\RelationManagers;
 use App\Models\Customer;
 use App\Models\Letter;
+use App\Models\Organ;
+use App\Models\OrganType;
 use App\Models\Titleholder;
+use Closure;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\MorphToSelect;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\FontWeight;
 use Filament\Tables;
@@ -72,11 +77,13 @@ class LetterResource extends Resource
                     ->required(),
                 Forms\Components\TextInput::make('mokatebe')
                     ->label('شماره مکاتبه'),
-                Forms\Components\DateTimePicker::make('created_at')->default(Date::now())->jalali()->label('تاریخ'),
+                Forms\Components\DateTimePicker::make('created_at')
+                    ->closeOnDateSelection()
+                    ->default(Date::now())->jalali()->label('تاریخ'),
                 Forms\Components\Textarea::make('description')
                     ->label('توضیحات'),
                 Forms\Components\Textarea::make('summary')
-                    ->label('خلاصه'),
+                    ->label('خلاصه (هامش)'),
                 Forms\Components\Select::make('status')
                     ->options(letter::getStatusListDefine())->label('وضعیت')
                     ->hiddenOn('create')
@@ -95,69 +102,126 @@ class LetterResource extends Resource
                 Forms\Components\Select::make('kind')
                     ->options(Letter::getKindListDefine())->label('نوع ورودی')
                     ->default(1)->required(),
-                Select::make('customers')
-                    ->label('صاحب')
-                    ->suffixActions([
-                        Action::make('سابقه')
-                            ->label('دیدن سابقه')
-                            ->url(fn(?Model $record) => $record
-                                ? env('APP_URL') . '/admin/customers/' . $record->id . '/edit'
-                                : '#', shouldOpenInNewTab: true)
-                            ->icon('heroicon-o-arrow-top-right-on-square'),
-                    ])
-                    ->multiple()
-                    ->required()
-                    ->relationship('customers','name')
-                    ->searchable(['name','code_melli'])
-                    ->getOptionLabelFromRecordUsing(function (Model $record) {
-                        $lastLetter = $record->letters()->latest('created_at')->first();
-
-                        $subject = $lastLetter?->subject ?? 'بدون موضوع';
-                        $date = $lastLetter?->created_at
-                            ? Jalalian::fromDateTime($lastLetter->created_at)->format('%Y/%m/%d')
-                            : 'بدون تاریخ';
-
-                        return "{$record->name} - {$record->code_melli} - {$subject} - {$date}";
-                    })->optionsLimit(5)
-                    ->lazy()
-                    ->createOptionForm([
-                        Forms\Components\TextInput::make('name')
-                            ->required()
-                            ->label('نام و نام خانوادگی')
-                            ->maxLength(255),
-                        Forms\Components\TextInput::make('code_melli')
-                            ->required()
-                            ->unique()
-                            ->numeric()
-                            ->label('کد ملی'),
-                        Forms\Components\DatePicker::make('birth_date')
-                            ->label('تاریخ تولد')->jalali()
-                        ,
-                        Forms\Components\TextInput::make('phone')
-                            ->label('شماره تماس')
-                            ->required()
-                            ->tel(),
-                        Forms\Components\Select::make('city_id')
-                            ->label('شهر')
-                            ->relationship('city', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->required()
-                                    ->label('نام شهر')
-                                ,
-                            ])
-                        ,
-                    ])
-                ,
                 Forms\Components\Select::make('daftar')
                     ->label('دفتر')
                     ->relationship('daftar', 'name')
                     ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
                     ->searchable(['id','name'])
                     ->preload(),
+                Fieldset::make('owner')->label('صاحب')
+                    ->schema([
+                        Select::make('organs_owner')
+                            ->prefixActions([
+                                Action::make('updateAuthor')
+                                    ->icon('heroicon-o-arrows-pointing-out')
+                                    ->label('انتخاب بر اساس نوع')
+                                    ->action(function (array $data,Forms\Set $set,Forms\Get $get): void {
+                                        $organ_owners = $get('organs_owner');
+                                        $set('organs_owner', array_merge($organ_owners,$data['organ_selected_owner']));
+                                    })
+                                    ->form([
+                                        Select::make('organ_type_id')
+                                            ->label('نوع')
+                                            ->options(OrganType::query()->pluck('name', 'id'))
+                                            ->live()
+                                            ->searchable()
+                                            ->required(),
+                                        Forms\Components\Select::make('organ_selected_owner')
+                                            ->label('ارگان')
+                                            ->options(fn (Get $get) => $get('organ_type_id')
+                                                ? Organ::where('organ_type_id', $get('organ_type_id'))->pluck('name', 'id')
+                                                : [])
+                                            ->multiple()
+                                            ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                                            ->searchable()
+                                            ->preload()
+                                    ])
+                            ])
+                            ->relationship('organs_owner','name')
+                            ->multiple()
+                            ->searchable(['name','id'])
+                            ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                            ->label('صاحب - ارگان'),
+                        Select::make('customers')
+                            ->label('صاحب - شخص')
+                            ->suffixActions([
+                                Action::make('سابقه')
+                                    ->label('دیدن سابقه')
+                                    ->url(fn(?Model $record) => $record
+                                        ? env('APP_URL') . '/admin/customers/' . $record->id . '/edit'
+                                        : '#', shouldOpenInNewTab: true)
+                                    ->icon('heroicon-o-arrow-top-right-on-square'),
+                            ])
+                            ->multiple()
+                            ->relationship('customers','name')
+                            ->searchable(['name','code_melli'])
+                            ->getOptionLabelFromRecordUsing(function (Model $record) {
+                                $lastLetter = $record->letters()->latest('created_at')->first();
+
+                                $subject = $lastLetter?->subject ?? 'بدون موضوع';
+                                $date = $lastLetter?->created_at
+                                    ? Jalalian::fromDateTime($lastLetter->created_at)->format('%Y/%m/%d')
+                                    : 'بدون تاریخ';
+
+                                return "{$record->name} - {$record->code_melli} - {$subject} - {$date}";
+                            })->optionsLimit(5)
+                            ->lazy()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->required()
+                                    ->label('نام و نام خانوادگی')
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('code_melli')
+                                    ->required()
+                                    ->unique()
+                                    ->numeric()
+                                    ->label('کد ملی'),
+                                Forms\Components\DatePicker::make('birth_date')
+                                    ->label('تاریخ تولد')->jalali()
+                                ,
+                                Forms\Components\TextInput::make('phone')
+                                    ->label('شماره تماس')
+                                    ->required()
+                                    ->tel(),
+                                Forms\Components\Select::make('city_id')
+                                    ->label('شهر')
+                                    ->relationship('city', 'name')
+                                    ->searchable()
+                                    ->preload()
+                                    ->createOptionForm([
+                                        Forms\Components\TextInput::make('name')
+                                            ->required()
+                                            ->label('نام شهر')
+                                        ,
+                                    ])
+                                ,
+                            ]),
+                    ]),
                 Forms\Components\Select::make('organ')
+                    ->prefixActions([
+                        Action::make('updateAuthor')
+                            ->icon('heroicon-o-arrows-pointing-out')
+                            ->label('انتخاب بر اساس نوع')
+                            ->action(function (array $data,Forms\Set $set): void {
+                                $set('organ', $data['organ_selected']);
+                            })
+                            ->form([
+                                Select::make('organ_type_id')
+                                    ->label('نوع')
+                                    ->options(OrganType::query()->pluck('name', 'id'))
+                                    ->live()
+                                    ->searchable()
+                                    ->required(),
+                                Forms\Components\Select::make('organ_selected')
+                                    ->label('ارگان')
+                                    ->options(fn (Get $get) => $get('organ_type_id')
+                                        ? Organ::where('organ_type_id', $get('organ_type_id'))->pluck('name', 'id')
+                                        : [])
+                                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                                    ->searchable()
+                                    ->preload()
+                            ])
+                    ])
                     ->label('گیرنده نامه')
                     ->relationship('organ', 'name')
                     ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
@@ -239,7 +303,9 @@ class LetterResource extends Resource
                 TextColumn::make('subject')->label('موضوع')
                     ->weight(FontWeight::Bold)
                     ->words(10)->searchable(),
-                TextColumn::make('customers.name')->label('صاحب')
+                TextColumn::make('customers.name')->label('صاحب - مراجعه کننده')
+                    ->toggleable(isToggledHiddenByDefault: true)->sortable(),
+                TextColumn::make('organs_owner.name')->label('صاحب - ارگان')
                     ->toggleable(isToggledHiddenByDefault: true)->sortable(),
                 TextColumn::make('organ.name')->label('گیرنده نامه')
                     ->toggleable(isToggledHiddenByDefault: false)
@@ -354,7 +420,5 @@ class LetterResource extends Resource
 
         return $data;
     }
-
-
 
 }

@@ -11,7 +11,7 @@ class Replication extends Model
     use HasFactory;
 
     protected $fillable = [
-        'titleholder_id',
+        'organ_id',
         'letter_id',
     ];
 
@@ -20,8 +20,8 @@ class Replication extends Model
         return $this->belongsTo(letter::class);
     }
 
-    public function titleholder(): BelongsTo
+    public function organ(): BelongsTo
     {
-        return $this->belongsTo(Titleholder::class);
+        return $this->belongsTo(Organ::class);
     }
 }

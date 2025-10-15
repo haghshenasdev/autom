@@ -6,6 +6,7 @@ use App\Filament\Resources\ApproveResource\Pages;
 use App\Filament\Resources\ApproveResource\RelationManagers;
 use App\Models\Approve;
 use App\Models\letter;
+use App\Models\Minutes;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
@@ -40,8 +41,15 @@ class ApproveResource extends Resource
         $formSchema[] = Select::make('minute_id')
             ->label('صورت جلسه')
             ->relationship('minute', 'title')
-            ->searchable()->required()
-            ->preload();
+            ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->title}")
+            ->searchable(['minutes.id', 'minutes.title'])
+            ->live()
+            ->prefixAction(
+                Forms\Components\Actions\Action::make('Open')->label('نمایش')
+                    ->url(fn (Forms\Get $get): string => MinutesResource::getUrl('edit',[$get('minute_id')]))
+                    ->openUrlInNewTab()->icon('heroicon-o-arrow-top-right-on-square'),
+            )
+            ->preload()->required();
 
         return $form
             ->schema($formSchema);

@@ -23,6 +23,7 @@ use JaOcero\FilaChat\FilaChatPlugin;
 use Jeffgreco13\FilamentBreezy\BreezyCore;
 use Rmsramos\Activitylog\ActivitylogPlugin;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
+use TomatoPHP\FilamentPWA\FilamentPWAPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -81,8 +82,12 @@ class AdminPanelProvider extends PanelProvider
                     ->plugins(['dayGrid','timeGrid'])
                     ->config([]),
                 ActivitylogPlugin::make()
+                    ->authorize(
+                        fn () => auth()->user()?->can('view_activitylog')
+                    )
                     ->navigationGroup('سیستم'),
-                FilaChatPlugin::make()
+                FilaChatPlugin::make(),
+                FilamentPWAPlugin::make()->allowPWASettings(false),
             ]);
     }
 }

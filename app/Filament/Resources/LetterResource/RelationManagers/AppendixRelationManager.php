@@ -8,6 +8,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -80,6 +81,11 @@ class AppendixRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make(),
             ])
             ->actions([
+                Action::make('باز کردن لینک')
+                    ->label('نمایش فایل')
+                    ->url(fn($record) => env('APP_URL').'/private-show/'.$record->getFilePath($this->ownerRecord->id), shouldOpenInNewTab: true)
+                    ->color('primary')
+                    ->icon('heroicon-o-arrow-top-right-on-square'),
                 Tables\Actions\EditAction::make()->mutateRecordDataUsing(function (array $data){
                     $data['file'] = $this->cachedMountedTableActionRecord->getFilePath($this->ownerRecord->id);
                     return $data;

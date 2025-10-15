@@ -5,6 +5,7 @@ namespace App\Filament\Resources\LetterResource\RelationManagers;
 use App\Models\letter;
 use App\Models\Project;
 use Filament\Forms;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
@@ -29,7 +30,6 @@ class LetterProjectRelationManager extends RelationManager
     {
         return $form
             ->schema([
-
             ]);
     }
 
@@ -40,24 +40,14 @@ class LetterProjectRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\TextColumn::make('project')->state(function (Model $record): string {
                     return Project::find($record->project_id)->name;
-                }),
-                Tables\Columns\TextColumn::make('summary')->words(10),
+                })->label('پروژه'),
+                Tables\Columns\TextColumn::make('pivot.summary')->words(10)->label('خلاصه'),
             ])
             ->filters([
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
-                Tables\Actions\AttachAction::make()
-                    ->form([
-                        Forms\Components\Select::make('project_id')
-                            ->label('انتخاب پروژه')
-                            ->options(Project::all()->pluck('name', 'id')->map(fn ($name, $id) => "{$id} - {$name}"))
-                            ->searchable()
-                            ->required(),
-                        Forms\Components\Textarea::make('summary')
-                            ->label('خلاصه'),
-                    ]),
+//                Tables\Actions\CreateAction::make(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->form([

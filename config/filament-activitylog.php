@@ -2,8 +2,8 @@
 
 return [
     'resources' => [
-        'label'                     => 'Activity Log',
-        'plural_label'              => 'Activity Logs',
+        'label'                     => 'گزارش فعالیت ها',
+        'plural_label'              => 'گزارش فعالیت ها',
         'hide_restore_action'       => false,
         'restore_action_label'      => 'Restore',
         'hide_resource_action'      => false,

@@ -39,12 +39,16 @@ class TaskResource extends Resource
     {
         $schema = Task::formSchema();
         $schema[] = Forms\Components\Select::make('project_id')->label('پروژه')
+            ->label('پروژه')->multiple()
             ->relationship('project', 'name')
-            ->searchable()->preload()->multiple();
+            ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+            ->searchable(['projects.id', 'projects.name'])
+            ->preload();
 
         $schema[] = Forms\Components\Select::make('minutes_id')->label('صورت جلسه')
             ->relationship('minutes', 'title')
-            ->searchable()->preload();
+            ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->title}")
+            ->searchable(['minutes.id', 'minutes.title'])->preload();
         return $form
             ->schema($schema);
     }

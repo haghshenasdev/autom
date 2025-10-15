@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('result')->nullable();
             $table->text('summary')->nullable();
             $table->string('file')->nullable();
-            $table->foreignId('titleholder_id')->nullable()->constrained('titleholders')->nullOnDelete();
+            $table->foreignId('organ_id')->nullable()->constrained('organs')->nullOnDelete();
             $table->timestamps();
         });
     }

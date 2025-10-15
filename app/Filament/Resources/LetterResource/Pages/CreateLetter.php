@@ -4,7 +4,9 @@ namespace App\Filament\Resources\LetterResource\Pages;
 
 use App\Filament\Resources\LetterResource;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class CreateLetter extends CreateRecord
 {
@@ -16,5 +18,4 @@ class CreateLetter extends CreateRecord
 
         return $data;
     }
-
 }

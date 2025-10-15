@@ -8,11 +8,13 @@ use App\Models\letter;
 use App\Models\Minutes;
 use App\Models\Project;
 use App\Models\Task;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class StatsOverview extends BaseWidget
 {
+    use HasWidgetShield;
     protected static bool $isLazy = true;
 
     protected static ?int $sort = 1;

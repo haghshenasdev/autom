@@ -6,10 +6,12 @@ use App\Models\Traits\HasStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Project extends Model
 {
-    use HasFactory,HasStatus;
+    use HasFactory,HasStatus,LogsActivity;
 
     protected $fillable = [
         'name',
@@ -50,7 +52,7 @@ class Project extends Model
 
     public function letters()
     {
-        return $this->belongsToMany(Letter::class, 'letter_project');
+        return $this->belongsToMany(Letter::class, 'letter_project')->withPivot('summary');
     }
 
     public function group()
@@ -65,6 +67,11 @@ class Project extends Model
 //        static::creating(function ($model) {
 //            $model->user_id = Auth::id();
 //        });
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults();
     }
 
 }

@@ -3,15 +3,20 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Filament\Forms\Components\Actions\Action;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Get;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Illuminate\Support\Facades\Auth;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Task extends Model
 {
-    use HasFactory;
+    use HasFactory,LogsActivity;
 
     protected $fillable = [
         'name',
@@ -92,9 +97,9 @@ class Task extends Model
 
             Forms\Components\Toggle::make('completed')->label('انجام شده'),
             Forms\Components\Toggle::make('repeat')->label('تکرار'),
-            Forms\Components\DateTimePicker::make('started_at')->jalali()->label('زمان شروع'),
-            Forms\Components\DateTimePicker::make('ended_at')->jalali()->label('زمان پایان'),
-            Forms\Components\DateTimePicker::make('completed_at')->jalali()->label('تکمیل'),
+            Forms\Components\DateTimePicker::make('started_at')->jalali()->label('زمان شروع')->closeOnDateSelection(),
+            Forms\Components\DateTimePicker::make('ended_at')->jalali()->label('زمان پایان')->closeOnDateSelection(),
+            Forms\Components\DateTimePicker::make('completed_at')->jalali()->label('تکمیل')->closeOnDateSelection(),
             Forms\Components\Select::make('Responsible_id')->label('مسئول')
                 ->relationship('responsible', 'name')
                 ->searchable()->preload(),
@@ -107,8 +112,36 @@ class Task extends Model
             Forms\Components\Select::make('status')
                 ->options(self::getStatusListDefine())->label('وضعیت')
                 ->default(null),
-            Forms\Components\Select::make('organ_id')->label('دستگاه مربوطه')
-                ->relationship('organ', 'name'),
+            Forms\Components\Select::make('organ_id')
+                ->prefixActions([
+                    Action::make('updateAuthor')
+                        ->icon('heroicon-o-arrows-pointing-out')
+                        ->label('انتخاب بر اساس نوع')
+                        ->action(function (array $data,Forms\Set $set): void {
+                            $set('organ_id', $data['organ_selected']);
+                        })
+                        ->form([
+                            Select::make('organ_type_id')
+                                ->label('نوع')
+                                ->options(OrganType::query()->pluck('name', 'id'))
+                                ->live()
+                                ->searchable()
+                                ->required(),
+                            Forms\Components\Select::make('organ_selected')
+                                ->label('ارگان')
+                                ->options(fn (Get $get) => $get('organ_type_id')
+                                    ? Organ::where('organ_type_id', $get('organ_type_id'))->pluck('name', 'id')
+                                    : [])
+                                ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                                ->searchable()
+                                ->preload()
+                        ])
+                ])
+                ->label('دستگاه مربوطه')
+                ->relationship('organ', 'name')
+                ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                ->searchable(['id','name'])
+                ->preload(),
             Forms\Components\TextInput::make('progress')->numeric()->nullable()
                 ->label('درصد انجام')->minValue(0)
                 ->maxValue(100)->suffix('%'),
@@ -169,5 +202,10 @@ class Task extends Model
                 $appendix_other->delete();
             });
         });
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults();
     }
 }

@@ -2,11 +2,14 @@
 
 namespace App\Filament\Resources\LetterResource\RelationManagers;
 
+use App\Models\Answer;
 use Filament\Forms;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -29,43 +32,7 @@ class AnswerRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form
-            ->schema([
-                Forms\Components\TextInput::make('result')
-                    ->label('نتیجه')
-                    ->maxLength(255)
-                ,
-                Forms\Components\Textarea::make('summary')
-                    ->label('خلاصه')
-                ,
-                Forms\Components\Select::make('titleholder')
-                    ->label('پاسخ دهنده')
-                    ->relationship('titleholder', 'name')
-                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->name} - {$record->official} ، {$record->organ()->first('name')->name}")
-                    ->searchable()
-                    ->preload(),
-                FileUpload::make('file')
-                    ->label('فایل')
-                    ->disk('private')
-                    ->downloadable()
-                    ->visibility('private')
-                    ->imageEditor()
-                    ->required()
-                    ->getUploadedFileNameForStorageUsing( fn (TemporaryUploadedFile $file,?Model $record) => $this->getFileNamePath($file,$record))
-                ,
-            ]);
-    }
-
-    private function getFileNamePath(TemporaryUploadedFile $file,?Model $record) : string
-    {
-        $letterId = $this->ownerRecord->id;
-        $path = "{$letterId}/awrs";
-//        $FPath= config('filesystems.disks.private.root'). $path;
-//        File::ensureDirectoryExists($FPath);
-//        (($record == null) ? count(scandir($FPath)) -2 : $record->id )
-        return "{$path}/awr-{$letterId}-".
-            Date::now()->format('Y-m-d_H-i-s') .
-            "." . explode('/',$file->getMimeType())[1];
-
+            ->schema(Answer::formSchema($this->ownerRecord));
     }
 
     public function table(Table $table): Table
@@ -75,6 +42,7 @@ class AnswerRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\TextColumn::make('result')->label('نتیجه'),
                 Tables\Columns\TextColumn::make('summary')->label('خلاصه'),
+                Tables\Columns\TextColumn::make('organ.name')->label('پاسخ دهنده'),
             ])
             ->filters([
                 //
@@ -83,7 +51,12 @@ class AnswerRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()->mutateRecordDataUsing(function (array $data){
+                Action::make('باز کردن لینک')
+                    ->label('نمایش فایل')
+                    ->url(fn($record) => env('APP_URL').'/private-show/'.$record->getFilePath($this->ownerRecord->id), shouldOpenInNewTab: true)
+                    ->color('primary')
+                    ->icon('heroicon-o-arrow-top-right-on-square'),
+                EditAction::make()->mutateRecordDataUsing(function (array $data){
                     $data['file'] = $this->cachedMountedTableActionRecord->getFilePath($this->ownerRecord->id);
                     return $data;
                 })->mutateFormDataUsing(function (array $data){
