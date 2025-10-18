@@ -20,6 +20,7 @@ use IbrahimBougaoua\FilaProgress\Tables\Columns\ProgressBar;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class MinutesResource extends Resource
 {
@@ -35,6 +36,15 @@ class MinutesResource extends Resource
     protected static ?string $pluralLabel = "صورت جلسه";
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
+    public static function getEloquentQuery(): Builder
+    {
+        $user = auth()->user();
+        if (!$user->can('restore_any_minutes')) return parent::getEloquentQuery()->where('typer_id',Auth::id());
+
+        return parent::getEloquentQuery();
+
+    }
 
     public static function form(Form $form): Form
     {

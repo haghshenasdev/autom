@@ -15,6 +15,7 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\File;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -105,10 +106,12 @@ class Minutes extends Model
                 ])
                 ->relationship('organ','name')
                 ->multiple()
-                ->searchable(['name','id'])
+                ->searchable(['organs.name','organs.id'])
                 ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
                 ->label('امضا کنندگان'),
             Select::make('typer_id')->label('نویسنده')
+                ->visible(auth()->user()->can('restore_any_minutes'))
+                ->default(Auth::id())
                 ->relationship('typer', 'name')
                 ->searchable()->preload(),
             Select::make('task_id')->label('نوشته شده در')->required()

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AnswerResource\Pages;
 use App\Filament\Resources\AnswerResource\RelationManagers;
 use App\Models\Answer;
+use App\Models\Letter;
 use Filament\Forms;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Form;
@@ -37,36 +38,15 @@ class AnswerResource extends Resource
 
     public static function form(Form $form): Form
     {
+        $formSchema = Answer::formSchema(fn(Forms\Get $get) => Letter::query()->where('id',$get('letter_id'))->getModel());
+        $formSchema[] = Forms\Components\Select::make('letter_id')
+            ->label('نامه')
+            ->relationship('letter', 'id')
+            ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->subject}")
+            ->searchable(['subject','id'])->live()
+            ->preload()->required();
         return $form
-            ->schema([
-                Forms\Components\Select::make('letter_id')
-                    ->label('نامه')
-                    ->relationship('letter', 'id')
-                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->subject}")
-                    ->searchable()
-                    ->preload()->required(),
-                Forms\Components\TextInput::make('result')
-                    ->label('نتیجه')
-                    ->maxLength(255)
-                ,
-                Forms\Components\Textarea::make('summary')
-                    ->label('خلاصه')
-                ,
-                Forms\Components\Select::make('titleholder')
-                    ->label('پاسخ دهنده')
-                    ->relationship('titleholder', 'name')
-                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->name} - {$record->official} ، {$record->organ()->first('name')->name}")
-                    ->searchable()
-                    ->preload(),
-                FileUpload::make('file')
-                    ->label('فایل')
-                    ->disk('private')
-                    ->downloadable()
-                    ->visibility('private')
-                    ->imageEditor()
-                    ->getUploadedFileNameForStorageUsing( fn (TemporaryUploadedFile $file,?Model $record) => self::getFileNamePath($file, $record))
-                ,
-            ]);
+            ->schema($formSchema);
     }
 
     private static function getFileNamePath(TemporaryUploadedFile $file,?Model $record) : string
