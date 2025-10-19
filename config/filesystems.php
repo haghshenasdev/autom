@@ -43,7 +43,7 @@ return [
         ],
         'private2' => [
             'driver' => 'local',
-            'root' => storage_path('app/Minutes'),
+            'root' => storage_path('app/contents'),
             'url' => env('APP_URL').'/minutes-dl/',
             'throw' => false,
         ],

@@ -11,6 +11,7 @@ use App\Models\Task;
 use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Morilog\Jalali\CalendarUtils;
 
 class StatsOverview extends BaseWidget
 {
@@ -30,23 +31,16 @@ class StatsOverview extends BaseWidget
         ];
     }
 
-    private function formatShortNumber($number): array|string
+    private function formatShortNumber($number): string
     {
         if ($number >= 1000000000) {
-            return round($number / 1000000000, 1) . ' بیلیون';
+            return CalendarUtils::convertNumbers(round($number / 1000000000, 1)) . ' بیلیون';
         } elseif ($number >= 1000000) {
-            return round($number / 1000000, 1) . ' میلیون';
+            return CalendarUtils::convertNumbers(round($number / 1000000, 1)) . ' میلیون';
         } elseif ($number >= 1000) {
-            return round($number / 1000, 1) . ' هزار';
+            return CalendarUtils::convertNumbers(round($number / 1000, 1)) . ' هزار';
         }
 
-        return $this->convertNumbersToPersian($number);
-    }
-
-    public function convertNumbersToPersian($input): array|string
-    {
-        $englishNumbers = ['0','1','2','3','4','5','6','7','8','9'];
-        $persianNumbers = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-        return str_replace($englishNumbers, $persianNumbers, $input);
+        return $number;
     }
 }

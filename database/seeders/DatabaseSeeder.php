@@ -60,6 +60,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             DastorkarProjectSeeder::class,
             ProjectSeeder::class,
+            ContentGroupSeeder::class,
         ]);
     }
 }
