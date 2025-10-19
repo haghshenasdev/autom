@@ -30,15 +30,23 @@ class StatsOverview extends BaseWidget
         ];
     }
 
-    private function formatShortNumber($number)
+    private function formatShortNumber($number): array|string
     {
         if ($number >= 1000000000) {
-            return round($number / 1000000000, 1) . 'B';
+            return round($number / 1000000000, 1) . ' بیلیون';
         } elseif ($number >= 1000000) {
-            return round($number / 1000000, 1) . 'M';
+            return round($number / 1000000, 1) . ' میلیون';
         } elseif ($number >= 1000) {
-            return round($number / 1000, 1) . 'K';
+            return round($number / 1000, 1) . ' هزار';
         }
-        return $number;
+
+        return $this->convertNumbersToPersian($number);
+    }
+
+    public function convertNumbersToPersian($input): array|string
+    {
+        $englishNumbers = ['0','1','2','3','4','5','6','7','8','9'];
+        $persianNumbers = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+        return str_replace($englishNumbers, $persianNumbers, $input);
     }
 }

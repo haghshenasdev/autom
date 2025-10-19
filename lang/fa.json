@@ -38,5 +38,26 @@
     "Unauthorized": "دسترسی غیر مجاز",
     "Verify Email Address": "تایید آدرس ایمیل",
     "Whoops!": "وای!",
+
+    "Search any messages...": "جستجو در پیام ها ...",
+    "Search Messages in your Conversations": "جستجو پیام در گفتگو ها",
+    "Loading more messages...": "بارگزاری بیشتر پیام ها ...",
+    "No results found.": "نتیجه ای یافت نشد!",
+    "Active Conversations": "گفتگو های فعال",
+    "No conversations yet": "هنوز گفتگوای موجود نیست!",
+    "Agent": "عامل",
+    "User": "کاربر",
+    "You": "شما",
+    "To": "به",
+    "Seen at": "دیده شده در",
+    "No selected conversation": "گفتگویی انتخاب نشده",
+    "Create Conversation": "ایجاد گفتگو",
+    "To User": "به کاربر",
+    "Your Message": "پیام شما",
+    "Select User by Name or Email": "انتخاب کاربر با نام یا ایمیل",
+    "Search User by Name or Email": "جستجو کاربر با نام یا ایمیل",
+    "Write a message...": "پیام را بنویسید...",
+    "Add": "ایجاد",
+
     "You are receiving this email because we received a password reset request for your account.": "شما این ایمیل را به دلیل درخواست رمزعبور جدید دریافت کرده‌اید."
 }

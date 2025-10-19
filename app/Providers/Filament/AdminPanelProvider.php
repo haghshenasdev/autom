@@ -88,6 +88,6 @@ class AdminPanelProvider extends PanelProvider
                     ->navigationGroup('سیستم'),
                 FilaChatPlugin::make(),
                 FilamentPWAPlugin::make()->allowPWASettings(false),
-            ]);
+            ])->viteTheme('resources/css/filament/admin/theme.css');
     }
 }
