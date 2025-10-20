@@ -73,7 +73,8 @@ return [
 
         'widgets' => [
             'AccountWidget', 'FilamentInfoWidget',\App\Filament\Widgets\lastReferralTablewidget::class,\App\Filament\Widgets\LatestTasks::class,
-            \App\Filament\Widgets\StatsOverview::class
+            \App\Filament\Widgets\StatsOverview::class,
+            \App\Filament\Widgets\UserStatsOverview::class,
         ],
 
         'resources' => [

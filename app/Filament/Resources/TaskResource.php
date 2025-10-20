@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\TaskResource\Pages;
 use App\Filament\Resources\TaskResource\RelationManagers;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskGroup;
 use CodeWithDennis\FilamentSelectTree\SelectTree;
@@ -12,6 +13,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use IbrahimBougaoua\FilaProgress\Tables\Columns\ProgressBar;
 use Illuminate\Database\Eloquent\Builder;
@@ -80,6 +82,12 @@ class TaskResource extends Resource
                     ->jalaliDateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('وضعیت')
+                    ->badge()
+                    ->color(fn (string $state): string => Task::getStatusColor($state))
+                    ->state(function (Model $record): string {
+                        return Task::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
                 Tables\Columns\TextColumn::make('created_at')->label('ایجاد')
                     ->jalaliDateTime()
                     ->sortable()
@@ -101,6 +109,10 @@ class TaskResource extends Resource
                     ->label('انجام شده')->query(fn (Builder  $query): Builder  => $query->where('completed', true)),
                 Filter::make('no completed')
                     ->label('انجام نشده')->query(fn (Builder  $query): Builder  => $query->where('completed', null)),
+
+                SelectFilter::make('status')->multiple()
+                    ->options(Project::getStatusListDefine())->label('وضعیت'),
+
                 Filter::make('tree')
                     ->form([
                         SelectTree::make('group')->label('دسته بندی')

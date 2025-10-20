@@ -7,8 +7,10 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TasksRelationManager extends RelationManager
@@ -45,6 +47,12 @@ class TasksRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make(),
             ])
             ->actions([
+                Action::make('open_task')
+                    ->label('دیدن کار')
+                    ->url(fn(?Model $record) => $record
+                        ? env('APP_URL') . '/admin/tasks/' . $record->id . '/edit'
+                        : '#', shouldOpenInNewTab: true)
+                    ->icon('heroicon-o-arrow-top-right-on-square'),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

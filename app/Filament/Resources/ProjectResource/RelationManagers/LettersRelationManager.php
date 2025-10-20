@@ -2,11 +2,14 @@
 
 namespace App\Filament\Resources\ProjectResource\RelationManagers;
 
+use App\Filament\Resources\LetterResource;
 use App\Models\Letter;
+use App\Models\Referral;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -63,6 +66,9 @@ class LettersRelationManager extends RelationManager
             ->headerActions([
             ])
             ->actions([
+                Action::make('Open')->label('نمایش نامه مربوطه')->icon('heroicon-o-envelope')
+                    ->url(fn (Letter $record): string => LetterResource::getUrl('edit',[$record->id]))
+                    ->openUrlInNewTab(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

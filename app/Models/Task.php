@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\HasStatus;
 use Carbon\Carbon;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -16,7 +17,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Task extends Model
 {
-    use HasFactory,LogsActivity;
+    use HasFactory,LogsActivity,HasStatus;
 
     protected $fillable = [
         'name',
@@ -180,19 +181,6 @@ class Task extends Model
             2 => 'در حال پیگیری',
             3 => 'غیرقابل پیگیری',
         ];
-    }
-
-    public static function getStatusLabel(int|null $i): int|string
-    {
-        $data = self::getStatusListDefine();
-
-        if (array_key_exists($i,$data)){
-            return $data[$i];
-        }elseif (is_null($i)){
-            return 'بدون وضعیت';
-        }
-
-        return $i;
     }
 
     protected static function booted()

@@ -116,7 +116,22 @@ class Minutes extends Model
                 ->searchable()->preload(),
             Select::make('task_id')->label('نوشته شده در')->required()
                 ->relationship('task_creator', 'name')
-                ->searchable()->preload(),
+                ->suffixActions([
+                    Action::make('open_task')
+                        ->label('دیدن کار')
+                        ->url(fn(?Model $record) => $record
+                            ? env('APP_URL') . '/admin/tasks/' . $record->id . '/edit'
+                            : '#', shouldOpenInNewTab: true)
+                        ->icon('heroicon-o-arrow-top-right-on-square'),
+                ])->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                ->searchable(['name','id'])->preload()->createOptionForm(array_merge(Task::formSchema(),[
+                    Select::make('project_id')->label('پروژه')
+                        ->label('پروژه')->multiple()
+                        ->relationship('project', 'name')
+                        ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                        ->searchable(['projects.id', 'projects.name'])
+                        ->preload()
+                ])),
             FileUpload::make('file')
                 ->label('فایل')
                 ->disk('private_appendix_other')
