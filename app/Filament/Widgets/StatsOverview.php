@@ -41,6 +41,6 @@ class StatsOverview extends BaseWidget
             return CalendarUtils::convertNumbers(round($number / 1000, 1)) . ' هزار';
         }
 
-        return $number;
+        return CalendarUtils::convertNumbers($number);
     }
 }
