@@ -13,6 +13,12 @@ class DateTimeWidget extends Widget
 
     protected static bool $isLazy = false;
 
+
+    public static function canView(): bool
+    {
+        return auth()->user()->can('widget_DateTimeWidget');
+    }
+
     public function getViewData(): array
     {
         return [

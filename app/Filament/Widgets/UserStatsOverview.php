@@ -16,6 +16,11 @@ class UserStatsOverview extends BaseWidget
 {
     use HasWidgetShield;
 
+    public static function canView(): bool
+    {
+        return auth()->user()->can('widget_UserStatsOverview');
+    }
+
     protected static ?int $sort = 1;
     protected function getStats(): array
     {

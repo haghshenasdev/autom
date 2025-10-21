@@ -46,7 +46,7 @@ class ApproveResource extends Resource
             ->live()
             ->prefixAction(
                 Forms\Components\Actions\Action::make('Open')->label('نمایش')
-                    ->url(fn (Forms\Get $get): string => MinutesResource::getUrl('edit',[$get('minute_id')]))
+                    ->url(fn (Forms\Get $get): string => $get('minute_id') ? MinutesResource::getUrl('edit',[$get('minute_id')]) : '#')
                     ->openUrlInNewTab()->icon('heroicon-o-arrow-top-right-on-square'),
             )
             ->preload()->required();
