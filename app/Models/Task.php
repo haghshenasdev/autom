@@ -103,7 +103,7 @@ class Task extends Model
             Forms\Components\DateTimePicker::make('completed_at')->jalali()->label('تکمیل')->closeOnDateSelection(),
             Forms\Components\Select::make('Responsible_id')->label('مسئول')
                 ->relationship('responsible', 'name')
-                ->searchable()->preload(),
+                ->searchable()->preload()->default(auth()->id())->visible(auth()->user()->can('restore_any_task')),
             Forms\Components\Select::make('city_id')->label('شهر')
                 ->relationship('city', 'name')
                 ->searchable()->preload(),

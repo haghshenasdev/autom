@@ -38,7 +38,7 @@ class ReferralResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $user = auth()->user();
-        if (!$user->can('restore_any_referral')) return parent::getEloquentQuery()->where('to_user_id',Auth::id());
+        if (!$user->can('restore_any_referral')) return parent::getEloquentQuery()->where('to_user_id',$user->id);
 
         return parent::getEloquentQuery();
 

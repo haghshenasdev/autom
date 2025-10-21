@@ -8,9 +8,6 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ReferralsRelationManager extends RelationManager
 {
@@ -48,13 +45,10 @@ class ReferralsRelationManager extends RelationManager
             ->recordTitleAttribute('rule')
             ->columns([
                 Tables\Columns\TextColumn::make('rule')->label('دستور'),
-                Tables\Columns\TextColumn::make('to_user_id.name')->label('به')
-                    ->state(function (Model $record): string {
-                        return $record->users()->first('name')->name; /// درست بودن رابطه چک شود
-                    })
-                ,
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد'),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش'),
+                Tables\Columns\TextColumn::make('by_users.name')->label('توسط'),
+                Tables\Columns\TextColumn::make('users.name')->label('به'),
+                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
+                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime(),
             ])
             ->filters([
                 //

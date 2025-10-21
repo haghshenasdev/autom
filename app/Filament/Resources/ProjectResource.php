@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Filament\Resources\ProjectResource\Pages;
 use App\Filament\Resources\ProjectResource\RelationManagers;
+use App\Models\Organ;
+use App\Models\OrganType;
 use App\Models\Project;
 use App\Models\ProjectGroup;
 use App\Models\Referral;
@@ -13,6 +15,7 @@ use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\FontWeight;
 use Filament\Support\RawJs;
@@ -43,6 +46,15 @@ class ProjectResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-archive-box';
 
+    public static function getEloquentQuery(): Builder
+    {
+        $user = auth()->user();
+        if (!$user->can('restore_any_project')) return parent::getEloquentQuery()->where('user_id',$user->id);
+
+        return parent::getEloquentQuery();
+
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -53,7 +65,7 @@ class ProjectResource extends Resource
                 Forms\Components\Textarea::make('description')->label('توضیحات'),
                 SelectTree::make('group_id')->label('دسته بندی')
                     ->relationship('group', 'name', 'parent_id')
-                    ->enableBranchNode()->createOptionForm(ProjectGroup::formSchema()),
+                    ->enableBranchNode()->createOptionForm(auth()->user()->can('create_project::group') ? ProjectGroup::formSchema() : null),
                 Forms\Components\TextInput::make('required_amount')->numeric()->nullable()
                     ->label('چشم انداز کار یا جلسه مورد نیاز')->minValue(0),
                 Select::make('status')
@@ -61,13 +73,40 @@ class ProjectResource extends Resource
                     ->default(null),
                 Forms\Components\Select::make('user_id')->label('مسئول')
                     ->relationship('user', 'name')
-                    ->searchable()->preload(),
+                    ->searchable()->preload()->default(auth()->id())->visible(auth()->user()->can('restore_any_project')),
                 Forms\Components\Select::make('city_id')->label('شهر/روستا')
                     ->relationship('city', 'name')
                     ->searchable()->preload(),
-                Forms\Components\Select::make('organ_id')->label('دستگاه مربوطه')
+                Forms\Components\Select::make('organ')
+                    ->prefixActions([
+                        \Filament\Forms\Components\Actions\Action::make('updateAuthor')
+                            ->icon('heroicon-o-arrows-pointing-out')
+                            ->label('انتخاب بر اساس نوع')
+                            ->action(function (array $data,Forms\Set $set): void {
+                                $set('organ', $data['organ_selected']);
+                            })
+                            ->form([
+                                Select::make('organ_type_id')
+                                    ->label('نوع')
+                                    ->options(OrganType::query()->pluck('name', 'id'))
+                                    ->live()
+                                    ->searchable()
+                                    ->required(),
+                                Forms\Components\Select::make('organ_selected')
+                                    ->label('ارگان')
+                                    ->options(fn (Get $get) => $get('organ_type_id')
+                                        ? Organ::where('organ_type_id', $get('organ_type_id'))->pluck('name', 'id')
+                                        : [])
+                                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                                    ->searchable()
+                                    ->preload()
+                            ])
+                    ])
+                    ->label('دستگاه مربوطه')
                     ->relationship('organ', 'name')
-                    ->searchable()->preload(),
+                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                    ->searchable(['id','name'])
+                    ->preload(),
                 TextInput::make('amount')
                     ->label('اعتبار اخذ شده')->numeric()->nullable()->suffix('ریال')
                     ->mask(RawJs::make('$money($input)'))
@@ -86,7 +125,7 @@ class ProjectResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')->label("توضیحات")
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('user.name')->label("مسئول"),
+                Tables\Columns\TextColumn::make('user.name')->label("مسئول")->visible(auth()->user()->can('restore_any_project')),
                 Tables\Columns\TextColumn::make('city.name')->label("شهر")->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('organ.name')->label("دستگاه اجرایی")->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('status')
@@ -149,7 +188,7 @@ class ProjectResource extends Resource
                     ->options(Project::getStatusListDefine())->label('وضعیت'),
                 SelectFilter::make('user_id')
                     ->label('مسئول')->multiple()->preload()
-                    ->relationship('user','name'),
+                    ->relationship('user','name')->visible(auth()->user()->can('restore_any_project')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

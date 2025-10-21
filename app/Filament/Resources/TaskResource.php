@@ -37,6 +37,15 @@ class TaskResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
 
+    public static function getEloquentQuery(): Builder
+    {
+        $user = auth()->user();
+        if (!$user->can('restore_any_task')) return parent::getEloquentQuery()->where('Responsible_id',$user->id);
+
+        return parent::getEloquentQuery();
+
+    }
+
     public static function form(Form $form): Form
     {
         $schema = Task::formSchema();
@@ -66,7 +75,7 @@ class TaskResource extends Resource
                 Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
-                    ->sortable(),
+                    ->sortable()->visible(auth()->user()->can('restore_any_task'))->visible(auth()->user()->can('restore_any_task')),
                 Tables\Columns\IconColumn::make('completed')->label('وضعیت انجام')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('completed_at')->label('تاریخ انجام')
@@ -143,7 +152,7 @@ class TaskResource extends Resource
                     ->searchable(),
                 Tables\Filters\SelectFilter::make('Responsible_id')->label('مسئول')
                     ->relationship('responsible', 'name')
-                    ->searchable()->preload(),
+                    ->searchable()->preload()->visible(auth()->user()->can('restore_any_task')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
