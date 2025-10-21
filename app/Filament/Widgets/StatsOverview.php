@@ -2,6 +2,12 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\ApproveResource;
+use App\Filament\Resources\CustomerResource;
+use App\Filament\Resources\LetterResource;
+use App\Filament\Resources\MinutesResource;
+use App\Filament\Resources\ProjectResource;
+use App\Filament\Resources\TaskResource;
 use App\Models\Approve;
 use App\Models\Customer;
 use App\Models\Letter;
@@ -22,12 +28,12 @@ class StatsOverview extends BaseWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('تعداد نامه ها', $this->formatShortNumber(Letter::query()->count()))->icon('heroicon-o-envelope'),
-            Stat::make('مراجعه کننده ها', $this->formatShortNumber(Customer::query()->count()))->icon('heroicon-o-user'),
-            Stat::make('تعداد پروژه ها', $this->formatShortNumber(Project::query()->count()))->icon('heroicon-o-archive-box'),
-            Stat::make('کار یا جلسه', $this->formatShortNumber(Task::query()->count()))->icon('heroicon-o-briefcase'),
-            Stat::make('صورت جلسه ها', $this->formatShortNumber(Minutes::query()->count()))->icon('heroicon-o-document-text'),
-            Stat::make('مصوبه ها', $this->formatShortNumber(Approve::query()->count()))->icon('heroicon-o-document-check'),
+            Stat::make('تعداد نامه ها', $this->formatShortNumber(Letter::query()->count()))->icon('heroicon-o-envelope')->url(LetterResource::getUrl()),
+            Stat::make('مراجعه کننده ها', $this->formatShortNumber(Customer::query()->count()))->icon('heroicon-o-user')->url(CustomerResource::getUrl()),
+            Stat::make('تعداد پروژه ها', $this->formatShortNumber(Project::query()->count()))->icon('heroicon-o-archive-box')->url(ProjectResource::getUrl()),
+            Stat::make('کار یا جلسه', $this->formatShortNumber(Task::query()->count()))->icon('heroicon-o-briefcase')->url(TaskResource::getUrl()),
+            Stat::make('صورت جلسه ها', $this->formatShortNumber(Minutes::query()->count()))->icon('heroicon-o-document-text')->url(MinutesResource::getUrl()),
+            Stat::make('مصوبه ها', $this->formatShortNumber(Approve::query()->count()))->icon('heroicon-o-document-check')->url(ApproveResource::getUrl()),
         ];
     }
 
