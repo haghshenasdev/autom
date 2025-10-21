@@ -19,6 +19,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class CartableResource extends Resource
 {
@@ -35,6 +36,11 @@ class CartableResource extends Resource
     protected static ?string $pluralModelLabel = "کارپوشه";
 
     protected static ?string $pluralLabel = "کارپوشه";
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('user_id',Auth::id());
+    }
 
     public static function form(Form $form): Form
     {
@@ -61,13 +67,16 @@ class CartableResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table
+        return $table->defaultSort('id','desc')
             ->columns([
-                Tables\Columns\TextColumn::make('letter.subject')->label('نامه'),
-                Tables\Columns\TextColumn::make('letter.customers.name')->label('صاحب نامه'),
+                TextColumn::make('id')->label('ثبت')->sortable(),
+                Tables\Columns\TextColumn::make('letter_id')->label('شماره نامه')->sortable()->searchable(),
+                Tables\Columns\TextColumn::make('letter.subject')->label('نامه')->searchable(),
+                Tables\Columns\TextColumn::make('letter.customers.name')->label('صاحب نامه - شخص'),
+                Tables\Columns\TextColumn::make('letter.organs_owner.name')->label('صاحب نامه - ارگان'),
                 Tables\Columns\TextColumn::make('letter.created_at')->jalaliDateTime()->label('تاریخ نامه'),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime(),
+                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: false),
+                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\CheckboxColumn::make('checked')->label('بررسی شده'),
             ])
             ->filters([
@@ -98,7 +107,7 @@ class CartableResource extends Resource
             ])
             ->actions([
                 Action::make('Open')->label('نمایش نامه')
-                    ->url(fn (Cartable $record): string => LetterResource::getUrl('edit',[$record->letter_id]))
+                    ->url(fn (Cartable $record): string => LetterResource::getUrl(\auth()->user()->can('update_letter') ? 'edit' : 'view',[$record->letter_id]))
                     ->openUrlInNewTab(),
                 Tables\Actions\DeleteAction::make(),
             ])

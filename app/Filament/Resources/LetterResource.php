@@ -42,6 +42,7 @@ use Hugomyb\FilamentMediaAction\Forms\Components\Actions\MediaAction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Morilog\Jalali\Jalalian;
@@ -62,6 +63,21 @@ class LetterResource extends Resource
     protected static ?string $pluralLabel = "نامه";
 
     protected static ?string $navigationIcon = 'heroicon-o-envelope';
+
+    public static function getEloquentQuery(): Builder
+    {
+        $user = auth()->user();
+        $user_id = $user->id;
+        if (!$user->can('restore_any_letter')) {
+            return parent::getEloquentQuery()->where('user_id', $user_id) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
+            ->orWhereHas('referrals', function ($query) use ($user_id) {
+                $query->where('to_user_id', $user_id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
+            });
+        }
+
+        return parent::getEloquentQuery();
+
+    }
 
     public static function form(Form $form): Form
     {
@@ -382,6 +398,7 @@ class LetterResource extends Resource
             ])->filtersFormColumns(3)
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make()->visible(!\auth()->user()->can('restore_any_letter')),
             ])
             ->bulkActions([
                 ExportBulkAction::make()->label('دریافت فایل exel'),
@@ -410,6 +427,7 @@ class LetterResource extends Resource
         return [
             'index' => Pages\ListLetters::route('/'),
             'create' => Pages\CreateLetter::route('/create'),
+            'view' => Pages\ViewLetter::route('/{record}'),
             'edit' => Pages\EditLetter::route('/{record}/edit'),
         ];
     }
