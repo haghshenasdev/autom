@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ProjectResource\Pages;
 
 use App\Filament\Resources\ProjectResource;
 use App\Filament\Resources\ProjectResource\Widgets\TaskProjectChart;
+use App\Filament\Resources\ProjectResource\Widgets\YearSelector;
 use App\Models\Project;
 use Filament\Pages\Actions\Action;
 use Filament\Resources\Pages\Page;
@@ -13,6 +14,8 @@ class Record extends Page
     protected static string $resource = ProjectResource::class;
 
     protected static string $view = 'filament.resources.project-resource.pages.record';
+
+    public $selectedYear = null;
 
 
     public $record; // رکورد انتخاب شده
@@ -26,13 +29,14 @@ class Record extends Page
     protected function getHeaderWidgets(): array
     {
         return [
-            ProjectResource\Widgets\ProjectStateWidget::make(['record' => $this->record]),
-            TaskProjectChart::make(['record' => $this->record]),
-            ProjectResource\Widgets\ProjectProgress::make(['record' => $this->record]),
-            ProjectResource\Widgets\ProjectProgressChart::make(['record' => $this->record]),
-            ProjectResource\Widgets\TaskDelayChart::make(['record' => $this->record]),
-            ProjectResource\Widgets\TasksByUserChart::make(['record' => $this->record]),
-            ProjectResource\Widgets\ProjectGanttChart::make(['record' => $this->record]),
+            YearSelector::make(),
+            ProjectResource\Widgets\ProjectStateWidget::make(['record' => $this->record, 'selectedYear' => $this->selectedYear]),
+            TaskProjectChart::make(['record' => $this->record, 'year' => $this->selectedYear]),
+            ProjectResource\Widgets\ProjectProgress::make(['record' => $this->record, 'year' => $this->selectedYear]),
+            ProjectResource\Widgets\ProjectProgressChart::make(['record' => $this->record, 'year' => $this->selectedYear]),
+            ProjectResource\Widgets\TaskDelayChart::make(['record' => $this->record, 'year' => $this->selectedYear]),
+            ProjectResource\Widgets\TasksByUserChart::make(['record' => $this->record, 'year' => $this->selectedYear]),
+            ProjectResource\Widgets\ProjectGanttChart::make(['record' => $this->record, 'year' => $this->selectedYear]),
         ];
     }
 

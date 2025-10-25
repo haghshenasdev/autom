@@ -399,6 +399,13 @@ class LetterResource extends Resource
                 ,
             ])->filtersFormColumns(3)
             ->actions([
+                Tables\Actions\Action::make('باز کردن لینک')
+                    ->label('نمایش فایل')
+                    ->url(fn(Letter $record) => env('APP_URL').'/private-show/'.$record->getFilePath(), shouldOpenInNewTab: true)
+                    ->visible(fn(Letter $record): bool => $record->file !== null)
+                    ->color('primary')
+                    ->button()
+                    ->icon('heroicon-o-arrow-top-right-on-square'),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make()->visible(!\auth()->user()->can('restore_any_letter')),
             ])

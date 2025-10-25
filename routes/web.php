@@ -98,3 +98,6 @@ Route::get('/login',function (){
 Route::get('/register',function (){
     return redirect('admin');
 })->name('register');
+
+
+Route::get('/bale_webhook',[\App\Http\Controllers\BaleBotController::class,'webhook'])->name('bale_webhook');
