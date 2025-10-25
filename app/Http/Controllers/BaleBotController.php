@@ -12,40 +12,15 @@ use App\Models\BaleUser;
 
 class BaleBotController extends Controller
 {
-    public function update(Request $request)
-    {
-        $token = env('BALE_BOT_TOKEN');
-        $res = Http::get("https://tapi.bale.ai/bot{$token}/getUpdates", [
-            'offset' => -1,
-        ]);
-
-        if ($res->successful()) {
-            $updates = $res->json(); // تبدیل پاسخ به آرایه
-
-            // بررسی اینکه آیا نتیجه‌ای در پاسخ وجود دارد
-            if (isset($updates['result'])) {
-                foreach ($updates['result'] as $update) {
-                    // فرض بر این است که هر آپدیت دارای یک پیام است
-                    if (isset($update['message'])) {
-                        // تبدیل آرایه به یک شیء Request برای متد webhook
-                        $request = new Request($update);
-                        $this->webhook($request);
-                    }
-                }
-            }
-        }
-    }
     public function webhook(Request $request)
     {
-        $this->sendMessage(1497344206, "سلام");
         try {
 
-            $data = $request->all();
+            $data = $request->input();
             $chatId = $data['message']['chat']['id'];
             $userMessage = $data['message']['from'];
             $text = $data['message']['text'] ?? '';
             $files = $data['message']['photo'] ?? [];
-
 
             // احراز هویت کاربر
             $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->getModel();
@@ -67,7 +42,11 @@ class BaleBotController extends Controller
             $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار'];
             $matched = collect($hashtags)->filter(fn($tag) => str_contains($text, $tag))->first();
 
-            if (!$matched) return response('هشتگ معتبر یافت نشد');
+            if (!$matched)
+            {
+                $this->sendMessage($chatId, 'هشتک نداری 😒');
+                return response('هشتگ معتبر یافت نشد');
+            }
 
             // استخراج عنوان
             $lines = explode("\n", $text);
