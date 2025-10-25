@@ -34,11 +34,14 @@
             </x-slot>
 
             <p>نام کاربری : <a href="https://ble.ir/{{ $data['bale_username'] }}">{{ $data['bale_username'] }}</a></p>
-            <p>آیدی بله : {{ $data['bale_id'] }}</p>
+            <p>آیدی بله : <a href="https://web.bale.ai/chat?uid={{ $data['bale_id'] }}">{{ $data['bale_id'] }}</a></p>
             <label class="mt-3">
                 <x-filament::input.checkbox wire:model="is_sendnotif"/>
                 <span> دریافت اعلانات سیستم در پیام رسان بله</span>
             </label>
+            <div class="mt-4">
+                <x-filament::button wire:click="remove">حذف دسترسی</x-filament::button>
+            </div>
         </x-filament::section>
     @endif
 </x-filament-panels::page>

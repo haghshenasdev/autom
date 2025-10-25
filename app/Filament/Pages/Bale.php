@@ -50,4 +50,10 @@ class Bale extends Page
             ['bale_username' => $this->code,'is_sendnotif' => $this->is_sendnotif] // داده‌هایی که باید به‌روز یا ایجاد شوند
         );
     }
+
+    public function remove()
+    {
+        BaleUser::query()->find($this->data['id'])->delete();
+        $this->render();
+    }
 }
