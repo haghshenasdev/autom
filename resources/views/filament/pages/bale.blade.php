@@ -33,7 +33,13 @@
                 کاربر با موفقیت به ربات بله متصل شده است .
             </x-slot>
 
-        </x-filament::section>
 
+        </x-filament::section>
+        <p>نام کاربری : <a href="https://ble.ir/{{ $data['bale_username'] }}">{{ $data['bale_username'] }}</a></p>
+        <p>{{ $data['bale_id'] }}آیدی بله : </p>
+        <label class="mt-3">
+            <x-filament::input.checkbox wire:model="is_sendnotif"/>
+            <span> دریافت اعلانات سیستم در پیام رسان بله</span>
+        </label>
     @endif
 </x-filament-panels::page>

@@ -33,10 +33,10 @@ class BaleBotController extends Controller
                         'bale_id' => $userMessage['id'],
                     ]);
                     $this->sendMessage($chatId, "شما با موفقیت احراز هویت شدید !");
-                    return response('اهراز شده');
+                    return response('احراز شده');
                 }
                 $this->sendMessage($chatId, "شما احراز هویت نشده اید . \n  کد را از سامانه دریافت و برای من بفرستید .");
-                return response('اهراز نشده');
+                return response('احراز نشده');
             }
 
             // تشخیص هشتگ‌ها

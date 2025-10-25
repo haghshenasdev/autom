@@ -16,6 +16,8 @@ class Bale extends Page
 
     public $state = null;
 
+    public $data;
+
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-bottom-center';
 
     protected static string $view = 'filament.pages.bale';
@@ -36,6 +38,7 @@ class Bale extends Page
             $this->code = $baleUser->bale_username; // یا هر فیلدی که کد شما در آن ذخیره شده است
             $this->is_sendnotif = $baleUser->is_sendnotif;
             $this->state = $baleUser->state;
+            $this->data = $baleUser;
         }
     }
 
