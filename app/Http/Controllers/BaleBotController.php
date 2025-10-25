@@ -19,7 +19,21 @@ class BaleBotController extends Controller
             'offset' => -1,
         ]);
 
-        $this->webhook($res);
+        if ($res->successful()) {
+            $updates = $res->json(); // تبدیل پاسخ به آرایه
+
+            // بررسی اینکه آیا نتیجه‌ای در پاسخ وجود دارد
+            if (isset($updates['result'])) {
+                foreach ($updates['result'] as $update) {
+                    // فرض بر این است که هر آپدیت دارای یک پیام است
+                    if (isset($update['message'])) {
+                        // تبدیل آرایه به یک شیء Request برای متد webhook
+                        $request = new Request($update);
+                        $this->webhook($request);
+                    }
+                }
+            }
+        }
     }
     public function webhook(Request $request)
     {
