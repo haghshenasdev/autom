@@ -101,3 +101,4 @@ Route::get('/register',function (){
 
 
 Route::post('/webhook',[\App\Http\Controllers\BaleBotController::class,'webhook'])->name('bale_webhook');
+Route::get('/update',[\App\Http\Controllers\BaleBotController::class,'update']);
