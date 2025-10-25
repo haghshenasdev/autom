@@ -100,6 +100,7 @@ class BaleBotController extends Controller
         }
 
 //        return response('OK');
+        return response();
     }
 
     private function sendMessage($chatId, $text): void
