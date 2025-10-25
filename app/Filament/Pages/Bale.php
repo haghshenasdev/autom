@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\BaleUser;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 
 class Bale extends Page
@@ -54,6 +55,10 @@ class Bale extends Page
     public function remove()
     {
         BaleUser::query()->find($this->data['id'])->delete();
-        $this->render();
+        Notification::make()
+            ->title('دسترسی حذف شد')
+            ->success()
+            ->send();
+        $this->emitSelf('$refresh');
     }
 }

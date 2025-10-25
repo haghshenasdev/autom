@@ -32,10 +32,10 @@ class BaleBotController extends Controller
                         'bale_username' => $userMessage['username'],
                         'bale_id' => $userMessage['id'],
                     ]);
-                    $this->sendMessage($chatId, "شما با موفقیت احراز هویت شدید !");
+                    $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !");
                     return response('احراز شده');
                 }
-                $this->sendMessage($chatId, "شما احراز هویت نشده اید . \n  کد را از سامانه دریافت و برای من بفرستید .");
+                $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
                 return response('احراز نشده');
             }
 
