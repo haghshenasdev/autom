@@ -32,7 +32,10 @@ class BaleBotController extends Controller
                         'bale_username' => $userMessage['username'],
                         'bale_id' => $userMessage['id'],
                     ]);
-                    $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !");
+                    $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !",[
+                        [['📄 صورتجلسه'], ['📬 نامه']],
+                        [['📝 کار']],
+                    ]);
                     return response('احراز شده');
                 }
                 $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
@@ -43,12 +46,11 @@ class BaleBotController extends Controller
             $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار'];
             $matched = collect($hashtags)->filter(fn($tag) => str_contains($text, $tag))->first();
 
-            if (!$matched)
-            {
-                $this->sendMessage($chatId, 'هشتک نداری 😒');
-                return response('هشتگ معتبر یافت نشد');
-            }
 
+
+            // ذخیره در مدل مناسب
+            $record = null;
+        if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
             // استخراج عنوان
             $lines = explode("\n", $text);
             $title = null;
@@ -72,19 +74,16 @@ class BaleBotController extends Controller
                 $savedFiles[] = $path;
             }
 
-            // ذخیره در مدل مناسب
-            $record = null;
-        if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
             $record = Minutes::create([
                 'title' => $title,
             ]);
         } elseif ($matched === '#نامه') {
             $record = Letter::create([
-                'title' => $title,
+                'title' => '',
             ]);
         } elseif ($matched === '#کار') {
             $record = Task::create([
-                'title' => $title,
+                'title' => '',
             ]);
         }
 
@@ -99,12 +98,23 @@ class BaleBotController extends Controller
         return response('ok',200);
     }
 
-    private function sendMessage($chatId, $text): void
+    private function sendMessage($chatId, $text, $buttons = null): void
     {
         $token = env('BALE_BOT_TOKEN');
-        Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", [
+
+        $payload = [
             'chat_id' => $chatId,
             'text' => $text,
-        ]);
+        ];
+
+        if ($buttons) {
+            $payload['reply_markup'] = [
+                'keyboard' => $buttons,
+                'resize_keyboard' => true,
+                'one_time_keyboard' => false,
+            ];
+        }
+
+        Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
     }
 }

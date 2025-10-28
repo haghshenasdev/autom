@@ -51,7 +51,8 @@ class DatabaseSeeder extends Seeder
             ['id' => 28, 'name' => 'بازدید از ادارات', 'parent_id'=> 1],
             ['id' => 29, 'name' => 'صحن علنی', 'parent_id'=> 1],
             ['id' => 30, 'name' => 'مطبوعات', 'parent_id'=> 2],
-            ['id' => 31, 'name' => 'ماده 234 و ماده 45', 'parent_id'=> 2]
+            ['id' => 31, 'name' => 'ماده 234 و ماده 45', 'parent_id'=> 2],
+            ['id' => 32, 'name' => 'هوش مصنوعی', 'parent_id'=> null]
         ]);
 
         $this->call([

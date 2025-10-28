@@ -32,7 +32,9 @@
         "pxlrbt/filament-excel": "^2.1",
         "rmsramos/activitylog": "^2.0",
         "saade/filament-fullcalendar": "3.0",
-        "tomatophp/filament-pwa": "^1.0"
+        "tomatophp/filament-pwa": "^1.0",
+        "ext-libxml": "*",
+        "ext-dom": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",

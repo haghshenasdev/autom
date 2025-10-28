@@ -59,6 +59,6 @@ class Bale extends Page
             ->title('دسترسی حذف شد')
             ->success()
             ->send();
-        $this->emitSelf('$refresh');
+        $this->reset();
     }
 }
