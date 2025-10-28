@@ -46,40 +46,104 @@ class BaleBotController extends Controller
                 case '/صورتجلسه':
 
                     if (!$user->can('view_minutes')) {
-                        $this->sendMessage($chatId, 'شما به صورت جلسه ها دسترسی ندارید !');
-                        return response(' عدم دسترسی');
+                        $this->sendMessage($chatId, '❌ شما به صورت‌جلسه‌ها دسترسی ندارید!');
+                        return response('عدم دسترسی');
                     }
 
-                    $minutes = null;
-                    if (!$user->can('restore_any_minutes'))
-                    {
-                        $minutes = Minutes::query()->where('typer_id', $user->id)->orderBy('id', 'desc')->limit(5)->get();
-                    }
-                    else
-                    {
-                        $minutes = Minutes::query()->orderBy('id', 'desc')->limit(5)->get();
+// گرفتن لیست صورت‌جلسه‌ها
+                    $query = Minutes::query()->orderByDesc('id')->limit(5);
+
+                    if (!$user->can('restore_any_minutes')) {
+                        $query->where('typer_id', $user->id);
                     }
 
+                    $minutes = $query->get();
+
+// ارسال پیام
                     if ($minutes->isEmpty()) {
-                        $this->sendMessage($chatId, '📭 هیچ صورتجلسه‌ای برای شما ثبت نشده است.');
-                    } else {
-                        $message = "🗂 لیست آخرین صورتجلسه‌های شما:\n\n";
-
-                        foreach ($minutes as $minute) {
-                            $message .= "📝 عنوان: {$minute->title}\n";
-                            $message .= "🆔 آیدی: {$minute->id}\n";
-                            $message .= $minute->date ? "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->date) . "\n" : '';
-                            $message .= "----------------------\n";
-                        }
-                        $this->sendMessage($chatId, $message);
+                        $this->sendMessage($chatId, '📭 هیچ صورت‌جلسه‌ای برای شما ثبت نشده است.');
+                        return response('صورت‌جلسه خالی');
                     }
-                    return response(' صورتجلسه');
+
+                    $message = "🗂 لیست آخرین صورت‌جلسه‌های شما:\n\n";
+
+                    foreach ($minutes as $minute) {
+                        $message .= "📝 عنوان: {$minute->title}\n";
+                        $message .= "🆔 آیدی: {$minute->id}\n";
+                        if ($minute->date) {
+                            $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->date)->format('Y/m/d') . "\n";
+                        }
+                        $message .= "----------------------\n";
+                    }
+
+                    $this->sendMessage($chatId, $message);
+                    return response('صورت‌جلسه ارسال شد');
                 case '/نامه':
-                    $this->sendMessage($chatId, 'لطفاً متن نامه را ارسال کنید.');
-                    return response(' نامه');
+                    if (!$user->can('view_letter')) {
+                        $this->sendMessage($chatId, '❌ شما به نامه ‌ها دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+
+                    $query = Letter::query()->orderByDesc('id')->limit(5);
+
+                    if (!$user->can('restore_any_letter')) {
+                        $query->where('user_id', $user->id);
+                    }
+
+                    $minutes = $query->get();
+
+// ارسال پیام
+                    if ($minutes->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ نامه‌ای برای شما ثبت نشده است.');
+                        return response('نامه خالی');
+                    }
+
+                    $message = "🗂 لیست آخرین نامه های شما:\n\n";
+
+                    foreach ($minutes as $minute) {
+                        $message .= "📝 عنوان: {$minute->subject}\n";
+                        $message .= "🆔 شماره ثبت: {$minute->id}\n";
+                        if ($minute->created_at) {
+                            $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->created_at)->format('Y/m/d') . "\n";
+                        }
+                        $message .= "----------------------\n";
+                    }
+
+                    $this->sendMessage($chatId, $message);
+                    return response('نامه ارسال شد');
                 case '/کار':
-                    $this->sendMessage($chatId, 'لطفاً عنوان کار را وارد کنید.');
-                    return response(' کار');
+                if (!$user->can('view_task')) {
+                    $this->sendMessage($chatId, '❌ شما به کار ‌ها دسترسی ندارید!');
+                    return response('عدم دسترسی');
+                }
+
+                $query = Task::query()->orderByDesc('id')->limit(5);
+
+                if (!$user->can('restore_any_task')) {
+                    $query->where('Responsible_id', $user->id);
+                }
+
+                $minutes = $query->get();
+
+// ارسال پیام
+                if ($minutes->isEmpty()) {
+                    $this->sendMessage($chatId, '📭 هیچ کاری برای شما ثبت نشده است.');
+                    return response('کار خالی');
+                }
+
+                $message = "🗂 لیست آخرین کار های شما:\n\n";
+
+                foreach ($minutes as $minute) {
+                    $message .= "📝 عنوان: {$minute->subject}\n";
+                    $message .= "🆔 شماره ثبت: {$minute->id}\n";
+                    if ($minute->created_at) {
+                        $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->created_at)->format('Y/m/d') . "\n";
+                    }
+                    $message .= "----------------------\n";
+                }
+
+                $this->sendMessage($chatId, $message);
+                return response('کار ارسال شد');
             }
 
             // تشخیص هشتگ‌ها
