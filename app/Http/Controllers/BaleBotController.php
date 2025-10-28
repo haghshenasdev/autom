@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use http\Client\Curl\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -46,9 +47,22 @@ class BaleBotController extends Controller
                 return response('احراز نشده');
             }
 
+            $user = \App\Models\User::query()->find($bale_user->user_id);
             switch ($text) {
                 case '/صورتجلسه':
-                    $minutes = Minutes::query()->where('typer_id', $bale_user->id)->latest()->limit(5)->get();
+                    if (!$user->can('view_minutes')) {
+                        $this->sendMessage($chatId, 'شما به صورت جلسه ها دسترسی ندارید !');
+                        return response(' عدم دسترسی');
+                    }
+                    $minutes = null;
+                    if (!$user->can('restore_any_minutes'))
+                    {
+                        $minutes = Minutes::query()->where('typer_id', $user->id)->latest()->limit(5)->get();
+                    }
+                    else
+                    {
+                        $minutes = Minutes::query()->latest()->limit(5)->get();
+                    }
                     if ($minutes->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ صورتجلسه‌ای برای شما ثبت نشده است.');
                     } else {
