@@ -16,9 +16,6 @@ class BaleBotController extends Controller
 {
     public function webhook(Request $request)
     {
-        $this->sendMessage(1497344206, "✅ شما با موفقیت احراز هویت شدید !",[
-            ['text' => '📄 صورتجلسه'], ['text' => '📬 نامه'],
-        ]);
         try {
 
             $data = $request->input();
