@@ -41,6 +41,7 @@ class BaleBotController extends Controller
                 return response('احراز نشده');
             }
 
+            $this->sendMessage($chatId,$bale_user->user_id);
             $user = \App\Models\User::query()->find($bale_user->user_id);
             switch ($text) {
                 case '/صورتجلسه':
