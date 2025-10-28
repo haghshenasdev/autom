@@ -68,7 +68,7 @@ class BaleBotController extends Controller
                         foreach ($minutes as $minute) {
                             $message .= "📝 عنوان: {$minute->title}\n";
                             $message .= "🆔 آیدی: {$minute->id}\n";
-                            $message .= "📅 تاریخ ثبت: " . $minute->created_at->format('Y-m-d') . "\n";
+                            $message .= "📅 تاریخ ثبت: " . $minute->created_at . "\n";
                             $message .= "----------------------\n";
                         }
                         $this->sendMessage($chatId, $message);
