@@ -44,7 +44,7 @@ class BaleBotController extends Controller
             $user = \App\Models\User::query()->find($bale_user->user_id);
             switch ($text) {
                 case '/صورتجلسه':
-                    $this->sendMessage($chatId,"$user->name");
+                    $this->sendMessage($chatId,str($user->can('view_minutes')));
                     if (!$user->can('view_minutes')) {
                         $this->sendMessage($chatId, 'شما به صورت جلسه ها دسترسی ندارید !');
                         return response(' عدم دسترسی');
