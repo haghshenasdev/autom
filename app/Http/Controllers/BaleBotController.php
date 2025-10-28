@@ -9,11 +9,15 @@ use App\Models\Minutes;
 use App\Models\Letter;
 use App\Models\Task;
 use App\Models\BaleUser;
+use Morilog\Jalali\Jalalian;
 
 class BaleBotController extends Controller
 {
     public function webhook(Request $request)
     {
+        $this->sendMessage(1497344206, "✅ شما با موفقیت احراز هویت شدید !",[
+            ['text' => '📄 صورتجلسه'], ['text' => '📬 نامه'],
+        ]);
         try {
 
             $data = $request->input();
@@ -33,13 +37,39 @@ class BaleBotController extends Controller
                         'bale_id' => $userMessage['id'],
                     ]);
                     $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !",[
-                        [['📄 صورتجلسه'], ['📬 نامه']],
-                        [['📝 کار']],
+                        [['text' => '📄 صورتجلسه'], ['text' => '📬 نامه']],
+                        [['text' => '📝 کار']],
                     ]);
                     return response('احراز شده');
                 }
                 $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
                 return response('احراز نشده');
+            }
+
+            switch ($text) {
+                case '/صورتجلسه':
+                    $minutes = Minutes::query()->where('typer_id', $bale_user->id)->latest()->limit(5)->get();
+                    if ($minutes->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ صورتجلسه‌ای برای شما ثبت نشده است.');
+                    } else {
+                        $message = "🗂 لیست آخرین صورتجلسه‌های شما:\n\n";
+
+                        foreach ($minutes as $minute) {
+                            $message .= "📝 عنوان: {$minute->title}\n";
+                            $message .= "🆔 آیدی: {$minute->id}\n";
+                            $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->created_at->format('Y-m-d')) . "\n";
+                            $message .= "----------------------\n";
+                        }
+
+                        $this->sendMessage($chatId, $message);
+                    }
+                    return response(' صورتجلسه');
+                case '/نامه':
+                    $this->sendMessage($chatId, 'لطفاً متن نامه را ارسال کنید.');
+                    return response(' نامه');
+                case '/کار':
+                    $this->sendMessage($chatId, 'لطفاً عنوان کار را وارد کنید.');
+                    return response(' کار');
             }
 
             // تشخیص هشتگ‌ها
@@ -108,13 +138,12 @@ class BaleBotController extends Controller
         ];
 
         if ($buttons) {
-            $payload['ReplyKeyboardMarkup'] = [
+            $payload['reply_markup'] = [
                 'keyboard' => $buttons,
                 'resize_keyboard' => true,
                 'one_time_keyboard' => false,
             ];
         }
-
         Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
     }
 }
