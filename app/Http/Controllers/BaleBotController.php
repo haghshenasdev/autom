@@ -17,12 +17,12 @@ class BaleBotController extends Controller
     public function webhook(Request $request)
     {
         try {
-
             $data = $request->input();
             $chatId = $data['message']['chat']['id'];
             $userMessage = $data['message']['from'];
             $text = $data['message']['text'] ?? '';
             $files = $data['message']['photo'] ?? [];
+            $this->sendMessage($chatId,'سلام');
 
             // احراز هویت کاربر
             $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
@@ -34,10 +34,7 @@ class BaleBotController extends Controller
                         'bale_username' => $userMessage['username'],
                         'bale_id' => $userMessage['id'],
                     ]);
-                    $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !",[
-                        [['text' => '📄 صورتجلسه'], ['text' => '📬 نامه']],
-                        [['text' => '📝 کار']],
-                    ]);
+                    $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !");
                     return response('احراز شده');
                 }
                 $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
@@ -139,7 +136,7 @@ class BaleBotController extends Controller
         return response('ok',200);
     }
 
-    private function sendMessage($chatId, $text, $buttons = null): void
+    private function sendMessage($chatId, $text): void
     {
         $token = env('BALE_BOT_TOKEN');
 
@@ -148,13 +145,6 @@ class BaleBotController extends Controller
             'text' => $text,
         ];
 
-        if ($buttons) {
-            $payload['reply_markup'] = [
-                'keyboard' => $buttons,
-                'resize_keyboard' => true,
-                'one_time_keyboard' => false,
-            ];
-        }
         Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
     }
 }
