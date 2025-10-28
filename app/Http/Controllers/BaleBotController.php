@@ -53,11 +53,11 @@ class BaleBotController extends Controller
                     $minutes = null;
                     if (!$user->can('restore_any_minutes'))
                     {
-                        $minutes = Minutes::query()->where('typer_id', $user->id)->latest('id')->limit(5)->get();
+                        $minutes = Minutes::query()->where('typer_id', $user->id)->orderBy('id', 'desc')->limit(5)->get();
                     }
                     else
                     {
-                        $minutes = Minutes::query()->latest('id')->limit(5)->get();
+                        $minutes = Minutes::query()->orderBy('id', 'desc')->limit(5)->get();
                     }
 
                     if ($minutes->isEmpty()) {
