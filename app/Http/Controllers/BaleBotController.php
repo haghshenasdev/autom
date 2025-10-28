@@ -134,7 +134,7 @@ class BaleBotController extends Controller
                 $message = "🗂 لیست آخرین کار های شما:\n\n";
 
                 foreach ($minutes as $minute) {
-                    $message .= "📝 عنوان: {$minute->subject}\n";
+                    $message .= "📝 عنوان: {$minute->name}\n";
                     $message .= "🆔 شماره ثبت: {$minute->id}\n";
                     if ($minute->created_at) {
                         $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->created_at)->format('Y/m/d') . "\n";
@@ -158,11 +158,17 @@ class BaleBotController extends Controller
             // استخراج عنوان
             $lines = explode("\n", $text);
             $title = null;
+            $aprove = [];
+            $text = null;
             foreach ($lines as $i => $line) {
                 if (str_contains($line, $matched) && isset($lines[$i + 1])) {
                     $title = trim($lines[$i + 1]);
-                    break;
+                    continue;
                 }
+                if (str_starts_with($line, '-') or str_starts_with($line, '_')){
+                    $aprove[] = $line;
+                }
+                $text = trim($line) . "\n";
             }
 
             if (!$title) {
@@ -180,10 +186,15 @@ class BaleBotController extends Controller
 
             $record = Minutes::create([
                 'title' => $title,
+                'date' => null,
+                'text' => $text,
+                'file',
+                'typer_id' => $user->id,
+                'task_id',
             ]);
         } elseif ($matched === '#نامه') {
             $record = Letter::create([
-                'title' => '',
+                'subject' => '',
             ]);
         } elseif ($matched === '#کار') {
             $record = Task::create([
