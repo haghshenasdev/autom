@@ -50,7 +50,6 @@ class BaleBotController extends Controller
                         return response(' عدم دسترسی');
                     }
 
-                    $this->sendMessage($chatId,str($user->can('view_minutes')));
                     $minutes = null;
                     if (!$user->can('restore_any_minutes'))
                     {
@@ -60,6 +59,8 @@ class BaleBotController extends Controller
                     {
                         $minutes = Minutes::query()->latest()->limit(5)->get();
                     }
+
+                    $this->sendMessage($chatId,str($minutes->toJson()));
                     if ($minutes->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ صورتجلسه‌ای برای شما ثبت نشده است.');
                     } else {
