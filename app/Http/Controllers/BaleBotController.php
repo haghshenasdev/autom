@@ -40,7 +40,7 @@ class BaleBotController extends Controller
                 $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
                 return response('احراز نشده');
             }
-            $this->sendMessage($chatId,$bale_user);
+            $this->sendMessage($chatId,$bale_user->toJson());
             $user = \App\Models\User::query()->find($bale_user->user_id);
             switch ($text) {
                 case '/صورتجلسه':
