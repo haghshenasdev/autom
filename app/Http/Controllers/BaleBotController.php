@@ -22,7 +22,7 @@ class BaleBotController extends Controller
             $userMessage = $data['message']['from'];
             $text = $data['message']['text'] ?? '';
             $files = $data['message']['photo'] ?? [];
-            $this->sendMessage($chatId,'سلام');
+
 
             // احراز هویت کاربر
             $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
@@ -40,8 +40,7 @@ class BaleBotController extends Controller
                 $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
                 return response('احراز نشده');
             }
-
-            $this->sendMessage($chatId,$bale_user->id);
+            $this->sendMessage($chatId,'سلام');
             $user = \App\Models\User::query()->find($bale_user->user_id);
             switch ($text) {
                 case '/صورتجلسه':
