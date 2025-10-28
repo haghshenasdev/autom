@@ -60,7 +60,6 @@ class BaleBotController extends Controller
                         $minutes = Minutes::query()->latest()->limit(5)->get();
                     }
 
-                    $this->sendMessage($chatId,str($minutes->toJson()));
                     if ($minutes->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ صورتجلسه‌ای برای شما ثبت نشده است.');
                     } else {
@@ -72,7 +71,7 @@ class BaleBotController extends Controller
                             $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->created_at->format('Y-m-d')) . "\n";
                             $message .= "----------------------\n";
                         }
-
+                        $this->sendMessage($chatId,str('llkl'));
                         $this->sendMessage($chatId, $message);
                     }
                     return response(' صورتجلسه');
