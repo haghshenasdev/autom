@@ -108,7 +108,7 @@ class BaleBotController extends Controller
         ];
 
         if ($buttons) {
-            $payload['reply_markup'] = [
+            $payload['ReplyKeyboardMarkup'] = [
                 'keyboard' => $buttons,
                 'resize_keyboard' => true,
                 'one_time_keyboard' => false,
