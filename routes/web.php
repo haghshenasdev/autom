@@ -126,10 +126,13 @@ Route::get('/test-s3', function () {
 
         $mime = Storage::disk('private')->mimeType($path);
 
-        // ارسال پاسخ به مرورگر
-        return Response::make($content, 200, [
-            'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',]);
+//        // ارسال پاسخ به مرورگر
+//        return Response::make($content, 200, [
+//            'Content-Type' => $mime,
+//            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',]);
+        return response($content, 200)
+            ->header('Content-Type', $mime)
+            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     } catch (\Exception $e) {
         return response()->json([
             'status' => '❌ اتصال ناموفق',
