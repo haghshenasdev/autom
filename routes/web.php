@@ -112,7 +112,7 @@ Route::get('/test-s3', function () {
 //            'files' => $files,
 //        ]);
 
-        $path = 'dhj/letters/1/1.jpg';
+        $path = '1/1.jpg';
 
         if (!Storage::disk('private')->exists($path)) {
             abort(404);
