@@ -119,7 +119,7 @@ Route::get('/test-s3', function () {
 
         // ارسال پاسخ به مرورگر
 
-        return \response()->file($content);
+        return response()->file($content);
     } catch (\Exception $e) {
         return response()->json([
             'status' => '❌ اتصال ناموفق',
