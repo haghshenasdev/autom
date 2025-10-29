@@ -122,17 +122,8 @@ Route::get('/test-s3', function () {
 
         $content = Storage::disk('private')->get($path);
 
-        // تعیین نوع MIME (اختیاری)
-
-        $mime = Storage::disk('private')->mimeType($path);
-        return response($mime);
-
-//        // ارسال پاسخ به مرورگر
-//        return Response::make($content, 200, [
-//            'Content-Type' => $mime,
-//            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',]);
         return response($content, 200)
-            ->header('Content-Type', $mime)
+            ->header('Content-Type', getMimeTypeFromExtension($path))
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     } catch (\Exception $e) {
         return response()->json([
@@ -149,3 +140,31 @@ Route::get('so',function (){
     $mp = new \App\Http\Controllers\ai\MinutesParser();
     dd($mp->parse($obj->message->caption));
 });
+
+function getMimeTypeFromExtension($filename)
+{
+    $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+    $mimeTypes = [
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'bmp'  => 'image/bmp',
+        'webp' => 'image/webp',
+        'pdf'  => 'application/pdf',
+        'txt'  => 'text/plain',
+        'csv'  => 'text/csv',
+        'doc'  => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls'  => 'application/vnd.ms-excel',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'mp3'  => 'audio/mpeg',
+        'mp4'  => 'video/mp4',
+        'zip'  => 'application/zip',
+        'rar'  => 'application/vnd.rar',
+        // می‌تونی پسوندهای بیشتری اضافه کنی
+    ];
+
+    return $mimeTypes[$extension] ?? 'application/octet-stream';
+}
