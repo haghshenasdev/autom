@@ -18,7 +18,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements HasAvatar
+class User extends Authenticatable implements HasAvatar,FilamentUser
 {
     use HasApiTokens, HasFactory, Notifiable , HasRoles,LogsActivity,HasFilaChat;
 
@@ -87,5 +87,10 @@ class User extends Authenticatable implements HasAvatar
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults();
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return str_ends_with($this->email, '@example.com');
     }
 }
