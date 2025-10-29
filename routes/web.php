@@ -125,7 +125,6 @@ Route::get('/test-s3', function () {
         // تعیین نوع MIME (اختیاری)
 
         $mime = Storage::disk('private')->mimeType($path);
-        dd($mime);
 
 //        // ارسال پاسخ به مرورگر
 //        return Response::make($content, 200, [
