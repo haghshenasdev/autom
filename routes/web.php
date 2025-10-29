@@ -106,7 +106,7 @@ Route::get('/eeita',[\App\Http\Controllers\ReadChanel::class,'read']);
 
 Route::get('/test-s3', function () {
     try {
-        $files = Storage::disk('private')->allDirectories();
+        $files = Storage::disk('private')->directories();
         return response()->json([
             'status' => '✅ اتصال برقرار شد',
             'files' => $files,
