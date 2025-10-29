@@ -22,6 +22,7 @@ class BaleBotController extends Controller
             $userMessage = $data['message']['from'];
             $text = $data['message']['text'] ?? '';
             $files = $data['message']['photo'] ?? [];
+            $this->sendMessage($chatId, json_encode($data));
 
 
             // احراز هویت کاربر
