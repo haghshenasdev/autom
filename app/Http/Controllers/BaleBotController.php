@@ -155,43 +155,44 @@ class BaleBotController extends Controller
             // ذخیره در مدل مناسب
             $record = null;
         if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
-            // استخراج عنوان
-            $lines = explode("\n", $text);
-            $title = null;
-            $aprove = [];
-            $text = null;
-            foreach ($lines as $i => $line) {
-                if (str_contains($line, $matched) && isset($lines[$i + 1])) {
-                    $title = trim($lines[$i + 1]);
-                    continue;
-                }
-                if (str_starts_with($line, '-') or str_starts_with($line, '_')){
-                    $aprove[] = $line;
-                }
-                $text = trim($line) . "\n";
-            }
-
-            if (!$title) {
-                // ارسال پیام برای دریافت عنوان
-                $this->sendMessage($chatId, 'لطفاً عنوان را وارد کنید.');
-                return response('عنوان خواسته شد');
-            }
-
-            // ذخیره فایل‌ها
-            $savedFiles = [];
-            foreach ($files as $file) {
-                $path = Storage::put('bale_uploads', $file);
-                $savedFiles[] = $path;
-            }
-
-            $record = Minutes::create([
-                'title' => $title,
-                'date' => null,
-                'text' => $text,
-                'file',
-                'typer_id' => $user->id,
-                'task_id',
-            ]);
+            $this->sendMessage($chatId, json_encode($data));
+//            // استخراج عنوان
+//            $lines = explode("\n", $text);
+//            $title = null;
+//            $aprove = [];
+//            $text = null;
+//            foreach ($lines as $i => $line) {
+//                if (str_contains($line, $matched) && isset($lines[$i + 1])) {
+//                    $title = trim($lines[$i + 1]);
+//                    continue;
+//                }
+//                if (str_starts_with($line, '-') or str_starts_with($line, '_')){
+//                    $aprove[] = $line;
+//                }
+//                $text = trim($line) . "\n";
+//            }
+//
+//            if (!$title) {
+//                // ارسال پیام برای دریافت عنوان
+//                $this->sendMessage($chatId, 'لطفاً عنوان را وارد کنید.');
+//                return response('عنوان خواسته شد');
+//            }
+//
+//            // ذخیره فایل‌ها
+//            $savedFiles = [];
+//            foreach ($files as $file) {
+//                $path = Storage::put('bale_uploads', $file);
+//                $savedFiles[] = $path;
+//            }
+//
+//            $record = Minutes::create([
+//                'title' => $title,
+//                'date' => null,
+//                'text' => $text,
+//                'file',
+//                'typer_id' => $user->id,
+//                'task_id',
+//            ]);
         } elseif ($matched === '#نامه') {
             $record = Letter::create([
                 'subject' => '',
