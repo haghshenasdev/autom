@@ -107,15 +107,15 @@ Route::get('/eeita',[\App\Http\Controllers\ReadChanel::class,'read']);
 Route::get('/test-s3', function () {
     try {
         $path = 'letters/1/1.jpg';
-//        if (!Storage::disk('private')->exists($path)) {
-//            abort(404);
-//        }
+        if (!Storage::disk('private')->exists($path)) {
+            abort(404);
+        }
 
         // دریافت محتوای فایل
         $content = Storage::disk('private')->get($path);
 
         // تعیین نوع MIME (اختیاری)
-//        $mime = Storage::disk('private')->mimeType($path);
+        $mime = Storage::disk('private')->mimeType($path);
 
         // ارسال پاسخ به مرورگر
 
