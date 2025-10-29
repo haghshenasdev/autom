@@ -4,6 +4,7 @@ namespace App\Http\Controllers\ai;
 
 use App\Models\User;
 use App\Models\Organ;
+use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
 use Carbon\Carbon;
 
@@ -15,10 +16,11 @@ class MinutesParser
 
         $titleLine = array_shift($lines);
         $title = $this->cleanTitle($titleLine);
-        $titleDate = $this->extractDateFromTitle($titleLine);
+        $titleDate = $this->extractDateFromTitle($title);
 
         $approves = [];
         $organs = [];
+        $organsName = [];
 
         foreach ($lines as $line) {
             if (str_starts_with($line, '-')) {
@@ -46,19 +48,24 @@ class MinutesParser
                 $approve['due_at'] = $this->extractRelativeDate($rawLine);
 
                 $approves[] = $approve;
-            }
-
-            // استخراج @های مستقل برای organs
-            preg_match_all('/@([\w_]+)/u', $line, $organMatches);
-
-            foreach ($organMatches[1] as $mention) {
-                $name = str_replace('_', ' ', $mention);
-                $organ = Organ::where('name', 'like', "%$name%")
-                    ->orWhere('id', $mention)
-                    ->first();
-                if ($organ) {
-                    $organs[] = ['id' => $organ->id, 'name' => $organ->name];
+            }else{
+                // استخراج @های مستقل برای organs
+                preg_match_all('/@[\w_]+/u', $line, $organMatchesLine);
+                foreach ($organMatchesLine as $organMatches ){
+                    foreach ($organMatches as $mention) {
+                        $name = str_replace('_', ' ', $mention);
+                        $name = str_replace('-', ' ', $name);
+                        $name = str_replace('@', '', $name);
+                        $organsName[] = $name;
+                        $organ = Organ::where('name', 'like', "%$name%")
+                            ->orWhere('id', $mention)
+                            ->first();
+                        if ($organ) {
+                            $organs[] = ['id' => $organ->id, 'name' => $organ->name];
+                        }
+                    }
                 }
+
             }
         }
 
@@ -67,6 +74,7 @@ class MinutesParser
             'title_date' => $titleDate,
             'approves' => $approves,
             'organs' => $organs,
+            'organs_name' => $organsName,
         ];
     }
 
@@ -75,15 +83,15 @@ class MinutesParser
         return ltrim($line, '# ');
     }
 
-    protected function extractDateFromTitle(string $line): ?Carbon
+    protected function extractDateFromTitle(string $line): ?string
     {
         $englishDigits = ['0','1','2','3','4','5','6','7','8','9'];
         $persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
         $converted = str_replace($persianDigits, $englishDigits, $line);
 
-        if (preg_match('/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/', $converted, $matches)) {
+        if (preg_match('/\b(\d{4})\/(\d{1,2})\/(\d{1,2})\b/u', $converted, $matches)) {
             try {
-                return Jalalian::fromFormat('Y/m/d', "{$matches[1]}/{$matches[2]}/{$matches[3]}")->toCarbon();
+                return $matches[0];
             } catch (\Exception $e) {
                 return null;
             }

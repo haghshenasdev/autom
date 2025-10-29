@@ -27,6 +27,7 @@ class Approve extends Model
         'status',
         'description',
         'title',
+        'name',
     ];
 
 
