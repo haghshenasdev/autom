@@ -35,9 +35,19 @@ return [
             'root' => storage_path('app'),
             'throw' => false,
         ],
-        'private' => [
+        'private' => env('APP_ENV') === 'local' ? [
             'driver' => 'local',
             'root' => storage_path('app/letters'),
+            'url' => env('APP_URL').'/private-dl/',
+            'throw' => false,
+        ] :[
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'bucket' => env('AWS_BUCKET') . '/letters',
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
+            'region' => env('AWS_DEFAULT_REGION'),
             'url' => env('APP_URL').'/private-dl/',
             'throw' => false,
         ],

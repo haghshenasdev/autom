@@ -102,3 +102,19 @@ Route::get('/register',function (){
 
 Route::post('/dghdfkgjslikrltkiuwe/webhook',[\App\Http\Controllers\BaleBotController::class,'webhook'])->name('bale_webhook');
 Route::get('/eeita',[\App\Http\Controllers\ReadChanel::class,'read']);
+
+
+Route::get('/test-s3', function () {
+    try {
+        $files = Storage::disk('private')->files(); // لیست فایل‌ها در ریشه باکت
+        return response()->json([
+            'status' => '✅ اتصال برقرار شد',
+            'files' => $files,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => '❌ اتصال ناموفق',
+            'error' => $e->getMessage(),
+        ]);
+    }
+});
