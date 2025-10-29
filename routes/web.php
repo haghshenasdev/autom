@@ -42,11 +42,11 @@ Route::get('/private-show/{path}',function ($path){
         abort(404);
     }
 
-    $path = config('filesystems.disks.private.root') . DIRECTORY_SEPARATOR . $path;
+    $content = Storage::disk('private')->get($path);
 
-    return response()->file($path,[
-        'Content-Type' => mime_content_type($path),
-    ]);
+    return response($content, 200)
+        ->header('Content-Type', getMimeTypeFromExtension($path))
+        ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
 })->middleware('auth')->where('path', '.*');;
 
 Route::get('/minutes-dl/{path}',function ($path){
