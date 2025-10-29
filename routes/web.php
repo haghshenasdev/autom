@@ -106,20 +106,25 @@ Route::get('/eeita',[\App\Http\Controllers\ReadChanel::class,'read']);
 
 Route::get('/test-s3', function () {
     try {
-        $path = 'dhj/letters/1/1.jpg';
-        if (!Storage::disk('private')->exists($path)) {
-            abort(404);
-        }
+        $files = Storage::disk('private')->files();
+        return response()->json([
+            'status' => '✅ اتصال برقرار شد',
+            'files' => $files,
+        ]);
+//        $path = 'dhj/letters/1/1.jpg';
+//        if (!Storage::disk('private')->exists($path)) {
+//            abort(404);
+//        }
+//
+//        // دریافت محتوای فایل
+//        $content = Storage::disk('private')->get($path);
+//
+//        // تعیین نوع MIME (اختیاری)
+//        $mime = Storage::disk('private')->mimeType($path);
+//
+//        // ارسال پاسخ به مرورگر
 
-        // دریافت محتوای فایل
-        $content = Storage::disk('private')->get($path);
-
-        // تعیین نوع MIME (اختیاری)
-        $mime = Storage::disk('private')->mimeType($path);
-
-        // ارسال پاسخ به مرورگر
-
-        return response()->file($content);
+//        return response()->file($content);
     } catch (\Exception $e) {
         return response()->json([
             'status' => '❌ اتصال ناموفق',
