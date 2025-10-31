@@ -63,7 +63,8 @@ class MinutesParser
                             ->orWhere('id', $mention)
                             ->first();
                         if ($organ) {
-                            $organs[] = ['id' => $organ->id, 'name' => $organ->name];
+//                            $organs[] = ['id' => $organ->id, 'name' => $organ->name];
+                            $organs[] = $organ->id;
                         }
                     }
                 }

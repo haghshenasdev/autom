@@ -171,7 +171,7 @@ class BaleBotController extends Controller
                         'typer_id' => $user->id,
                         'task_id' => $parsedData['task_id'],
                     ];
-                    $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه با مشخصات زیر \n\nعنوان : {$mdata['title']}\nتاریخ : {$mdata['date']}\nنويسنده : {$user->name}\nجلسه : {}\nتعداد مصوبه مهم : {} عدد");
+                    $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه با مشخصات زیر \n\nعنوان : {$mdata['title']}\nتاریخ : ".$mdata['date']."\nنويسنده : {$user->name}\nجلسه : {$mdata['task_id']}\n");
                     $record = Minutes::create($mdata);
                     $record->organ()->attach($parsedData['organs']);
                     foreach ($parsedData['approves'] as $approve) {
