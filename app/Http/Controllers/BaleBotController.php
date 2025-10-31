@@ -174,6 +174,7 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه با مشخصات زیر \n\nعنوان : {$mdata['title']}\nتاریخ : ".$mdata['date']."\nنويسنده : {$user->name}\nجلسه : {$mdata['task_id']}\n");
                     $record = Minutes::create($mdata);
                     $record->organ()->attach($parsedData['organs']);
+                    $record->group()->attach(1);
                     foreach ($parsedData['approves'] as $approve) {
                         $cp = new \App\Http\Controllers\ai\CategoryPredictor();
                         $keywords = $cp->extractKeywords($approve['text']);
