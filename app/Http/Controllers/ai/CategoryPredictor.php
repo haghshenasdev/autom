@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ai;
 
 use App\Models\City;
+use App\Models\Organ;
 use Illuminate\Support\Facades\Cache;
 
 class CategoryPredictor
@@ -105,7 +106,7 @@ class CategoryPredictor
         arsort($scores);
         return array_slice($scores, 0, $top, true);
     }
-    protected function extractKeywords(string $text): array
+    public function extractKeywords(string $text): array
     {
         // حذف عبارات ناخواسته
         foreach ($this->phrasesToRemove as $phrase) {
@@ -134,6 +135,25 @@ class CategoryPredictor
 
             if (count(array_intersect($cityWords, $keywordSet)) === count($cityWords)) {
                 return $city->id;
+            }
+        }
+
+        return null;
+    }
+
+    public function detectOrgan(array $keywords): ?string
+    {
+        $organs = Cache::remember('organ_records', 3600, function () {
+            return Organ::select('id', 'name')->get();
+        });
+
+        $keywordSet = array_map('mb_strtolower', $keywords);
+
+        foreach ($organs as $organ) {
+            $organWords = preg_split('/\s+/', mb_strtolower($organ->name));
+
+            if (count(array_intersect($organWords, $keywordSet)) > 3) {
+                return $organ->id;
             }
         }
 

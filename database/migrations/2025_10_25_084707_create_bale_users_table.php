@@ -17,7 +17,7 @@ return new class extends Migration
             $table->boolean('is_sendnotif')->default(true);
             $table->bigInteger('bale_id')->unsigned()->nullable()->unsigned();
             $table->string('bale_username')->nullable();
-            $table->integer('state')->nullable();
+            $table->string('state')->nullable();
             $table->timestamps();
         });
     }

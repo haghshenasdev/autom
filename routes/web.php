@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\ai\CategoryPredictor;
+use App\Models\Task;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
@@ -122,5 +125,8 @@ Route::get('so',function (){
 
     $mp = new \App\Http\Controllers\ai\MinutesParser();
     dd($obj->message);
-    dd($mp->parse($obj->message->caption));
+    $dp = $mp->parse($obj->message->caption);
+
+//    dd(\Morilog\Jalali\Jalalian::fromFormat('Y-m-d','1397-05-02')->toString());
 });
+
