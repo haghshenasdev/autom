@@ -24,7 +24,7 @@ class BaleBotController extends Controller
             $caption = $data['message']['caption'] ?? '';
             $date = $data['date'] ?? now()->toDateTime();
             $media_group_id = $data['message']['media_group_id'] ?? null;
-            $this->sendMessage($chatId, json_encode($data));
+//            $this->sendMessage($chatId, json_encode($data));
 
 
             // احراز هویت کاربر
@@ -215,11 +215,12 @@ class BaleBotController extends Controller
                 if ($record) {
                     $this->sendMessage($chatId, "ثبت شد ✅ آیدی: {$record->id}");
                 }
+                return response('ok', 200);
             }
-            elseif ($media_group_id){
+            if ($media_group_id){
                 $media_group_data = explode('_', $bale_user->sate);
                 if ($media_group_id == $media_group_data[0]){
-                    $record = Minutes::query()->findOrFail((int) $media_group_data[1])->getModel();
+                    $record = Minutes::query()->find($media_group_data[1])->getModel();
                     $doc = $data['message']['document'];
                     $appendix_other = $record->appendix_others()->create(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                     Storage::disk('private_appendix_other')->put($appendix_other->getFilePath(), $this->getFile($doc['file_id']));
