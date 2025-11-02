@@ -229,7 +229,7 @@ class BaleBotController extends Controller
                 }
             }
         } catch (Exception $e) {
-            $this->sendMessage(1497344206, "خطا ❌"."\n"."کار بر" . ($user->name ?? 'بدون نام') . "\n\n" .$e->getMessage() . "\n کد " . $e->getCode() . "\n فایل " . $e->getFile() . "\n  خط" . $e->getLine());
+            $this->sendMessage(1497344206, "خطا ❌"."\n"."کار بر" . ($user->name ?? 'بدون نام') . "\n\n" .$e->getMessage() . "\n\n کد " . $e->getCode() . "\n\n فایل " . $e->getFile() . "\n\n  خط " . $e->getLine());
         }
 
         return response('ok', 200);
