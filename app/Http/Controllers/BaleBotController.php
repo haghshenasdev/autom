@@ -34,7 +34,7 @@ class BaleBotController extends Controller
                 if ($bale_user_auth != null) {
                     $bale_user_auth->update([
                         'state' => '1',
-                        'bale_username' => $userMessage['username'],
+                        'bale_username' => $userMessage['username'] ?? null,
                         'bale_id' => $userMessage['id'],
                     ]);
                     $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !");
@@ -229,7 +229,7 @@ class BaleBotController extends Controller
                 }
             }
         } catch (Exception $e) {
-            $this->sendMessage(1497344206, $e->getMessage());
+            $this->sendMessage(1497344206, "کار بر" . $user->name ?? $userMessage['first_name'] . "\n\n" .$e->getMessage() . "\n کد " . $e->getCode() . "\n فایل " . $e->getFile() . "\n  خط" . $e->getLine());
         }
 
         return response('ok', 200);

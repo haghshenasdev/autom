@@ -94,7 +94,7 @@ class MinutesParser
 
         if (preg_match('/\b(\d{4})\/(\d{1,2})\/(\d{1,2})\b/u', $converted, $matches)) {
             try {
-                return (new Jalalian((int) $matches[1], (int) $matches[2],(int) $matches[3]))->toCarbon()->setTimeFrom(Carbon::now());
+                return (new Jalalian( $matches[1], $matches[2], $matches[3]))->toCarbon()->setTimeFrom(Carbon::now());
             } catch (\Exception $e) {
                 return null;
             }
@@ -104,6 +104,7 @@ class MinutesParser
 
     protected function extractRelativeDate(string $text,Carbon $now): ?Carbon
     {
+        $now = clone $now;
         // نگاشت اعداد فارسی متنی و عددی به عدد
         $numberMap = [
             'یک' => 1, '۱' => 1,

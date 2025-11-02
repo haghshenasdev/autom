@@ -47,11 +47,11 @@ class ReadChanel extends Controller
         foreach ($newPosts as $id => $text) {
             $catPreder = new CategoryPredictor();
             $cats = $catPreder->predictWithCity($text[0]);
-
             $time = Carbon::parse($text[1]);
             if ($cats && $cats['categories']) {
                 $task = Task::create([
-                    'name' => $catPreder->cleanTitle($text[0]),
+                    'name' => mb_substr($catPreder->cleanTitle($text[0]), 0, 350),
+                    'description' => $text[0],
                     'created_at' => $time,
                     'completed_at' => $time,
                     'started_at' => $time,
