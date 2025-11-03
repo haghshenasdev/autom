@@ -99,7 +99,7 @@ class BaleBotController extends Controller
 
                         $message .= "📝 عنوان: {$task->name}\n";
                         $message .= "🆔 شماره ثبت: {$task->id}\n";
-                        $message .= "ℹ️ وضعیت انجام: " . $task->completed ? '✅ انجام شده' : '❌ انجام نشده' ."\n";
+                        $message .= "ℹ️ وضعیت انجام: " . ($task->completed ? '✅ انجام شده' : '❌ انجام نشده') ."\n";
                         if ($user->can('restore_any_task')) $message .= "👤 مسئول: {$task->responsible->name}\n";
                         $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($task->created_at)->format('Y/m/d') . "\n";
                         $message .= "----------------------\n";
