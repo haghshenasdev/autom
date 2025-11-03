@@ -172,7 +172,8 @@ class BaleBotController extends Controller
                     if (is_numeric($queryText)) {
                         $query->where('id', $queryText);
                     } elseif ($queryText !== '') {
-                        $query->where('subject', 'like', "%{$queryText}%");
+                        $queryTextPersent = str_replace(' ', '%', $queryText);
+                        $query->where('subject', 'like', "%{$queryTextPersent}%");
                     } else {
                         $query->orderByDesc('id')->limit(5);
                     }
