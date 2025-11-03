@@ -65,6 +65,7 @@ class BaleBotController extends Controller
                     $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
                         return mb_strpos($text, $kw) !== false;
                     });
+                    $queryText = trim(str_replace($completionKeywords, '', $queryText));
 
                     $query = Task::query();
 
