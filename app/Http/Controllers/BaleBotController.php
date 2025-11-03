@@ -43,7 +43,7 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !");
                     return response('احراز شده');
                 }
-                $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
+                if (isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private") $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
                 return response('احراز نشده');
             }
             $user = \App\Models\User::query()->find($bale_user->user_id);
@@ -75,6 +75,16 @@ class BaleBotController extends Controller
                         $query->where('name', 'like', "%{$queryText}%");
                     } else {
                         $query->orderByDesc('id')->limit(5);
+                    }
+
+                    if ($secondLine != ''){
+                        $queryMinText = trim($secondLine);
+                        if (is_numeric($queryText)) {
+                            $query->where('minutes_id', $queryMinText);
+                        } else {
+                            $minute = Minutes::query()->where('title', 'like', "%{$queryMinText}%")->first();
+                            if ($minute) $query->where('minutes_id', $minute->id);
+                        }
                     }
 
                     if (!$user->can('restore_any_task')) {
