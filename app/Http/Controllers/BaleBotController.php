@@ -143,7 +143,7 @@ class BaleBotController extends Controller
                         $message .= "🆔 آیدی: {$minute->id}\n";
                         $message .= "ℹ️ تعداد کار ها: {$minute->tasks->count()}/{$minute->tasks->where('completed', 1)->count()}\n";
                         $message .= "🆔 آیدی: {$minute->id}\n";
-                        if ($user->can('restore_any_minutes')) $message .= "🆔 نویسنده: {$minute->typer->name}\n";
+                        if ($user->can('restore_any_minutes') and $minute->typer) $message .= "🆔 نویسنده: {$minute->typer->name}\n";
                         if ($minute->date) {
                             $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->date)->format('Y/m/d') . "\n";
                         }
