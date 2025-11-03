@@ -95,7 +95,7 @@ class BaleBotController extends Controller
                             $task->completed = 1;
                             $task->completed_at = now();
                             $task->save();
-                            $message .= "✅ وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n";
+                            $message .= "🔁 وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n\n";
                         }
 
                         $message .= "📝 عنوان: {$task->name}\n";
@@ -173,7 +173,7 @@ class BaleBotController extends Controller
                         $query->where('id', $queryText);
                     } elseif ($queryText !== '') {
                         $queryTextPersent = str_replace(' ', '%', $queryText);
-                        $query->where('subject', 'like', "%{$queryTextPersent}%");
+                        $query->where('subject', 'like', "%{$queryTextPersent}%")->limit(5);
                     } else {
                         $query->orderByDesc('id')->limit(5);
                     }
