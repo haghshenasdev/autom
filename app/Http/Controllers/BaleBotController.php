@@ -148,9 +148,10 @@ class BaleBotController extends Controller
                             $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->date)->format('Y/m/d') . "\n";
                         }
                         if ($queryText !== '' and $minute->tasks->count() != 0){
-                            $message .= "\n🧰 کار های صورت جلسه : ";
+                            $message .= "🧰 کار های صورت جلسه : ";
+                            $message .= "\n";
                             foreach ($minute->tasks as $task) {
-                                $message .= "  " . ($task->completed ? '✅' : '❌') . " " . $task->id . " - " . $task->title ."\n";
+                                $message .= "  " . ($task->completed ? '✅' : '❌') . " " . $task->id . " - " . $task->name ."\n";
                             }
                         }
                         $message .= "----------------------\n";
