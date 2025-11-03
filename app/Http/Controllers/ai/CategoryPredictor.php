@@ -4,7 +4,9 @@ namespace App\Http\Controllers\ai;
 
 use App\Models\City;
 use App\Models\Organ;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Morilog\Jalali\Jalalian;
 
 class CategoryPredictor
 {
@@ -187,6 +189,22 @@ class CategoryPredictor
         $text = preg_replace('/\s+/', ' ', $text); // حذف فاصله‌های اضافی
 
         return $text;
+    }
+
+    public function extractDateFromTitle(string $line): ?Carbon
+    {
+        $englishDigits = ['0','1','2','3','4','5','6','7','8','9'];
+        $persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+        $converted = str_replace($persianDigits, $englishDigits, $line);
+
+        if (preg_match('/\b(\d{4})\/(\d{1,2})\/(\d{1,2})\b/u', $converted, $matches)) {
+            try {
+                return (new Jalalian( $matches[1], $matches[2], $matches[3]))->toCarbon()->setTimeFrom(Carbon::now());
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+        return null;
     }
 
 }

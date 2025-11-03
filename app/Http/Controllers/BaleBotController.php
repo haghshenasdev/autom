@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\ai\CategoryPredictor;
+use App\Models\City;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use App\Models\Minutes;
 use App\Models\Letter;
@@ -150,6 +153,48 @@ class BaleBotController extends Controller
                         $this->sendMessage($chatId, $message);
                         return response('کار ارسال شد');
                 }
+
+                // بررسی شروع با #کار
+                if (str_starts_with($text, '#کار')) {
+                    // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
+                    $title = trim(substr($text, strlen('#کار')));
+
+                    $catPreder = new CategoryPredictor();
+                    $cats = $catPreder->predictWithCity($title);
+                    $time = $catPreder->extractDateFromTitle($title) ?? Carbon::now();
+                    if ($cats) {
+                        $data = [
+                            'name' => mb_substr($catPreder->cleanTitle($text[0]), 0, 350),
+                            'description' => $text,
+                            'created_at' => $time,
+                            'completed_at' => $time,
+                            'started_at' => $time,
+                            'completed' => 1,
+                            'status' => 1,
+                            'Responsible_id' => $user->id,
+                            'city_id' => $cats['city'],
+                        ];
+                        $task = Task::create($data);
+                        $task->project()->attach($cats['categories']);
+                        $task->group()->attach([32,($user->id  == 20) ? 1 : 2]);
+
+                        //پیام
+                        $data['city_id'] = City::find($data['city_id'])->name ?? 'نامشخص';
+                        $data['started_at'] = Jalalian::fromDateTime($data['started_at'])->format('Y/m/d');
+
+                        $message = " 📌 *عنوان:* {$data['name']}\n";
+                        $message .= " 🆔 *شماره ثبت:* {$task->id}\n";
+                        $message .= " 🕒 *تاریخ:* {$data['started_at']}\n";
+                        $message .= "✅ *وضعیت:* انجام شده";
+                        $message .= "📍 *شهر:* {$data['city_id']}\n";
+                        $message .= "👤 *مسئول:* {$user->name}";
+
+                        $this->sendMessage($chatId,$message);
+                    }
+
+                    return response("Task ذخیره شد: " . $title);
+                }
+
             }
             elseif ($caption != '')
             {
@@ -206,10 +251,6 @@ class BaleBotController extends Controller
                     $record = Letter::create([
                         'subject' => '',
                     ]);
-                } elseif ($matched === '#کار') {
-                    $record = Task::create([
-                        'title' => '',
-                    ]);
                 }
 
                 // ارسال پیام تأیید
@@ -229,7 +270,16 @@ class BaleBotController extends Controller
                 }
             }
         } catch (Exception $e) {
-            $this->sendMessage(1497344206, "خطا ❌"."\n"."کار بر" . ($user->name ?? 'بدون نام') . "\n\n" .$e->getMessage() . "\n\n کد " . $e->getCode() . "\n\n فایل " . $e->getFile() . "\n\n  خط " . $e->getLine());
+            $userName = $user->name ?? ($userMessage['first_name'] ?? 'نامشخص');
+
+            $message = "خطا ❌\n";
+            $message .= " کاربر: {$userName}\n\n";
+            $message .= " شرح: " . $e->getMessage() . "\n\n";
+            $message .= "کد: " . $e->getCode() . "\n\n";
+            $message .= "فایل: " . $e->getFile() . "\n\n";
+            $message .= "خط: " . $e->getLine();
+
+            $this->sendMessage(1497344206, $message);
         }
 
         return response('ok', 200);
