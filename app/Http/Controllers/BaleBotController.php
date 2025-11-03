@@ -48,114 +48,149 @@ class BaleBotController extends Controller
             }
             $user = \App\Models\User::query()->find($bale_user->user_id);
 
-            if ($text != '')
-            {
-                switch ($text) {
-                    case '/صورتجلسه':
+            if ($text != '') {
+                $text = trim($text); // حذف فاصله‌های اضافی
+                $lines = explode("\n", $text);
+                $firstLine = $lines[0] ?? '';
+                $secondLine = $lines[1] ?? '';
 
-                        if (!$user->can('view_minutes')) {
-                            $this->sendMessage($chatId, '❌ شما به صورت‌جلسه‌ها دسترسی ندارید!');
-                            return response('عدم دسترسی');
+                if (str_starts_with($firstLine, '/کار')) {
+                    if (!$user->can('view_task')) {
+                        $this->sendMessage($chatId, '❌ شما به کارها دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+
+                    $queryText = trim(str_replace('/کار', '', $firstLine));
+                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد'];
+                    $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
+                        return mb_strpos($text, $kw) !== false;
+                    });
+
+                    $query = Task::query();
+
+                    if (is_numeric($queryText)) {
+                        $query->where('id', $queryText);
+                    } elseif ($queryText !== '') {
+                        $query->where('name', 'like', "%{$queryText}%");
+                    } else {
+                        $query->orderByDesc('id')->limit(5);
+                    }
+
+                    if (!$user->can('restore_any_task')) {
+                        $query->where('Responsible_id', $user->id);
+                    }
+
+                    $tasks = $query->get();
+
+                    if ($tasks->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ کاری مطابق با جستجوی شما یافت نشد.');
+                        return response('کار خالی');
+                    }
+
+                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین کارهای شما:\n\n";
+
+                    foreach ($tasks as $task) {
+                        if ($isCompletion && !$task->completed) {
+                            $task->completed = 1;
+                            $task->completed_at = now();
+                            $task->save();
+                            $message .= "✅ وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n";
                         }
 
-// گرفتن لیست صورت‌جلسه‌ها
-                        $query = Minutes::query()->orderByDesc('id')->limit(5);
+                        $message .= "📝 عنوان: {$task->name}\n";
+                        $message .= "🆔 شماره ثبت: {$task->id}\n";
+                        $message .= "👤 مسئول: {$task->Responsible_id}\n";
+                        $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($task->created_at)->format('Y/m/d') . "\n";
+                        $message .= "----------------------\n";
+                    }
 
-                        if (!$user->can('restore_any_minutes')) {
-                            $query->where('typer_id', $user->id);
+                    $this->sendMessage($chatId, $message);
+                    return response('کار ارسال شد');
+
+                } elseif (str_starts_with($firstLine, '/صورتجلسه')) {
+                    if (!$user->can('view_minutes')) {
+                        $this->sendMessage($chatId, '❌ شما به صورت‌جلسه‌ها دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+
+                    $queryText = trim(str_replace('/صورتجلسه', '', $firstLine));
+                    $query = Minutes::query();
+
+                    if (is_numeric($queryText)) {
+                        $query->where('id', $queryText);
+                    } elseif ($queryText !== '') {
+                        $query->where('title', 'like', "%{$queryText}%");
+                    } else {
+                        $query->orderByDesc('id')->limit(5);
+                    }
+
+                    if (!$user->can('restore_any_minutes')) {
+                        $query->where('typer_id', $user->id);
+                    }
+
+                    $minutes = $query->get();
+
+                    if ($minutes->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ صورت‌جلسه‌ای مطابق با جستجوی شما یافت نشد.');
+                        return response('صورت‌جلسه خالی');
+                    }
+
+                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین صورت‌جلسه‌های شما:\n\n";
+
+                    foreach ($minutes as $minute) {
+                        $message .= "📝 عنوان: {$minute->title}\n";
+                        $message .= "🆔 آیدی: {$minute->id}\n";
+                        if ($minute->date) {
+                            $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->date)->format('Y/m/d') . "\n";
                         }
+                        $message .= "----------------------\n";
+                    }
 
-                        $minutes = $query->get();
+                    $this->sendMessage($chatId, $message);
+                    return response('صورت‌جلسه ارسال شد');
 
-// ارسال پیام
-                        if ($minutes->isEmpty()) {
-                            $this->sendMessage($chatId, '📭 هیچ صورت‌جلسه‌ای برای شما ثبت نشده است.');
-                            return response('صورت‌جلسه خالی');
+                } elseif (str_starts_with($firstLine, '/نامه')) {
+                    if (!$user->can('view_letter')) {
+                        $this->sendMessage($chatId, '❌ شما به نامه‌ها دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+
+                    $queryText = trim(str_replace('/نامه', '', $firstLine));
+                    $query = Letter::query();
+
+                    if (is_numeric($queryText)) {
+                        $query->where('id', $queryText);
+                    } elseif ($queryText !== '') {
+                        $query->where('subject', 'like', "%{$queryText}%");
+                    } else {
+                        $query->orderByDesc('id')->limit(5);
+                    }
+
+                    if (!$user->can('restore_any_letter')) {
+                        $query->where('user_id', $user->id);
+                    }
+
+                    $letters = $query->get();
+
+                    if ($letters->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ نامه‌ای مطابق با جستجوی شما یافت نشد.');
+                        return response('نامه خالی');
+                    }
+
+                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین نامه‌های شما:\n\n";
+
+                    foreach ($letters as $letter) {
+                        $message .= "📝 عنوان: {$letter->subject}\n";
+                        $message .= "🆔 شماره ثبت: {$letter->id}\n";
+                        if ($letter->created_at) {
+                            $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
                         }
+                        $message .= "----------------------\n";
+                    }
 
-                        $message = "🗂 لیست آخرین صورت‌جلسه‌های شما:\n\n";
-
-                        foreach ($minutes as $minute) {
-                            $message .= "📝 عنوان: {$minute->title}\n";
-                            $message .= "🆔 آیدی: {$minute->id}\n";
-                            if ($minute->date) {
-                                $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->date)->format('Y/m/d') . "\n";
-                            }
-                            $message .= "----------------------\n";
-                        }
-
-                        $this->sendMessage($chatId, $message);
-                        return response('صورت‌جلسه ارسال شد');
-                    case '/نامه':
-                        if (!$user->can('view_letter')) {
-                            $this->sendMessage($chatId, '❌ شما به نامه ‌ها دسترسی ندارید!');
-                            return response('عدم دسترسی');
-                        }
-
-                        $query = Letter::query()->orderByDesc('id')->limit(5);
-
-                        if (!$user->can('restore_any_letter')) {
-                            $query->where('user_id', $user->id);
-                        }
-
-                        $minutes = $query->get();
-
-// ارسال پیام
-                        if ($minutes->isEmpty()) {
-                            $this->sendMessage($chatId, '📭 هیچ نامه‌ای برای شما ثبت نشده است.');
-                            return response('نامه خالی');
-                        }
-
-                        $message = "🗂 لیست آخرین نامه های شما:\n\n";
-
-                        foreach ($minutes as $minute) {
-                            $message .= "📝 عنوان: {$minute->subject}\n";
-                            $message .= "🆔 شماره ثبت: {$minute->id}\n";
-                            if ($minute->created_at) {
-                                $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->created_at)->format('Y/m/d') . "\n";
-                            }
-                            $message .= "----------------------\n";
-                        }
-
-                        $this->sendMessage($chatId, $message);
-                        return response('نامه ارسال شد');
-                    case '/کار':
-                        if (!$user->can('view_task')) {
-                            $this->sendMessage($chatId, '❌ شما به کار ‌ها دسترسی ندارید!');
-                            return response('عدم دسترسی');
-                        }
-
-                        $query = Task::query()->orderByDesc('id')->limit(5);
-
-                        if (!$user->can('restore_any_task')) {
-                            $query->where('Responsible_id', $user->id);
-                        }
-
-                        $minutes = $query->get();
-
-// ارسال پیام
-                        if ($minutes->isEmpty()) {
-                            $this->sendMessage($chatId, '📭 هیچ کاری برای شما ثبت نشده است.');
-                            return response('کار خالی');
-                        }
-
-                        $message = "🗂 لیست آخرین کار های شما:\n\n";
-
-                        foreach ($minutes as $minute) {
-                            $message .= "📝 عنوان: {$minute->name}\n";
-                            $message .= "🆔 شماره ثبت: {$minute->id}\n";
-                            if ($minute->created_at) {
-                                $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->created_at)->format('Y/m/d') . "\n";
-                            }
-                            $message .= "----------------------\n";
-                        }
-
-                        $this->sendMessage($chatId, $message);
-                        return response('کار ارسال شد');
-                }
-
-                // بررسی شروع با #کار
-                if (str_starts_with($text, '#کار')) {
+                    $this->sendMessage($chatId, $message);
+                    return response('نامه ارسال شد');
+                } elseif (str_starts_with($text, '#کار')) {
                     // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
                     $title = trim(substr($text, strlen('#کار')));
 
@@ -177,7 +212,7 @@ class BaleBotController extends Controller
                         ];
                         $task = Task::create($data);
                         $task->project()->attach($cats['categories']);
-                        $task->group()->attach([32,($user->id  == 20) ? 1 : 2]);
+                        $task->group()->attach([32, ($user->id == 20) ? 1 : 2]);
 
                         //پیام
                         $data['city_id'] = City::find($data['city_id'])->name ?? 'نامشخص';
@@ -190,15 +225,13 @@ class BaleBotController extends Controller
                         $message .= "📍 *شهر:* {$data['city_id']}\n";
                         $message .= "👤 *مسئول:* {$user->name}";
 
-                        $this->sendMessage($chatId,$message);
+                        $this->sendMessage($chatId, $message);
                     }
 
                     return response("Task ذخیره شد: " . $title);
                 }
 
-            }
-            elseif ($caption != '')
-            {
+            } elseif ($caption != '') {
                 // تشخیص هشتگ‌ها
                 $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
@@ -217,7 +250,7 @@ class BaleBotController extends Controller
                         'typer_id' => $user->id,
                         'task_id' => $parsedData['task_id'],
                     ];
-                    $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه با مشخصات زیر \n\nعنوان : {$mdata['title']}\nتاریخ : ".$mdata['date']."\nنويسنده : {$user->name}\nجلسه : {$mdata['task_id']}\n");
+                    $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه با مشخصات زیر \n\nعنوان : {$mdata['title']}\nتاریخ : " . $mdata['date'] . "\nنويسنده : {$user->name}\nجلسه : {$mdata['task_id']}\n");
                     $record = Minutes::create($mdata);
                     $record->organ()->attach($parsedData['organs']);
                     $record->group()->attach(1);
@@ -234,16 +267,15 @@ class BaleBotController extends Controller
                             'city_id' => $cp->detectCity($keywords),
                             'organ_id' => $cp->detectOrgan($keywords),
                         ]);
-                        $task->group()->attach([33,32]); // دسته بندی هوش مصنوعی و مصوبه
+                        $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
                     }
 
 
-                    if (isset($data['message']['document']))
-                    {
+                    if (isset($data['message']['document'])) {
                         $doc = $data['message']['document'];
                         $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                         Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
-                        if ($media_group_id){
+                        if ($media_group_id) {
                             $bale_user->update(['state' => $media_group_id . "_{$record->id}"]);
                         }
                     }
@@ -260,9 +292,9 @@ class BaleBotController extends Controller
                 }
                 return response('ok', 200);
             }
-            if ($media_group_id){
+            if ($media_group_id) {
                 $media_group_data = explode('_', $bale_user->sate);
-                if ($media_group_id == $media_group_data[0]){
+                if ($media_group_id == $media_group_data[0]) {
                     $record = Minutes::query()->find($media_group_data[1])->getModel();
                     $doc = $data['message']['document'];
                     $appendix_other = $record->appendix_others()->create(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
