@@ -164,7 +164,7 @@ class BaleBotController extends Controller
                     $time = $catPreder->extractDateFromTitle($title) ?? Carbon::now();
                     if ($cats) {
                         $data = [
-                            'name' => mb_substr($catPreder->cleanTitle($text[0]), 0, 350),
+                            'name' => mb_substr($catPreder->cleanTitle($title), 0, 350),
                             'description' => $text,
                             'created_at' => $time,
                             'completed_at' => $time,
@@ -185,7 +185,7 @@ class BaleBotController extends Controller
                         $message = " 📌 *عنوان:* {$data['name']}\n";
                         $message .= " 🆔 *شماره ثبت:* {$task->id}\n";
                         $message .= " 🕒 *تاریخ:* {$data['started_at']}\n";
-                        $message .= "✅ *وضعیت:* انجام شده";
+                        $message .= "✅ *وضعیت:* انجام شده\n";
                         $message .= "📍 *شهر:* {$data['city_id']}\n";
                         $message .= "👤 *مسئول:* {$user->name}";
 
