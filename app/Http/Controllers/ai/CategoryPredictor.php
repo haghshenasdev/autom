@@ -90,6 +90,24 @@ class CategoryPredictor
         ];
     }
 
+    public function predictWithCityOrgan(string $title, int $top = 2): ?array
+    {
+        if ($this->containsBlacklistedWord($title)) {
+            return null;
+        }
+
+        $keywords = $this->extractKeywords($title);
+        $topCategories = $this->predictCore($keywords, $top);
+        $city_id = $this->detectCity($keywords);
+        $organ_id = $this->detectOrgan($keywords);
+
+        return [
+            'categories' => array_keys($topCategories),
+            'city' => $city_id,
+            'organ' => $organ_id,
+        ];
+    }
+
     public function predictCore(array $keywords, int $top = 2): array
     {
         $scores = [];
@@ -144,7 +162,7 @@ class CategoryPredictor
         return null;
     }
 
-    public function detectOrgan(array $keywords): ?string
+    public function detectOrgan(array $keywords): ?int
     {
         $organs = Cache::remember('organ_records', 3600, function () {
             return Organ::select('id', 'name')->get();

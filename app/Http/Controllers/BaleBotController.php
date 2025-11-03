@@ -160,7 +160,7 @@ class BaleBotController extends Controller
                     $title = trim(substr($text, strlen('#کار')));
 
                     $catPreder = new CategoryPredictor();
-                    $cats = $catPreder->predictWithCity($title);
+                    $cats = $catPreder->predictWithCityOrgan($title);
                     $time = $catPreder->extractDateFromTitle($title) ?? Carbon::now();
                     if ($cats) {
                         $data = [
@@ -173,6 +173,7 @@ class BaleBotController extends Controller
                             'status' => 1,
                             'Responsible_id' => $user->id,
                             'city_id' => $cats['city'],
+                            'organ_id' => $cats['organ'],
                         ];
                         $task = Task::create($data);
                         $task->project()->attach($cats['categories']);
