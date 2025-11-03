@@ -65,7 +65,7 @@ class BaleBotController extends Controller
                     $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
                         return mb_strpos($text, $kw) !== false;
                     });
-                    $queryText = trim(str_replace($completionKeywords, '', $queryText));
+                    if ($isCompletion) $queryText = trim(str_replace($completionKeywords, '', $queryText));
 
                     $query = Task::query();
 
@@ -146,6 +146,12 @@ class BaleBotController extends Controller
                         if ($user->can('restore_any_minutes') and $minute->typer) $message .= "👤 نویسنده: {$minute->typer->name}\n";
                         if ($minute->date) {
                             $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->date)->format('Y/m/d') . "\n";
+                        }
+                        if ($queryText !== '' and $minute->tasks->count() != 0){
+                            $message .= "\n🧰 کار های صورت جلسه : ";
+                            foreach ($minute->tasks as $task) {
+                                $message .= "  " . ($task->completed ? '✅' : '❌') . " " . $task->id . " - " . $task->title ."\n";
+                            }
                         }
                         $message .= "----------------------\n";
                     }
