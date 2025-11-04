@@ -29,6 +29,7 @@ class ProjectSeeder extends Seeder
             ["جلسه با سایر کارکنان",null,5],
             ["جلسه مذاکره با مسئولین دفتر",null,24],
             ["نشست گفتگوی یاران","نشست گفتگوی یاران هر فصل در هر شهرستان",6],
+            ["موردی",null,null],
         ];
 
         foreach ($projects as $city) {
