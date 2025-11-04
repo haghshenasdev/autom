@@ -21,6 +21,7 @@ class BaleBotController extends Controller
     {
         try {
             $data = $request->input();
+            if (!isset($data['message'])) return response('پیام نا معتبر');
             $chatId = $data['message']['chat']['id'];
             $userMessage = $data['message']['from'];
             $text = $data['message']['text'] ?? '';
