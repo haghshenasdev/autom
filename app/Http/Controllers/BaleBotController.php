@@ -226,7 +226,7 @@ class BaleBotController extends Controller
                     $cats = $catPreder->predictWithCityOrgan($title);
                     $time = $catPreder->extractDateFromTitle($title) ?? Carbon::now();
                     if ($cats) {
-                        $data = [
+                        $dataTask = [
                             'name' => mb_substr($catPreder->cleanTitle($title), 0, 350),
                             'description' => $text,
                             'created_at' => $time,
@@ -238,19 +238,19 @@ class BaleBotController extends Controller
                             'city_id' => $cats['city'],
                             'organ_id' => $cats['organ'],
                         ];
-                        $task = Task::create($data);
+                        $task = Task::create($dataTask);
                         $task->project()->attach($cats['categories']);
                         $task->group()->attach([32, ($user->id == 20) ? 1 : 2]);
 
                         //پیام
-                        $data['city_id'] = City::find($data['city_id'])->name ?? 'نامشخص';
-                        $data['started_at'] = Jalalian::fromDateTime($data['started_at'])->format('Y/m/d');
+                        $dataTask['city_id'] = City::find($dataTask['city_id'])->name ?? 'نامشخص';
+                        $dataTask['started_at'] = Jalalian::fromDateTime($dataTask['started_at'])->format('Y/m/d');
 
-                        $message = " 📌 *عنوان:* {$data['name']}\n";
+                        $message = " 📌 *عنوان:* {$dataTask['name']}\n";
                         $message .= " 🆔 *شماره ثبت:* {$task->id}\n";
-                        $message .= " 🕒 *تاریخ:* {$data['started_at']}\n";
+                        $message .= " 🕒 *تاریخ:* {$dataTask['started_at']}\n";
                         $message .= "✅ *وضعیت:* انجام شده\n";
-                        $message .= "📍 *شهر:* {$data['city_id']}\n";
+                        $message .= "📍 *شهر:* {$dataTask['city_id']}\n";
                         $message .= "👤 *مسئول:* {$user->name}";
 
                         $this->sendMessage($chatId, $message);
@@ -446,30 +446,30 @@ TEXT;
 
                 } elseif ($matched === '#نامه') {
                     $ltp = new LetterParser();
-                    $data = $ltp->parse($caption);
+                    $dataLetter = $ltp->parse($caption);
 
                     $record = Letter::create([
-                        'subject' => $data['title'],
-                        'created_at' => $data['title_date'] ?? Carbon::now(),
+                        'subject' => $dataLetter['title'],
+                        'created_at' => $dataLetter['title_date'] ?? Carbon::now(),
                         'description' => $caption,
-                        'summary' => $data['summary'],
-                        'mokatebe' => $data['mokatebe'],
-                        'daftar_id' => $data['daftar'],
-                        'kind' => $data['kind'],
+                        'summary' => $dataLetter['summary'],
+                        'mokatebe' => $dataLetter['mokatebe'],
+                        'daftar_id' => $dataLetter['daftar'],
+                        'kind' => $dataLetter['kind'],
                         'user_id' => $user->id,
-                        'peiroow_letter_id' => $data['pirow'],
+                        'peiroow_letter_id' => $dataLetter['pirow'],
                     ]);
 
-                    if ($data['kind'] == 1 ){
-                        $record->organ_id = $data['organ_id'];
+                    if ($dataLetter['kind'] == 1 ){
+                        $record->organ_id = $dataLetter['organ_id'];
                         $record->save();
                     }else{
-                        $record->organs_owner()->attach($data['organ_id']);
+                        $record->organs_owner()->attach($dataLetter['organ_id']);
                     }
 
-                    $record->users()->attach($data['user_id']); //افزودن به کارپوشه
-                    $record->organs_owner()->attach($data['organ_owners']);
-                    $record->customers()->attach($data['customer_owners']);
+                    $record->users()->attach($dataLetter['user_id']); //افزودن به کارپوشه
+                    $record->organs_owner()->attach($dataLetter['organ_owners']);
+                    $record->customers()->attach($dataLetter['customer_owners']);
 
                     if (isset($data['message']['document'])) {
                         $this->sendMessage($chatId,'تست');

@@ -135,10 +135,10 @@ Route::get('so',function (){
 //        }
 //    }
 //    dd($tst);
-//    $obj = json_decode('{"update_id":140,"message":{"message_id":244,"from":{"id":1497344206,"is_bot":false,"first_name":"\u062d\u0642 \u0634\u0646\u0627\u0633","last_name":null,"username":"mhdev"},"date":1761725628,"chat":{"id":1497344206,"type":"private","username":"mhdev","first_name":"\u062d\u0642 \u0634\u0646\u0627\u0633"},"media_group_id":"7792763388837159697","document":{"file_id":"1497344206:-2397828201417269501:1:360a867eae16ee4c91d1a34367c5d8c62fbca569238a9bc8","file_unique_id":null,"file_name":"IMG-20251027-WA0002.jpg","mime_type":"image\/jpeg","file_size":94633},"photo":[{"file_id":"1497344206:-2397828201417269501:1:360a867eae16ee4c91d1a34367c5d8c62fbca569238a9bc8","file_unique_id":null,"width":841,"height":1080,"file_size":94633}],"caption":"#\u0635\u0648\u0631\u062a\u062c\u0644\u0633\u0647 \u0645\u0648\u0631\u062e \u06f1\u06f4\u06f0\u06f4\/\u06f5\/\u06f9 \u0628\u0627 \u0645\u062f\u06cc\u0631 \u06a9\u0644 \u062a\u0627\u0645\u06cc\u0646 \u0627\u062c\u062a\u0645\u0627\u0639\u06cc \u0627\u0633\u062a\u0627\u0646 \u062f\u0631 \u0645\u062d\u0644 \u0628\u06cc\u0645\u0627\u0631\u0633\u062a\u0627\u0646 \u063a\u0631\u0636\u06cc \u0627\u0635\u0641\u0647\u0627\u0646\n\n- \u0645\u0639\u0631\u0641\u06cc \u06cc\u06a9 \u06af\u0631\u0648\u0647 \u06f5 \u0646\u0641\u0631\u0647 \u062e\u06cc\u0631 \u0628\u0631\u0627\u06cc \u0647\u0631 \u062f\u0631\u0645\u0627\u0646\u06af\u0627\u0647 \u062d\u0648\u0632\u0647 \u0627\u0646\u062a\u062e\u0627\u0628\u06cc\u0647 \u062a\u0627 \u06cc\u06a9 \u0647\u0641\u062a\u0647 \u0622\u06cc\u0646\u062f\u0647 @\u062e\u06cc\u0631\u06cc\n-\u0627\u0633\u062a\u0642\u0631\u0627\u0631 \u062f\u0646\u062f\u0627\u0646 \u067e\u0632\u0634\u06a9 \u062f\u0631 \u062f\u0631\u0645\u0627\u0646\u06af\u0627\u0647 \u062a\u0627\u0645\u06cc\u0646 \u0627\u062c\u062a\u0645\u0627\u0639\u06cc \u062f\u0648\u0644\u062a \u0622\u0628\u0627\u062f \u06f2 \u06cc\u0627 \u06f3 \u0631\u0648\u0632 \u062f\u0631 \u0647\u0641\u062a\u0647 \u062a\u0627 \u06cc\u06a9 \u0645\u0627\u0647 \u0622\u06cc\u0646\u062f\u0647 \n\n@\u0645\u062f\u06cc\u0631_\u06a9\u0644_\u062a\u0627\u0645\u06cc\u0646_\u0627\u062c\u062a\u0645\u0627\u0639\u06cc @\u062f\u0631\u0645\u0627\u0646\u06af\u0627\u0647_\u062a\u0627\u0645\u06cc\u0646_\u0627\u062c\u062a\u0646\u0627\u0639\u06cc_\u062f\u0648\u0644\u062a_\u0622\u0628\u0627\u062f"}}');
+    $obj = json_decode('{"update_id":380,"message":{"message_id":613,"from":{"id":1497344206,"is_bot":false,"first_name":"\u062d\u0642 \u0634\u0646\u0627\u0633","last_name":null,"username":"mhdev"},"date":1762358409,"chat":{"id":1497344206,"type":"private","username":"mhdev","first_name":"\u062d\u0642 \u0634\u0646\u0627\u0633"},"document":{"file_id":"1497344206:-6990514021637677311:1:ce9db56cfaf1c6941c99bf83eecaa948ec14eb958cd2849d","file_unique_id":null,"file_name":"IMG_20251105_191434.jpg","mime_type":"image\/jpeg","file_size":110088},"photo":[{"file_id":"1497344206:-6990514021637677311:1:ce9db56cfaf1c6941c99bf83eecaa948ec14eb958cd2849d","file_unique_id":null,"width":1061,"height":1500,"file_size":110088}],"caption":"#\u0646\u0627\u0645\u0647 \u06f4\u06f2\u06f0\u06f3\u06f6\u06f0\u06f6 \u0628\u0647 \u0631\u0626\u06cc\u0633 \u0633\u0627\u0632\u0645\u0627\u0646 \u0628\u0631\u0646\u0627\u0645\u0647 \u0648 \u0628\u0648\u062f\u062c\u0647 \u06a9\u0634\u0648\u0631 \u062c\u0647\u062a \u0627\u062e\u062a\u0635\u0627\u0635 \u062f\u0648 \u0645\u06cc\u0644\u06cc\u0627\u0631\u062f \u062a\u0648\u0645\u0627\u0646 \u0627\u0632 \u0627\u0639\u062a\u0628\u0627\u0631 \u062f\u0631 \u0627\u062e\u062a\u06cc\u0627\u0631 \u0646\u0645\u0627\u06cc\u0646\u062f\u0647 \u0628\u0647 \u062a\u062c\u0647\u06cc\u0632\u0627\u062a \u062f\u0627\u0646\u0634\u06af\u0627\u0647 \u06f1\u06f4\u06f0\u06f4\/\u06f8\/\u06f6\n\u067e\u06cc\u0631\u0648 \u06f6\u06f6\u06f5\u06f5\u06f3 @\u0646\u0638\u0631\u06cc\n=\u062f\u0627\u0646\u0634\u06af\u0627\u0647 \u067e\u06cc\u0627\u0645 \u0646\u0648\u0631 \u0634\u0627\u0647\u06cc\u0646 \u0634\u0647\u0631"}}');
 
 //    $mp = new \App\Http\Controllers\ai\MinutesParser();
-//    dd($obj->message);
+    dd($obj->message);
 //    $dp = $mp->parse($obj->message->caption);
 //    dd($dp);
 //    dd(\Morilog\Jalali\Jalalian::fromFormat('Y-m-d','1397-05-02')->toString());
@@ -149,12 +149,12 @@ Route::get('so',function (){
 //       echo "کار بر" . ($user->name ?? 'بدون نام') . "\n\n" .$e->getMessage() . "\n کد " . $e->getCode() . "\n فایل " . $e->getFile() . "\n  خط" . $e->getLine();
 //    }
 
-    $ltp = new \App\Http\Controllers\ai\LetterParser();
-    $data = $ltp->parse("
-#نامه به رئیس سازمان برنامه و بودجه کشور جهت اختصاص دو میلیارد تومان از اعتبار در اختیار نماینده به تجهیزات دانشگاه ۱۴۰۴/۸/۶
-صادره دفتر تهران مکاتبه ۴۲۰۳۶۰۶ پیرو 1 @نظری
-=دانشگاه پیام نور شاهین شهر
-");
-    dd($data);
+//    $ltp = new \App\Http\Controllers\ai\LetterParser();
+//    $data = $ltp->parse("
+//#نامه به رئیس سازمان برنامه و بودجه کشور جهت اختصاص دو میلیارد تومان از اعتبار در اختیار نماینده به تجهیزات دانشگاه ۱۴۰۴/۸/۶
+//صادره دفتر تهران مکاتبه ۴۲۰۳۶۰۶ پیرو 1 @نظری
+//=دانشگاه پیام نور شاهین شهر
+//");
+//    dd($data);
 });
 
