@@ -472,6 +472,7 @@ TEXT;
                     $record->customers()->attach($data['customer_owners']);
 
                     if (isset($data['message']['document'])) {
+                        $this->sendMessage($chatId,'تست');
                         $doc = $data['message']['document'];
                         $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                         Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
