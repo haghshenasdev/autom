@@ -171,7 +171,7 @@ Route::get('so',function (){
     $message .= '📫 صادره یا وارده : '.(($record->kind == 1) ? 'صادره' : 'وارده')."\n";
     $message .= '👤 کاربر ثبت کننده : '.$user->name."\n";
     if ($record->peiroow_letter_id) $message .= '📧 پیرو : '.$record->peiroow_letter_id.'-'.$record->letter->subject."\n";
-    if ($organname = $record->organs_owner->first()) $message .= '📨 گیرنده نامه : '.$organname->name."\n";
+    if ($record->organ_id) $message .= '📨 گیرنده نامه : '.$record->organ->name."\n";
     if ($cratablename = $record->users->first()) $message .= '🗂️ افزوده شده به کارپوشه : '.$cratablename->name."\n";
 
     $owners_name = '';
