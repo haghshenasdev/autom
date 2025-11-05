@@ -32,7 +32,7 @@ class BaleBotController extends Controller
             $caption = $data['message']['caption'] ?? '';
             $date = $data['date'] ?? now()->toDateTime();
             $media_group_id = $data['message']['media_group_id'] ?? null;
-            $this->sendMessage($chatId, json_encode($data));
+//            $this->sendMessage($chatId, json_encode($data));
 
 
             // احراز هویت کاربر
@@ -471,8 +471,31 @@ TEXT;
                     $record->organs_owner()->attach($dataLetter['organ_owners']);
                     $record->customers()->attach($dataLetter['customer_owners']);
 
+                    $message = '✉️ اطلاعاعت نامه ذخیره شده'."\n\n";
+                    $message .= '🆔 شماره ثبت : '.$record->id."\n";
+                    $message .= '❇️ موضوع : '.$record->subject."\n";
+                    $message .= '📅 تاریخ : '.Jalalian::fromDateTime($record->created_at)->format('Y/m/d')."\n";
+                    if ($record->summary != '') $message .= '📝 خلاصه (هامش) : '.$record->summary."\n";
+                    if ($record->mokatebe) $message .= '🔢 شماره مکاتبه : '.$record->mokatebe."\n";
+                    if ($record->daftar_id) $message .= '🏢 دفتر : '.$record->daftar->name."\n";
+                    $message .= '📫 صادره یا وارده : '.(($record->kind == 1) ? 'صادره' : 'وارده')."\n";
+                    $message .= '👤 کاربر ثبت کننده : '.$user->name."\n";
+                    if ($record->peiroow_letter_id) $message .= '📧 پیرو : '.$record->peiroow_letter_id.'-'.$record->letter->subject."\n";
+                    if ($organname = $record->organs_owner->first()) $message .= '📨 گیرنده نامه : '.$organname->name."\n";
+                    if ($cratablename = $record->users->first()) $message .= '🗂️ افزوده شده به کارپوشه : '.$cratablename->name."\n";
+
+                    $owners_name = '';
+                    foreach ($record->customers as $customer){
+                        $owners_name .= ($customer->code_melli ??  'بدون کد ملی' ).' - '. ($customer->name ?? 'بدون نام') . ' ، ';
+                    }
+                    foreach ($record->organs_owner as $organ_owner){
+                        $owners_name .= $organ_owner->name . ' ، ';
+                    }
+                    if ($owners_name != '') $message .= '💌 صاحب : '.$owners_name."\n";
+
+                    $this->sendMessage($chatId,$message);
+
                     if (isset($data['message']['document'])) {
-                        $this->sendMessage($chatId,'تست');
                         $doc = $data['message']['document'];
                         $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                         Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
