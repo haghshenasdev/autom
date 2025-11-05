@@ -391,7 +391,7 @@ TEXT;
                     $message .= "📝 صورت جلسه های شما : " . Minutes::query()->where('typer_id',$user->id)->count();
 
                     $this->sendMessage($chatId, $message);
-                    return response("راهنما ارسال شد .");
+                    return response("آمار ارسال شد .");
                 }
 
             } elseif ($caption != '') {
@@ -491,6 +491,14 @@ TEXT;
         ];
 
         Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
+    }
+
+    public function sendNotifBale($user_id, $message)
+    {
+        $bale_user = BaleUser::query()->where('user_id', $user_id)->first();
+        if ($bale_user) {
+            $this->sendMessage($bale_user->bale_id, $message);
+        }
     }
 
     private function getFile($filePath)

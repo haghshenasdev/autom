@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Http\Controllers\BaleBotController;
 use App\Models\User;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Forms;
@@ -71,6 +72,22 @@ class SendNotification extends Page implements HasForms
             ->body($this->data['body'])
             ->sendToDatabase(User::find($this->data['recipient_id']));
 
+        Notification::make()
+            ->title('نوتیفیکیشن با موفقیت ارسال شد')
+            ->success()
+            ->send();
+
+        // اگر خواستی بعد از ارسال فرم ریست شود:
+        $this->form->fill([]);
+    }
+
+    public function submitBale(): void
+    {
+
+        $bale_bot = new BaleBotController();
+        $message  = $this->data['title'] . "\n\n";
+        $message .= $this->data['body'];
+        $bale_bot->sendNotifBale($this->data['recipient_id'],$message);
         Notification::make()
             ->title('نوتیفیکیشن با موفقیت ارسال شد')
             ->success()
