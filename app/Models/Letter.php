@@ -27,6 +27,11 @@ class Letter extends Model
         'user_id',
         'titleholder_id',
         'peiroow_letter_id',
+        'summary',
+        'mokatebe',
+        'daftar_id',
+        'organ_id',
+        'created_at',
     ];
 
     public function letter(): BelongsTo

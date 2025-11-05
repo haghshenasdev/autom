@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\ai\CategoryPredictor;
+use App\Http\Controllers\ai\LetterParser;
 use App\Models\Cartable;
 use App\Models\City;
 use App\Models\Project;
@@ -444,16 +445,36 @@ TEXT;
                     }
 
                 } elseif ($matched === '#نامه') {
-                    $line = explode('\n', $caption);
-                    $title = str_replace('#', ' ', $line[0]);
+                    $ltp = new LetterParser();
+                    $data = $ltp->parse($caption);
+
                     $record = Letter::create([
-                        'subject' => $title,
+                        'subject' => $data['title'],
+                        'created_at' => $data['title_date'] ?? Carbon::now(),
+                        'description' => $caption,
+                        'summary' => $data['summary'],
+                        'mokatebe' => $data['mokatebe'],
+                        'daftar_id' => $data['daftar'],
+                        'kind' => $data['kind'],
+                        'user_id' => $user->id,
+                        'peiroow_letter_id' => $data['pirow'],
                     ]);
+
+                    if ($data['kind'] == 1 ){
+                        $record->organ_id = $data['organ_id'];
+                        $record->save();
+                    }else{
+                        $record->organs_owner()->attach($data['organ_id']);
+                    }
+
+                    $record->users()->attach($data['user_id']); //افزودن به کارپوشه
+                    $record->organs_owner()->attach($data['organ_owners']);
+                    $record->customers()->attach($data['customer_owners']);
 
                     if (isset($data['message']['document'])) {
                         $doc = $data['message']['document'];
                         $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
-                        Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
+                        Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
                         if ($media_group_id) {
                             $bale_user->update(['state' => $media_group_id . "_{$record->id}"]);
                         }
