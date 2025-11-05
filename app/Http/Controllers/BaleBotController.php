@@ -404,6 +404,10 @@ TEXT;
                 // ذخیره در مدل مناسب
                 $record = null;
                 if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
+                    if (!$user->can('create_minutes')) {
+                        $this->sendMessage($chatId, '❌ شما برای ایجاد صورت‌جلسه‌ دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
                     $mp = new \App\Http\Controllers\ai\MinutesParser();
                     $parsedData = $mp->parse($caption);
 
@@ -445,6 +449,10 @@ TEXT;
                     }
 
                 } elseif ($matched === '#نامه') {
+                    if (!$user->can('create_letter')) {
+                        $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
                     $ltp = new LetterParser();
                     $dataLetter = $ltp->parse($caption);
 
