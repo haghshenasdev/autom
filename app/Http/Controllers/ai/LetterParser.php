@@ -35,7 +35,7 @@ class LetterParser
 
         $kind = 1; // پیش فرض صادره
         if (preg_match('/نامه\s+از/', $title)) {
-            $kind = 2;
+            $kind = 0;
         }
 
         $piroNumber = null;
