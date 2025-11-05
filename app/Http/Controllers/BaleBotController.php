@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\ai\CategoryPredictor;
+use App\Models\Cartable;
 use App\Models\City;
+use App\Models\Project;
+use App\Models\Referral;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -370,6 +373,22 @@ TEXT;
 TEXT;
 
                     }
+
+                    $this->sendMessage($chatId, $message);
+                    return response("راهنما ارسال شد .");
+                } elseif (str_starts_with($firstLine, '/آمار')){
+                    $message = "📈 آمار \n\n";
+                    $message .= "📄 نامه های شما : " . Letter::query()->whereHas('users', function ($query) use ($user) {
+                            $query->where('user_id', $user->id);
+                        }) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
+                        ->orWhereHas('referrals', function ($query) use ($user) {
+                            $query->where('to_user_id', $user->id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
+                        })->count() ."\n";
+                    $message .= "↖️ ارجاع بررسی نشده : " . Referral::query()->where('to_user_id',$user->id)->whereNot('checked',1)->count() ."\n";
+                    $message .= "🧰  کار پوشه بررسی نشده : " . Cartable::query()->where('user_id',$user->id)->whereNot('checked',1)->count()."\n";
+                    $message .= "ℹ️ پروژه های شما : " . Project::query()->where('user_id',$user->id)->count() ."\n";
+                    $message .= "🕹️ کار های شما : " . Task::query()->where('Responsible_id',$user->id)->count() ."\n";
+                    $message .= "📝 صورت جلسه های شما : " . Minutes::query()->where('typer_id',$user->id)->count();
 
                     $this->sendMessage($chatId, $message);
                     return response("راهنما ارسال شد .");
