@@ -171,15 +171,21 @@ class CategoryPredictor
 
         $keywordSet = array_map('mb_strtolower', $keywords);
 
+        $bestMatchId = null;
+        $maxMatchCount = 0;
+
         foreach ($organs as $organ) {
             $organWords = preg_split('/\s+/', mb_strtolower($organ->name));
+            $matchCount = count(array_intersect($organWords, $keywordSet));
 
-            if (count(array_intersect($organWords, $keywordSet)) > 3) {
-                return $organ->id;
+            if ($matchCount > $maxMatchCount) {
+                $maxMatchCount = $matchCount;
+                $bestMatchId = $organ->id;
             }
         }
 
-        return null;
+        // اگر هیچ تطابقی نداشت، null برمی‌گردد
+        return $maxMatchCount > 0 ? $bestMatchId : null;
     }
 
     private function containsBlacklistedWord(string $title)

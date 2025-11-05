@@ -444,9 +444,20 @@ TEXT;
                     }
 
                 } elseif ($matched === '#نامه') {
+                    $line = explode('\n', $caption);
+                    $title = str_replace('#', ' ', $line[0]);
                     $record = Letter::create([
-                        'subject' => '',
+                        'subject' => $title,
                     ]);
+
+                    if (isset($data['message']['document'])) {
+                        $doc = $data['message']['document'];
+                        $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
+                        Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
+                        if ($media_group_id) {
+                            $bale_user->update(['state' => $media_group_id . "_{$record->id}"]);
+                        }
+                    }
                 }
 
                 // ارسال پیام تأیید

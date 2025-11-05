@@ -85,7 +85,7 @@ class SendNotification extends Page implements HasForms
     {
 
         $bale_bot = new BaleBotController();
-        $message  = $this->data['title'] . "\n\n";
+        $message  = $this->data['title'] . "\n";
         $message .= $this->data['body'];
         $bale_bot->sendNotifBale($this->data['recipient_id'],$message);
         Notification::make()
