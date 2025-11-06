@@ -33,7 +33,7 @@ class UserStatsOverview extends BaseWidget
     {
         $auth_id = auth()->id();
         return [
-            Stat::make('نامه شما', $this->formatShortNumber(Letter::query()->where('user_id', $auth_id) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
+            Stat::make('نامه شما', $this->formatShortNumber(Letter::query()->orWhere('user_id', $auth_id) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
             ->orWhereHas('referrals', function ($query) use ($auth_id) {
                 $query->where('to_user_id', $auth_id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
             })->count()))->icon('heroicon-o-envelope')->url(LetterResource::getUrl()),
