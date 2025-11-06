@@ -36,7 +36,6 @@ class BaleBotController extends Controller
             $date = $data['date'] ?? now()->toDateTime();
             $media_group_id = $data['message']['media_group_id'] ?? null;
 //            $this->sendMessage($chatId, json_encode($data));
-            $this->sendMessageWithReplyKeyboard($chatId,'sgh');
 
             // احراز هویت کاربر
             $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
@@ -48,7 +47,7 @@ class BaleBotController extends Controller
                         'bale_username' => $userMessage['username'] ?? null,
                         'bale_id' => $userMessage['id'],
                     ]);
-                    $this->sendMessage($chatId, "✅ شما با موفقیت احراز هویت شدید !" . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
+                    $this->sendMessageWithReplyKeyboard($chatId, "✅ شما با موفقیت احراز هویت شدید !" . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
                     return response('احراز شده');
                 }
                 if (isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private") $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
@@ -695,8 +694,20 @@ class BaleBotController extends Controller
 
         $keyboard = [
             'keyboard' => [
-                ['گزینه ۱', 'گزینه ۲'],
-                ['گزینه ۳'],
+                [
+                    ['text' => 'راهنما', 'callback_data' => '/راهنما']
+                ],
+                [
+                    ['text' => 'نامه ها', 'callback_data' => '/نامه'],
+                    ['text' => 'کار ها', 'callback_data' => '/کار']
+                ],
+                [
+                    ['text' => 'ارجاع ها', 'callback_data' => '/ارجاع'],
+                    ['text' => 'کارپوشه', 'callback_data' => '/کارپوشه']
+                ],
+                [
+                    ['text' => 'آمار', 'callback_data' => '/آمار'],
+                ],
             ],
             'resize_keyboard' => true,
             'one_time_keyboard' => false,
