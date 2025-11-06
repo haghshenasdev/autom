@@ -212,7 +212,8 @@ class BaleBotController extends Controller
                     }
 
                     if (count($letters) == 1){
-                        $message = $this->CreateLetterMessage($letters[0]);
+                        $message = '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letters[0]->id]).')' . "\n\n";
+                        $message .= $this->CreateLetterMessage($letters[0]);
                         $path = $letters[0]->getFilePath();
                         $this->sendDocumentFromContent($chatId,Storage::disk('private')->get($path),basename($path),$this->getMimeTypeFromExtension($path),$message);
                     }else{
@@ -224,6 +225,7 @@ class BaleBotController extends Controller
                             if ($letter->created_at) {
                                 $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
                             }
+                            $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->id]).')' . "\n";
                             $message .= "----------------------\n";
                         }
 
@@ -265,6 +267,7 @@ class BaleBotController extends Controller
                         $message .= "✅ *وضعیت:* انجام شده\n";
                         $message .= "📍 *شهر:* {$dataTask['city_id']}\n";
                         $message .= "👤 *مسئول:* {$user->name}";
+                        $message .= "\n" . '[بازکردن در سامانه]('.TaskResource::getUrl('edit',[$task->id]).')' . "\n\n";
 
                         $this->sendMessage($chatId, $message);
                     }
