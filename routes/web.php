@@ -152,25 +152,25 @@ Route::get('so',function (){
 //       echo "کار بر" . ($user->name ?? 'بدون نام') . "\n\n" .$e->getMessage() . "\n کد " . $e->getCode() . "\n فایل " . $e->getFile() . "\n  خط" . $e->getLine();
 //    }
 
-//    $ltp = new \App\Http\Controllers\ai\LetterParser();
-//    $data = $ltp->parse("
-//#نامه به رئیس سازمان برنامه و بودجه کشور جهت اختصاص دو میلیارد تومان از اعتبار در اختیار نماینده به تجهیزات دانشگاه ۱۴۰۴/۸/۶
-//صادره دفتر تهران مکاتبه ۴۲۰۳۶۰۶ پیرومکاتبه 1-1 @نظری @طالبی
-//=دانشگاه پیام نور شاهین شهر
-//");
-//    dd($data);
-
-    $text = 'پیرومکاتبه 1-1';
-    $piroNumber = null;
-    if (preg_match('/پیرومکاتبه\s+([^\n]+)/u', $text, $match)) {
-        $piroNumber = trim($match[1]);
-        if ($let = Letter::query()->where('mokatebe',$piroNumber)->first()){
-            $piroNumber = $let->id;
-        }else{
-            $piroNumber = null;
-        }
-    }
-    dd($piroNumber);
+    $ltp = new \App\Http\Controllers\ai\LetterParser();
+    $data = $ltp->parse("
+#نامه به رئیس سازمان برنامه و بودجه کشور جهت اختصاص دو میلیارد تومان از اعتبار در اختیار نماینده به تجهیزات دانشگاه ۱۴۰۴/۸/۶
+صادره دفتر تهران مکاتبه ۴۲۰۳۶۰۶ پیرومکاتبه 1-1 @نظری @طالبی
+=دانشگاه پیام نور شاهین شهر
+");
+    dd($data);
+//
+//    $text = 'پیرومکاتبه 1-1';
+//    $piroNumber = null;
+//    if (preg_match('/پیرومکاتبه\s+([^\n]+)/u', $text, $match)) {
+//        $piroNumber = trim($match[1]);
+//        if ($let = Letter::query()->where('mokatebe',$piroNumber)->first()){
+//            $piroNumber = $let->id;
+//        }else{
+//            $piroNumber = null;
+//        }
+//    }
+//    dd($piroNumber);
 
 //    $user_id = auth()->id();
 //    $re =\App\Models\Letter::query()->orWhere('user_id', $user_id)

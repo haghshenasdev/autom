@@ -19,8 +19,8 @@ class LetterParser
         $lines = array_filter(array_map('trim', explode("\n", $text)));
 
         $titleLine = array_shift($lines);
+        $titleDate = $this->extractDateFromTitle($titleLine);
         $title = $this->cleanTitle($titleLine);
-        $titleDate = $this->extractDateFromTitle($title);
         $words = $this->extractKeywords($title);
         $organ_ghirandeh = $this->detectOrgan($words);
 
@@ -159,6 +159,8 @@ class LetterParser
 
     protected function cleanTitle(string $line): string
     {
+        $line = preg_replace('/\b\d{4}\/\d{1,2}\/\d{1,2}\b/u', '', $line);
+        $line = str_replace('مورخ','',$line);
         return ltrim($line, '# ');
     }
 
