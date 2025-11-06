@@ -129,6 +129,75 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response('کارپوشه ارسال شد');
 
+                }elseif (str_starts_with($firstLine, '/ارجاع')) {
+                    if (!$user->can('view_referral')) {
+                        $this->sendMessage($chatId, '❌ شما به ارجاع ها دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+
+                    $queryText = trim(str_replace('/ارجاع', '', $firstLine));
+                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد' , '#بررسی'];
+                    $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
+                        return mb_strpos($text, $kw) !== false;
+                    });
+                    if ($isCompletion) $queryText = trim(str_replace($completionKeywords, '', $queryText));
+                    $completionKeywords = ['#همه',];
+                    $isFilter = collect($completionKeywords)->contains(function ($kw) use ($text) {
+                        return mb_strpos($text, $kw) !== false;
+                    });
+                    if ($isFilter) $queryText = trim(str_replace($completionKeywords, '', $queryText));
+
+                    $query = Referral::query()->where('to_user_id',$user->id);
+
+                    if (is_numeric($queryText)) {
+                        $query->WhereHas('letter', function ($query) use ($queryText) {
+                            $query->where('id', $queryText);
+                        });
+                    } elseif ($queryText !== '') {
+                        $query->WhereHas('letter', function ($query) use ($queryText) {
+                            $query->where('subject', 'like', "%{$queryText}%");
+                        });
+                    } else {
+                        $query->orderByDesc('id')->limit(5);
+                    }
+
+                    if (!$isFilter) {
+                        $query->where('checked','!=',1);
+                    }
+
+                    $letters = $query->get();
+
+                    if ($letters->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ ارجاعی مطابق با جستجوی شما یافت نشد.');
+                        return response('پوشه خالی');
+                    }
+
+                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین ارجاع های شما:\n\n";
+
+
+                    foreach ($letters as $letter) {
+                        if ($isCompletion and $letters->count() == 1) {
+                            $letter->checked = 1;
+                            $letter->save();
+                        }
+                        $message .= "📝 عنوان: {$letter->letter->subject}\n";
+                        $message .= "🆔 شماره ثبت: {$letter->letter->id}\n";
+                        $message .= "✔️ وضعیت بررسی : ". ($letter->checked == 1 ? "✅ بررسی شده" : "❌ بررسی نشده") ."\n";
+                        if ($letter->rule) $message .= "ℹ️ دستور : ". $letter->rule ."\n";
+                        $message .= "↖️ توسط : ". $letter->by_users->name ."\n";
+                        if ($letter->letter->created_at) {
+                            $message .= "📅 تاریخ ثبت نامه: " . Jalalian::fromDateTime($letter->letter->created_at)->format('Y/m/d') . "\n";
+                        }
+                        if ($letter->created_at) {
+                            $message .= "📅 تاریخ ثبت در کارتابل: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
+                        }
+                        $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->letter->id]).')' . "\n";
+                        $message .= "----------------------\n";
+                    }
+
+                    $this->sendMessage($chatId, $message);
+                    return response('کارپوشه ارسال شد');
+
                 }
                 elseif (str_starts_with($firstLine, '/کار')) {
                     if (!$user->can('view_task')) {
