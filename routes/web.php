@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\LetterResource;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Models\Task;
 use Illuminate\Support\Carbon;
@@ -149,13 +150,13 @@ Route::get('so',function (){
 //       echo "کار بر" . ($user->name ?? 'بدون نام') . "\n\n" .$e->getMessage() . "\n کد " . $e->getCode() . "\n فایل " . $e->getFile() . "\n  خط" . $e->getLine();
 //    }
 
-    $ltp = new \App\Http\Controllers\ai\LetterParser();
-    $data = $ltp->parse("
-#نامه به رئیس سازمان برنامه و بودجه کشور جهت اختصاص دو میلیارد تومان از اعتبار در اختیار نماینده به تجهیزات دانشگاه ۱۴۰۴/۸/۶
-صادره دفتر تهران مکاتبه ۴۲۰۳۶۰۶ پیرو 1 @نظری @طالبی
-=دانشگاه پیام نور شاهین شهر
-");
-    dd($data);
+//    $ltp = new \App\Http\Controllers\ai\LetterParser();
+//    $data = $ltp->parse("
+//#نامه به رئیس سازمان برنامه و بودجه کشور جهت اختصاص دو میلیارد تومان از اعتبار در اختیار نماینده به تجهیزات دانشگاه ۱۴۰۴/۸/۶
+//صادره دفتر تهران مکاتبه ۴۲۰۳۶۰۶ پیرو 1 @نظری @طالبی
+//=دانشگاه پیام نور شاهین شهر
+//");
+//    dd($data);
 
 //    $user_id = auth()->id();
 //    $re =\App\Models\Letter::query()->orWhere('user_id', $user_id)
@@ -163,5 +164,8 @@ Route::get('so',function (){
 //        $query->where('to_user_id', $user_id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
 //    });
 //    dd($re->get());
+
+
+    dd('[بازکردن در سامانه]('.LetterResource::getUrl('edit',[1]).')' . "\n\n");
 });
 

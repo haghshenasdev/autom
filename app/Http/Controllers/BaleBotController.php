@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Filament\Resources\LetterResource;
+use App\Filament\Resources\TaskResource;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\ai\LetterParser;
 use App\Models\Cartable;
@@ -114,6 +116,7 @@ class BaleBotController extends Controller
                             $message .= "🔁 وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n\n";
                         }
 
+                        $message .= '[بازکردن در سامانه]('.TaskResource::getUrl('edit',[$task->id]).')' . "\n\n";
                         $message .= "📝 عنوان: {$task->name}\n";
                         $message .= "🆔 شماره ثبت: {$task->id}\n";
                         $message .= "ℹ️ وضعیت انجام: " . ($task->completed ? '✅ انجام شده' : '❌ انجام نشده') ."\n";
@@ -376,6 +379,7 @@ class BaleBotController extends Controller
                     $record->customers()->attach($dataLetter['customer_owners']);
 
                     $message = '✉️ اطلاعاعت نامه ذخیره شده'."\n\n";
+                    $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$record->id]).')' . "\n\n";
                     $message .= $this->CreateLetterMessage($record);
                     $this->sendMessage($chatId,$message);
 
