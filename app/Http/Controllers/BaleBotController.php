@@ -36,7 +36,7 @@ class BaleBotController extends Controller
             $date = $data['date'] ?? now()->toDateTime();
             $media_group_id = $data['message']['media_group_id'] ?? null;
 //            $this->sendMessage($chatId, json_encode($data));
-            $this->sendMessageWithKeyboard($chatId,'sgh');
+            $this->sendMessageWithReplyKeyboard($chatId,'sgh');
 
             // احراز هویت کاربر
             $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
@@ -688,7 +688,28 @@ class BaleBotController extends Controller
         ];
 
         Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
-        }
+    }
+    private function sendMessageWithReplyKeyboard($chatId, $text): void
+    {
+        $token = env('BALE_BOT_TOKEN');
+
+        $keyboard = [
+            'keyboard' => [
+                ['گزینه ۱', 'گزینه ۲'],
+                ['گزینه ۳'],
+            ],
+            'resize_keyboard' => true,
+            'one_time_keyboard' => false,
+        ];
+
+        $payload = [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+        ];
+
+        Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
+    }
 
 
         public function sendNotifBale($user_id, $message)
