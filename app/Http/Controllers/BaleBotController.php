@@ -62,7 +62,66 @@ class BaleBotController extends Controller
                 $firstLine = $lines[0] ?? '';
                 $secondLine = $lines[1] ?? '';
 
-                if (str_starts_with($firstLine, '/کار')) {
+                if (str_starts_with($firstLine, '/کارپوشه')) {
+                    if (!$user->can('view_cartable')) {
+                        $this->sendMessage($chatId, '❌ شما به کارپوشه دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+
+                    $queryText = trim(str_replace('/کارپوشه', '', $firstLine));
+                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد' , '#بررسی'];
+                    $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
+                        return mb_strpos($text, $kw) !== false;
+                    });
+                    if ($isCompletion) $queryText = trim(str_replace($completionKeywords, '', $queryText));
+
+                    $query = Cartable::query()->where('user_id',$user->id);
+
+                    if (is_numeric($queryText)) {
+                        $query->WhereHas('letter', function ($query) use ($queryText) {
+                            $query->where('id', $queryText);
+                        });
+                    } elseif ($queryText !== '') {
+                        $query->WhereHas('letter', function ($query) use ($queryText) {
+                            $query->where('subject', 'like', "%{$queryText}%");
+                        });
+                    } else {
+                        $query->orderByDesc('id')->limit(5);
+                    }
+
+                    $letters = $query->get();
+
+                    if ($letters->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ نامه ای در کارپوشه مطابق با جستجوی شما یافت نشد.');
+                        return response('پوشه خالی');
+                    }
+
+                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین نامه های موچود در کارپوشه شما:\n\n";
+
+
+                    foreach ($letters as $letter) {
+                        if ($isCompletion and $letters->count() == 1) {
+                            $letter->checked = 1;
+                            $letter->save();
+                        }
+                        $message .= "📝 عنوان: {$letter->letter->subject}\n";
+                        $message .= "🆔 شماره ثبت: {$letter->letter->id}\n";
+                        $message .= "✔️ وضعیت بررسی : ". ($letter->checked == 1 ? "✅ بررسی شده" : "❌ بررسی نشده") ."\n";
+                        if ($letter->letter->created_at) {
+                            $message .= "📅 تاریخ ثبت نامه: " . Jalalian::fromDateTime($letter->letter->created_at)->format('Y/m/d') . "\n";
+                        }
+                        if ($letter->created_at) {
+                            $message .= "📅 تاریخ ثبت در کارتابل: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
+                        }
+                        $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->letter->id]).')' . "\n";
+                        $message .= "----------------------\n";
+                    }
+
+                    $this->sendMessage($chatId, $message);
+                    return response('کارپوشه ارسال شد');
+
+                }
+                elseif (str_starts_with($firstLine, '/کار')) {
                     if (!$user->can('view_task')) {
                         $this->sendMessage($chatId, '❌ شما به کارها دسترسی ندارید!');
                         return response('عدم دسترسی');
