@@ -74,6 +74,11 @@ class BaleBotController extends Controller
                         return mb_strpos($text, $kw) !== false;
                     });
                     if ($isCompletion) $queryText = trim(str_replace($completionKeywords, '', $queryText));
+                    $completionKeywords = ['#همه',];
+                    $isFilter = collect($completionKeywords)->contains(function ($kw) use ($text) {
+                        return mb_strpos($text, $kw) !== false;
+                    });
+                    if ($isFilter) $queryText = trim(str_replace($completionKeywords, '', $queryText));
 
                     $query = Cartable::query()->where('user_id',$user->id);
 
@@ -87,6 +92,10 @@ class BaleBotController extends Controller
                         });
                     } else {
                         $query->orderByDesc('id')->limit(5);
+                    }
+
+                    if (!$isFilter) {
+                        $query->where('checked','!=',1);
                     }
 
                     $letters = $query->get();
