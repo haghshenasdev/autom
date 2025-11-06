@@ -157,32 +157,13 @@ Route::get('so',function (){
 //");
 //    dd($data);
 
-
-
-    $record = \App\Models\Letter::find(1);
-    $user = auth()->user();
-    $message = '✉️ اطلاعاعت نامه ذخیره شده'."\n\n";
-    $message .= '🆔 شماره ثبت : '.$record->id."\n";
-    $message .= '❇️ موضوع : '.$record->subject."\n";
-    $message .= '📅 تاریخ : '.Jalalian::fromDateTime($record->created_at)->format('Y/m/d')."\n";
-    if ($record->summary != '') $message .= '📝 خلاصه (هامش) : '.$record->summary."\n";
-    if ($record->mokatebe) $message .= '🔢 شماره مکاتبه : '.$record->mokatebe."\n";
-    if ($record->daftar_id) $message .= '🏢 دفتر : '.$record->daftar->name."\n";
-    $message .= '📫 صادره یا وارده : '.(($record->kind == 1) ? 'صادره' : 'وارده')."\n";
-    $message .= '👤 کاربر ثبت کننده : '.$user->name."\n";
-    if ($record->peiroow_letter_id) $message .= '📧 پیرو : '.$record->peiroow_letter_id.'-'.$record->letter->subject."\n";
-    if ($record->organ_id) $message .= '📨 گیرنده نامه : '.$record->organ->name."\n";
-    if ($cratablename = $record->users->first()) $message .= '🗂️ افزوده شده به کارپوشه : '.$cratablename->name."\n";
-
-    $owners_name = '';
-    foreach ($record->customers as $customer){
-        $owners_name .= ($customer->code_melli ??  'بدون کد ملی' ).' - '. ($customer->name ?? 'بدون نام') . ' ، ';
-    }
-    foreach ($record->organs_owner as $organ_owner){
-        $owners_name .= $organ_owner->name . ' ، ';
-    }
-    if ($owners_name != '') $message .= '💌 صاحب : '.$owners_name."\n";
-
-    dd($message);
+    $user_id = auth()->id();
+    $re =\App\Models\Letter::query()->whereHas('users', function ($query) use ($user_id) {
+         $query->where('user_id', $user_id);
+    }) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
+    ->orWhereHas('referrals', function ($query) use ($user_id) {
+        $query->where('to_user_id', $user_id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
+    });
+    dd($re->get());
 });
 
