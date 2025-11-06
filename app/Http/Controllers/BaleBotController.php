@@ -162,7 +162,7 @@ class BaleBotController extends Controller
                     }
 
                     if (!$isFilter) {
-                        $query->where('checked','!=',1);
+                        $query->where('referrals.checked','!=',1);
                     }
 
                     $letters = $query->get();
