@@ -695,18 +695,16 @@ class BaleBotController extends Controller
         $keyboard = [
             'keyboard' => [
                 [
-                    ['text' => 'راهنما', 'callback_data' => '/راهنما']
+                    ['/راهنما'],
+                    ['/آمار']
                 ],
                 [
-                    ['text' => 'نامه ها', 'callback_data' => '/نامه'],
-                    ['text' => 'کار ها', 'callback_data' => '/کار']
+                    ['/نامه'],
+                    ['/کار']
                 ],
                 [
-                    ['text' => 'ارجاع ها', 'callback_data' => '/ارجاع'],
-                    ['text' => 'کارپوشه', 'callback_data' => '/کارپوشه']
-                ],
-                [
-                    ['text' => 'آمار', 'callback_data' => '/آمار'],
+                    ['/ارجاع'],
+                    ['/کارپوشه']
                 ],
             ],
             'resize_keyboard' => true,
