@@ -161,8 +161,8 @@ class BaleBotController extends Controller
                         $query->orderByDesc('id')->limit(5);
                     }
 
-                    if ($isFilter) {
-                        $query->where('referrals.checked',1);
+                    if (!$isFilter) {
+                        $query->where('referrals.checked',"!=",1);
                     }
 
                     $letters = $query->get();
