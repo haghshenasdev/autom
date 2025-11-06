@@ -483,6 +483,13 @@ class BaleBotController extends Controller
                         $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
                         return response('عدم دسترسی');
                     }
+
+                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد'];
+                    $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($caption) {
+                        return mb_strpos($caption, $kw) !== false;
+                    });
+                    if ($isCompletion) $caption = trim(str_replace($completionKeywords, '', $caption));
+
                     $ltp = new LetterParser();
                     $dataLetter = $ltp->parse($caption);
 
@@ -496,6 +503,7 @@ class BaleBotController extends Controller
                         'kind' => $dataLetter['kind'],
                         'user_id' => $user->id,
                         'peiroow_letter_id' => $dataLetter['pirow'],
+                        'status' => $isCompletion ? 1 : 2,
                     ]);
 
                     if ($dataLetter['kind'] == 1 ){
