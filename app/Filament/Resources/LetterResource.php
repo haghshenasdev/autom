@@ -69,7 +69,7 @@ class LetterResource extends Resource
         $user = auth()->user();
         $user_id = $user->id;
         if (!$user->can('restore_any_letter')) {
-            return parent::getEloquentQuery()->where('user_id', $user_id) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
+            return parent::getEloquentQuery()->orWhere('user_id', $user_id) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
             ->orWhereHas('referrals', function ($query) use ($user_id) {
                 $query->where('to_user_id', $user_id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
             });

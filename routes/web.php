@@ -158,9 +158,7 @@ Route::get('so',function (){
 //    dd($data);
 
     $user_id = auth()->id();
-    $re =\App\Models\Letter::query()->whereHas('users', function ($query) use ($user_id) {
-         $query->where('user_id', $user_id);
-    }) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
+    $re =\App\Models\Letter::query()->orWhere('user_id', $user_id)
     ->orWhereHas('referrals', function ($query) use ($user_id) {
         $query->where('to_user_id', $user_id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
     });
