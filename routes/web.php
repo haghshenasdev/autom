@@ -3,6 +3,7 @@
 use App\Filament\Resources\LetterResource;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Models\Letter;
+use App\Models\Referral;
 use App\Models\Task;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
