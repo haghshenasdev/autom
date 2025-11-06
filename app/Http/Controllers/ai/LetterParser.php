@@ -49,6 +49,14 @@ class LetterParser
                 $piroNumber = null;
             }
         }
+        if (preg_match('/پیرومکاتبه\s+([^\n]+)/u', $text, $match)) {
+            $piroNumber = trim($match[1]);
+            if ($let = Letter::query()->where('mokatebe',$piroNumber)->first()){
+                $piroNumber = $let->id;
+            }else{
+                $piroNumber = null;
+            }
+        }
 
         $mokatebeNumber = null;
         if (preg_match('/نامه\s+(\d+)/u', $title, $matches)){
