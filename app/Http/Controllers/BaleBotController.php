@@ -210,7 +210,8 @@ class BaleBotController extends Controller
 
                     if (count($letters) == 1){
                         $message = $this->CreateLetterMessage($letters[0]);
-                        $this->sendDocumentByUrl($chatId,env('APP_URL').'/private-show/'. $letters[0]->getFilePath(),$message);
+                        $path = $letters[0]->getFilePath();
+                        $this->sendDocumentFromContent($chatId,Storage::disk('private')->get($path),basename($path),$this->getMimeTypeFromExtension($path),$message);
                     }else{
                         $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین نامه‌های شما:\n\n";
 
@@ -446,6 +447,34 @@ class BaleBotController extends Controller
         return $message;
     }
 
+    private function getMimeTypeFromExtension($filename): string
+    {
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        $mimeTypes = [
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png'  => 'image/png',
+            'gif'  => 'image/gif',
+            'bmp'  => 'image/bmp',
+            'webp' => 'image/webp',
+            'pdf'  => 'application/pdf',
+            'txt'  => 'text/plain',
+            'csv'  => 'text/csv',
+            'doc'  => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls'  => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'mp3'  => 'audio/mpeg',
+            'mp4'  => 'video/mp4',
+            'zip'  => 'application/zip',
+            'rar'  => 'application/vnd.rar',
+            // می‌تونی پسوندهای بیشتری اضافه کنی
+        ];
+
+        return $mimeTypes[$extension] ?? 'application/octet-stream';
+    }
+
     private function sendMessage($chatId, $text): void
     {
         $token = env('BALE_BOT_TOKEN');
@@ -473,6 +502,21 @@ class BaleBotController extends Controller
 
         Http::post("https://tapi.bale.ai/bot{$token}/sendDocument", $payload);
     }
+
+    private function sendDocumentFromContent($chatId, $fileContent, $filename = 'file.pdf', $mimeType = 'application/pdf', $caption = null): void
+    {
+        $token = env('BALE_BOT_TOKEN');
+
+        $url = "https://tapi.bale.ai/bot{$token}/sendDocument";
+
+        $response = Http::attach(
+            'document', $fileContent, $filename
+        )->asMultipart()->post($url, [
+            'chat_id' => $chatId,
+            'caption' => $caption,
+        ]);
+    }
+
 
     public function sendNotifBale($user_id, $message)
     {
