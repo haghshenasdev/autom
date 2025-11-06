@@ -24,13 +24,17 @@ class LetterParser
         $words = $this->extractKeywords($title);
         $organ_ghirandeh = $this->detectOrgan($words);
 
-        $user = null;
-        if (preg_match_all('/@[\w_]+/u', $text, $mention)) {
-            $mention = trim(str_replace('@', '', $mention[0])[0]);
-            $user = User::where('name', 'like', "%$mention%")
-                ->orWhere('id', $mention)
-                ->first();
-            if ($user) $user = $user->id;
+        $user = [];
+        if (preg_match_all('/@[\w_]+/u', $text, $mentions)) {
+            foreach ($mentions as $mention) {
+                foreach ($mention as $m) {
+                    $m = trim(str_replace('@', '', $m));
+                    $us = User::where('name', 'like', "%$m%")
+                        ->orWhere('id', $m)
+                        ->first();
+                    if ($us) $user[] = $us->id;
+                }
+            }
         }
 
         $kind = 1; // پیش فرض صادره

@@ -297,7 +297,7 @@ class LetterResource extends Resource
                 Section::make('امکانات بیشتر')->schema([
                     Forms\Components\Select::make('cartables')
                         ->label('گیرنده درخواست (افزودن به کارپوشه)')
-                        ->relationship('users', 'name')
+                        ->relationship('users', 'name')->multiple()
                         ->searchable()
                         ->preload(),
                     Forms\Components\Select::make('peiroow_letter_id')
