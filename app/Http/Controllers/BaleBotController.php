@@ -440,7 +440,12 @@ class BaleBotController extends Controller
         if ($record->user) $message .= '👤 کاربر ثبت کننده : '.$record->user->name."\n";
         if ($record->peiroow_letter_id) $message .= '📧 پیرو : '.$record->peiroow_letter_id.'-'.$record->letter->subject."\n";
         if ($record->organ_id) $message .= '📨 گیرنده نامه : '.$record->organ->name."\n";
-        if ($cratablename = $record->users->first()) $message .= '🗂️ افزوده شده به کارپوشه : '.$cratablename->name."\n";
+
+        $cratablename = '';
+        foreach ($record->users as $cartablu){
+            $cratablename .= $cartablu->name . ' ، ';
+        }
+        if ($cratablename != '') $message .= '🗂️ افزوده شده به کارپوشه : '.$cratablename."\n";
 
         $owners_name = '';
         foreach ($record->customers as $customer){
