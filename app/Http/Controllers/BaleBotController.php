@@ -30,7 +30,7 @@ class BaleBotController extends Controller
             $data = $request->input();
             if (isset($data['callback_query'])) $data = $data['callback_query'];
             $chatId = $data['message']['chat']['id'];
-            $userMessage = $data['message']['from'];
+            $userMessage = (!isset($data['callback_query'])) ? $data['message']['from'] : $data['from'];
             $text = $data['message']['text'] ?? '';
             $caption = $data['message']['caption'] ?? '';
             $date = $data['date'] ?? now()->toDateTime();
