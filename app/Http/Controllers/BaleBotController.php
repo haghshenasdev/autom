@@ -34,8 +34,8 @@ class BaleBotController extends Controller
                 $this->handleCallbackQuery($request);
                 return response('callback handled');
             }
-            $chatId = $data['message']['chat']['id'];
-            $userMessage = $data['message']['from'];
+            $chatId = $data['message']['chat']['id'] ?? null;
+            $userMessage = $data['message']['from'] ?? null;
             $text = $data['message']['text'] ?? '';
             $caption = $data['message']['caption'] ?? '';
             $date = $data['date'] ?? now()->toDateTime();
