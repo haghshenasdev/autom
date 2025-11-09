@@ -63,6 +63,18 @@ class BaleBotController extends Controller
             $user = \App\Models\User::query()->find($bale_user->user_id);
 
 
+            if ($media_group_id) {
+                $media_group_data = explode('_', $bale_user->sate);
+                if ($media_group_id == $media_group_data[0]) {
+                    $record = Minutes::query()->find($media_group_data[2])->getModel();
+                    $doc = $data['message']['document'];
+                    $appendix_other = $record->appendix_others()->create(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
+                    Storage::disk('private_appendix_other')->put($appendix_other->getFilePath(), $this->getFile($doc['file_id']));
+                    $bale_user->update(['state' => '1']);
+                    return response('فایل ضمیه شد');
+                }
+            }
+
             if ($text != '') {
                 $text = trim(CalendarUtils::convertNumbers($text,true)); // حذف فاصله‌های اضافی و تبدیل اعداد فارسی
                 $lines = explode("\n", $text);
@@ -448,7 +460,7 @@ class BaleBotController extends Controller
                 }
 
             } elseif ($caption != '') {
-                $caption = CalendarUtils::convertNumbers($caption,true);
+                $caption = CalendarUtils::convertNumbers($caption,true); // تبدیل اعداد فارسی به انگلیسی
                 // تشخیص هشتگ‌ها
                 $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
@@ -497,7 +509,7 @@ class BaleBotController extends Controller
                         $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                         Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
                         if ($media_group_id) {
-                            $bale_user->update(['state' => $media_group_id . "_{$record->id}"]);
+                            $bale_user->update(['state' => $media_group_id . "_minute_{$record->id}"]);
                         }
                     }
 
@@ -550,7 +562,7 @@ class BaleBotController extends Controller
                         $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                         Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
                         if ($media_group_id) {
-                            $bale_user->update(['state' => $media_group_id . "_{$record->id}"]);
+                            $bale_user->update(['state' => $media_group_id . "_letter_{$record->id}"]);
                         }
                     }
                 }
@@ -561,16 +573,7 @@ class BaleBotController extends Controller
                 }
                 return response('ok', 200);
             }
-            if ($media_group_id) {
-                $media_group_data = explode('_', $bale_user->sate);
-                if ($media_group_id == $media_group_data[0]) {
-                    $record = Minutes::query()->find($media_group_data[1])->getModel();
-                    $doc = $data['message']['document'];
-                    $appendix_other = $record->appendix_others()->create(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
-                    Storage::disk('private_appendix_other')->put($appendix_other->getFilePath(), $this->getFile($doc['file_id']));
-                    $bale_user->update(['state' => '1']);
-                }
-            }
+
         } catch (Exception $e) {
             $userName = $user->name ?? ($userMessage['first_name'] ?? 'نامشخص');
 
