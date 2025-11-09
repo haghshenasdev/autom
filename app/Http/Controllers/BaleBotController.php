@@ -35,7 +35,7 @@ class BaleBotController extends Controller
             $caption = $data['message']['caption'] ?? '';
             $date = $data['date'] ?? now()->toDateTime();
             $media_group_id = $data['message']['media_group_id'] ?? null;
-//            $this->sendMessage($chatId, json_encode($data));
+            $this->sendMessage($chatId, json_encode($data));
 
             // احراز هویت کاربر
             $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
