@@ -57,6 +57,7 @@ class BaleBotController extends Controller
 
             // هندل کردن callback_query
             if (isset($data['callback_query'])) {
+                $this->sendMessage($chatId,'کالبک');
                 $this->handleCallbackQuery($request);
                 return response('callback handled');
             }
