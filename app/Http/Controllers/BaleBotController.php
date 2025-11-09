@@ -37,6 +37,14 @@ class BaleBotController extends Controller
             $media_group_id = $data['message']['media_group_id'] ?? null;
             $this->sendMessage($chatId, json_encode($data));
 
+            // هندل کردن callback_query
+            if (isset($data['callback_query'])) {
+                $this->sendMessage($chatId,'کالبک');
+                $this->handleCallbackQuery($request);
+                return response('callback handled');
+            }
+
+
             // احراز هویت کاربر
             $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
             if ($bale_user == null) {
@@ -55,12 +63,6 @@ class BaleBotController extends Controller
             }
             $user = \App\Models\User::query()->find($bale_user->user_id);
 
-            // هندل کردن callback_query
-            if (isset($data['callback_query'])) {
-                $this->sendMessage($chatId,'کالبک');
-                $this->handleCallbackQuery($request);
-                return response('callback handled');
-            }
 
             if ($text != '') {
                 $text = trim($text); // حذف فاصله‌های اضافی
@@ -373,7 +375,7 @@ class BaleBotController extends Controller
                             $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
                         }
                         if ($page < $totalPages) {
-                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "1"];
+                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
                         }
                         if (!empty($buttons)) {
                             $keyboard['inline_keyboard'][] = $buttons;
