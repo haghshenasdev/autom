@@ -373,7 +373,7 @@ class BaleBotController extends Controller
                             $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
                         }
                         if ($page < $totalPages) {
-                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
+                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "1"];
                         }
                         if (!empty($buttons)) {
                             $keyboard['inline_keyboard'][] = $buttons;
