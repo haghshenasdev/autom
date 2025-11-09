@@ -356,7 +356,7 @@ class BaleBotController extends Controller
                         $path = $letters[0]->getFilePath();
                         $this->sendDocumentFromContent($chatId,Storage::disk('private')->get($path),basename($path),$this->getMimeTypeFromExtension($path),$message);
                     }else{
-                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - صفحه {$page}:\n\n" : "🗂 لیست نامه‌های شما - صفحه {$page}:\n\n";
+                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - صفحه {$page}:\n\n" : "🗂 لیست نامه‌های شما - صفحه {$page}-{$query->count()}:\n\n";
 
                         foreach ($letters as $letter) {
                             $message .= "📝 عنوان: {$letter->subject}\n";
@@ -375,7 +375,7 @@ class BaleBotController extends Controller
                             $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
                         }
                         if ($page < $totalPages) {
-                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
+                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => ["letter_page_" . ($page + 1)]];
                         }
                         if (!empty($buttons)) {
                             $keyboard['inline_keyboard'][] = $buttons;
