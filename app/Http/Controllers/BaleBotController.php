@@ -28,22 +28,18 @@ class BaleBotController extends Controller
     {
         try {
             $data = $request->input();
-            if (isset($data['callback_query'])) $data = $data['callback_query'];
+            // هندل کردن callback_query
+            if (isset($data['callback_query'])) {
+                $this->handleCallbackQuery($request);
+                return response('callback handled');
+            }
             $chatId = $data['message']['chat']['id'];
-            $userMessage = (!isset($data['callback_query'])) ? $data['message']['from'] : $data['from'];
+            $userMessage = $data['message']['from'];
             $text = $data['message']['text'] ?? '';
             $caption = $data['message']['caption'] ?? '';
             $date = $data['date'] ?? now()->toDateTime();
             $media_group_id = $data['message']['media_group_id'] ?? null;
             $this->sendMessage($chatId, json_encode($data));
-
-            // هندل کردن callback_query
-
-            if (isset($data['callback_query'])) {
-                $this->sendMessage($chatId,'کالبک');
-                $this->handleCallbackQuery($request);
-                return response('callback handled');
-            }
 
 
 
