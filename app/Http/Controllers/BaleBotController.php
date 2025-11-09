@@ -55,6 +55,12 @@ class BaleBotController extends Controller
             }
             $user = \App\Models\User::query()->find($bale_user->user_id);
 
+            // هندل کردن callback_query
+            if (isset($data['callback_query'])) {
+                $this->handleCallbackQuery($request);
+                return response('callback handled');
+            }
+
             if ($text != '') {
                 $text = trim($text); // حذف فاصله‌های اضافی
                 $lines = explode("\n", $text);
@@ -331,7 +337,10 @@ class BaleBotController extends Controller
                         });
                     }
 
-                    $letters = $query->get();
+                    $page = 1;
+                    $perPage = 5;
+                    $letters = $query->forPage($page, $perPage)->get();
+                    $totalPages = ceil($query->count() / $perPage);
 
                     if ($letters->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ نامه‌ای مطابق با جستجوی شما یافت نشد.');
@@ -344,7 +353,7 @@ class BaleBotController extends Controller
                         $path = $letters[0]->getFilePath();
                         $this->sendDocumentFromContent($chatId,Storage::disk('private')->get($path),basename($path),$this->getMimeTypeFromExtension($path),$message);
                     }else{
-                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین نامه‌های شما:\n\n";
+                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - صفحه {$page}:\n\n" : "🗂 لیست نامه‌های شما - صفحه {$page}:\n\n";
 
                         foreach ($letters as $letter) {
                             $message .= "📝 عنوان: {$letter->subject}\n";
@@ -356,7 +365,19 @@ class BaleBotController extends Controller
                             $message .= "----------------------\n";
                         }
 
-                        $this->sendMessage($chatId, $message);
+                        $keyboard = ['inline_keyboard' => []];
+                        $buttons = [];
+
+                        if ($page > 1) {
+                            $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
+                        }
+                        if ($page < $totalPages) {
+                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
+                        }
+                        if (!empty($buttons)) {
+                            $keyboard['inline_keyboard'][] = $buttons;
+                        }
+                        $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
                     }
 
                     return response('نامه ارسال شد');
@@ -663,31 +684,6 @@ class BaleBotController extends Controller
             'caption' => $caption,
         ]);
     }
-
-    private function sendMessageWithKeyboard($chatId, $text): void
-    {
-        $token = env('BALE_BOT_TOKEN');
-
-        $keyboard = [
-            'inline_keyboard' => [
-                [
-                    ['text' => 'سایت ما', 'url' => 'https://example.com'],
-                    ['text' => 'تماس با ما', 'url' => 'https://example.com/contact'],
-                ],
-                [
-                    ['text' => 'درباره ما', 'url' => 'https://example.com/about'],
-                ],
-            ],
-        ];
-
-        $payload = [
-            'chat_id' => $chatId,
-            'text' => $text,
-            'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
-        ];
-
-        Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
-    }
     private function sendMessageWithReplyKeyboard($chatId, $text): void
     {
         $token = env('BALE_BOT_TOKEN');
@@ -734,6 +730,66 @@ class BaleBotController extends Controller
         $token = env('BALE_BOT_TOKEN');
 
         return file_get_contents("https://tapi.bale.ai/file/bot{$token}/{$filePath}");
+    }
+
+    private function sendMessageWithKeyboard($chatId, $text, $keyboard): void
+    {
+        $token = env('BALE_BOT_TOKEN');
+        Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+        ]);
+    }
+
+    public function handleCallbackQuery(Request $request): void
+    {
+        $token = env('BALE_BOT_TOKEN');
+        $data = $request->input('callback_query');
+
+        $chatId = $data['message']['chat']['id'];
+        $messageId = $data['message']['message_id'];
+        $callbackData = $data['data'];
+
+        if (str_starts_with($callbackData, 'letter_page_')) {
+            $page = (int) str_replace('letter_page_', '', $callbackData);
+            $perPage = 5;
+
+            $query = Letter::query()->orderByDesc('id');
+            $totalPages = ceil($query->count() / $perPage);
+            $letters = $query->forPage($page, $perPage)->get();
+
+            $message = "🗂 لیست نامه‌های شما - صفحه {$page}:\n\n";
+            foreach ($letters as $letter) {
+                $message .= "📝 عنوان: {$letter->subject}\n";
+                $message .= "🆔 شماره ثبت: {$letter->id}\n";
+                if ($letter->created_at) {
+                    $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
+                }
+                $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->id]).')' . "\n";
+                $message .= "----------------------\n";
+            }
+
+            $keyboard = ['inline_keyboard' => []];
+            $buttons = [];
+
+            if ($page > 1) {
+                $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
+            }
+            if ($page < $totalPages) {
+                $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
+            }
+            if (!empty($buttons)) {
+                $keyboard['inline_keyboard'][] = $buttons;
+            }
+
+            Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => $message,
+                'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
     }
 
     private function HelpHandler(string $queryText): string
