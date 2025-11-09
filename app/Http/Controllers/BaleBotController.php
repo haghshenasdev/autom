@@ -28,7 +28,7 @@ class BaleBotController extends Controller
     {
         try {
             $data = $request->input();
-            if (!isset($data['message'])) return response('پیام نا معتبر');
+            if (isset($data['callback_query'])) $data = $data['callback_query'];
             $chatId = $data['message']['chat']['id'];
             $userMessage = $data['message']['from'];
             $text = $data['message']['text'] ?? '';
@@ -38,11 +38,13 @@ class BaleBotController extends Controller
             $this->sendMessage($chatId, json_encode($data));
 
             // هندل کردن callback_query
+
             if (isset($data['callback_query'])) {
                 $this->sendMessage($chatId,'کالبک');
                 $this->handleCallbackQuery($request);
                 return response('callback handled');
             }
+
 
 
             // احراز هویت کاربر
@@ -375,7 +377,7 @@ class BaleBotController extends Controller
                             $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
                         }
                         if ($page < $totalPages) {
-                            $buttons[] = ['text' => '➡️ بعدی', 'url' => "https://hajideligani.ir/"];
+                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
                         }
                         if (!empty($buttons)) {
                             $keyboard['inline_keyboard'][] = $buttons;
