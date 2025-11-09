@@ -354,7 +354,7 @@ class BaleBotController extends Controller
                         $path = $letters[0]->getFilePath();
                         $this->sendDocumentFromContent($chatId,Storage::disk('private')->get($path),basename($path),$this->getMimeTypeFromExtension($path),$message);
                     }else{
-                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - صفحه {$page}:\n\n" : "🗂 لیست نامه‌های شما - صفحه {$page}-{$query->count()}:\n\n";
+                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - صفحه {$page}:\n\n" : "🗂 لیست نامه‌های شما - صفحه {$page} از {$query->count()}:\n\n";
 
                         foreach ($letters as $letter) {
                             $message .= "📝 عنوان: {$letter->subject}\n";
@@ -760,7 +760,7 @@ class BaleBotController extends Controller
             $totalPages = ceil($query->count() / $perPage);
             $letters = $query->forPage($page, $perPage)->get();
 
-            $message = "🗂 لیست نامه‌های شما - صفحه {$page}:\n\n";
+            $message = "🗂 لیست نامه‌های شما - صفحه {$page} از {$query->count()}:\n\n";
             foreach ($letters as $letter) {
                 $message .= "📝 عنوان: {$letter->subject}\n";
                 $message .= "🆔 شماره ثبت: {$letter->id}\n";
