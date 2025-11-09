@@ -64,7 +64,7 @@ class BaleBotController extends Controller
 
 
             if ($media_group_id) {
-                $media_group_data = explode('_', $bale_user->sate);
+                $media_group_data = explode('_', $bale_user->state);
                 $this->sendMessage($chatId,json_encode($media_group_data));
                 if ($media_group_id == $media_group_data[0]) {
                     $record = Minutes::query()->find($media_group_data[2])->getModel();
