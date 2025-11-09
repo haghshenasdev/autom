@@ -20,6 +20,7 @@ use App\Models\Letter;
 use App\Models\Task;
 use App\Models\BaleUser;
 use Illuminate\Support\Facades\Storage;
+use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
 
 class BaleBotController extends Controller
@@ -63,7 +64,7 @@ class BaleBotController extends Controller
 
 
             if ($text != '') {
-                $text = trim($text); // حذف فاصله‌های اضافی
+                $text = trim(CalendarUtils::convertNumbers($text,true)); // حذف فاصله‌های اضافی و تبدیل اعداد فارسی
                 $lines = explode("\n", $text);
                 $firstLine = $lines[0] ?? '';
                 $secondLine = $lines[1] ?? '';
@@ -447,6 +448,7 @@ class BaleBotController extends Controller
                 }
 
             } elseif ($caption != '') {
+                $caption = CalendarUtils::convertNumbers($caption,true);
                 // تشخیص هشتگ‌ها
                 $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
