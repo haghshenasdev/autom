@@ -34,6 +34,7 @@
         "phpsa/filament-password-reveal": "^2.0",
         "pxlrbt/filament-excel": "^2.1",
         "rmsramos/activitylog": "^2.0",
+        "saade/filament-autograph": "^3.2",
         "saade/filament-fullcalendar": "3.0",
         "tomatophp/filament-pwa": "^1.0"
     },

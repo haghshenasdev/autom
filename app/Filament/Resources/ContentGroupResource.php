@@ -19,14 +19,15 @@ class ContentGroupResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?string $label = "دسته بندی محتوا";
+    protected static ?string $label = "دسته بندی اسناد";
 
-    protected static ?string $navigationGroup = 'محتوا';
+    protected static ?string $navigationGroup = 'اسناد';
 
+    protected static ?int $navigationSort = 2;
 
-    protected static ?string $pluralModelLabel = "دسته بندی محتوا";
+    protected static ?string $pluralModelLabel = "دسته بندی اسناد";
 
-    protected static ?string $pluralLabel = "دسته بندی محتوا";
+    protected static ?string $pluralLabel = "دسته بندی اسناد";
 
     public static function form(Form $form): Form
     {

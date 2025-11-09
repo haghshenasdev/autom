@@ -7,6 +7,7 @@ use App\Filament\Resources\ChatResource\Pages\Chat;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -65,8 +66,25 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->navigationGroups([
-                'نامه',
-                'دستور',
+                NavigationGroup::make()
+                    ->label('اسناد')
+                    ->icon('heroicon-o-document'),
+                NavigationGroup::make()
+                    ->label('نامه')->collapsed(),
+                NavigationGroup::make()
+                    ->label('دستور')->collapsed(),
+                NavigationGroup::make()
+                    ->label('پروژه / جلسه / پیگیری')->collapsed(),
+                NavigationGroup::make()
+                    ->label('اطلاع رسانی')->collapsed(),
+                NavigationGroup::make()
+                    ->label('صورت جلسه')->collapsed(),
+                NavigationGroup::make()
+                    ->label('مراجعه کننده')->collapsed(),
+                NavigationGroup::make()
+                    ->label('مراجع دریافت نامه')->collapsed(),
+                NavigationGroup::make()
+                    ->label('سیستم')->collapsed(),
             ])
             ->authMiddleware([
                 Authenticate::class,

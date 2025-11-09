@@ -71,6 +71,18 @@ Route::middleware('auth')->group(function () {
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 
+    Route::get('/private-show2/{path}', function ($path) {
+        if (!Storage::disk('private')->exists($path)) {
+            abort(404);
+        }
+
+        $content = Storage::disk('private2')->get($path);
+
+        return response($content, 200)
+            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
+    })->where('path', '.*');
+
     Route::get('/appendix-other-show/{path}', function ($path) {
         if (!Storage::disk('private_appendix_other')->exists($path)) {
             abort(404);

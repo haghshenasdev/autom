@@ -22,16 +22,17 @@ class ContentResource extends Resource
 {
     protected static ?string $model = Content::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-document';
 
-    protected static ?string $label = "محتوا";
+    protected static ?string $label = "سند";
 
-    protected static ?string $navigationGroup = 'محتوا';
+    protected static ?string $navigationGroup = 'اسناد';
 
+    protected static ?int $navigationSort = 1;
 
-    protected static ?string $pluralModelLabel = "محتوا";
+    protected static ?string $pluralModelLabel = "اسناد";
 
-    protected static ?string $pluralLabel = "محتوا";
+    protected static ?string $pluralLabel = "اسناد";
 
     public static function form(Form $form): Form
     {
@@ -43,14 +44,11 @@ class ContentResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->searchable()
+                    ->label('شماره ثبت'),
                 Tables\Columns\TextColumn::make('title')
-                    ->limit(20)
-                    ->state(function (Content $record) {
-                        if ($record->title === null) {
-                            return strip_tags(html_entity_decode(trim($record->body)));
-                        }
-                        return $record->title;
-                    })
+                    ->searchable()
                     ->label('عنوان'),
 
                 Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
