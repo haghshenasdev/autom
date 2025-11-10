@@ -55,7 +55,7 @@ return [
         'private2' => env('APP_ENV') === 'local' ? [
             'driver' => 'local',
             'root' => storage_path('app/contents'),
-            'url' => env('APP_URL').'/minutes-dl/',
+            'url' => env('APP_URL').'/private-dl2/',
             'throw' => false,
         ] : [
             'driver' => 's3',
@@ -65,7 +65,7 @@ return [
             'bucket' => env('AWS_BUCKET'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
             'region' => env('AWS_DEFAULT_REGION'),
-            'url' => env('APP_URL').'/minutes-dl/',
+            'url' => env('APP_URL').'/private-dl2/',
             'root' => 'docs',
             'throw' => false,
         ],

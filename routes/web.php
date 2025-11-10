@@ -83,6 +83,16 @@ Route::middleware('auth')->group(function () {
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 
+    Route::get('/private-dl2/{path}', function ($path) {
+        if (!Storage::disk('private2')->exists($path)) {
+            abort(404);
+        }
+
+        $path = config('filesystems.disks.private2.root') . DIRECTORY_SEPARATOR . $path;
+
+        return response()->file($path);
+    })->where('path', '.*');
+
     Route::get('/appendix-other-show/{path}', function ($path) {
         if (!Storage::disk('private_appendix_other')->exists($path)) {
             abort(404);
