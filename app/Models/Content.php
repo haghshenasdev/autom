@@ -66,7 +66,7 @@ class Content extends Model
                         ->hintActions([
                             Action::make('باز کردن لینک')
                                 ->label('نمایش فایل')
-                                ->url(fn($record,Get $get) => env('APP_URL').'/private-show2/'. $get('file')[array_key_first($get('file'))], shouldOpenInNewTab: true)
+                                ->url(fn($record,Get $get) => $get('file') ? env('APP_URL').'/private-show2/'. $get('file')[array_key_first($get('file'))] : '', shouldOpenInNewTab: true)
                                 ->color('primary')
                                 ->icon('heroicon-o-arrow-top-right-on-square'),
                         ])

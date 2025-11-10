@@ -52,10 +52,21 @@ return [
             'root' => 'letters',
             'throw' => false,
         ],
-        'private2' => [
+        'private2' => env('APP_ENV') === 'local' ? [
             'driver' => 'local',
             'root' => storage_path('app/contents'),
-            'url' => env('APP_URL').'/minutes-dl/',
+            'url' => env('APP_URL').'/private-show2/',
+            'throw' => false,
+        ] : [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'bucket' => env('AWS_BUCKET'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
+            'region' => env('AWS_DEFAULT_REGION'),
+            'url' => env('APP_URL').'/private-show2/',
+            'root' => 'docs',
             'throw' => false,
         ],
         'private_appendix_other' => env('APP_ENV') === 'local' ? [

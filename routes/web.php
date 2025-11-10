@@ -72,7 +72,7 @@ Route::middleware('auth')->group(function () {
     })->where('path', '.*');
 
     Route::get('/private-show2/{path}', function ($path) {
-        if (!Storage::disk('private')->exists($path)) {
+        if (!Storage::disk('private2')->exists($path)) {
             abort(404);
         }
 
