@@ -88,9 +88,10 @@ Route::middleware('auth')->group(function () {
             abort(404);
         }
 
-        $path = config('filesystems.disks.private2.root') . DIRECTORY_SEPARATOR . $path;
+        $content = Storage::disk('private2')->get($path);
 
-        return response()->file($path);
+        return response($content, 200)
+            ->header('Content-Type', getMimeTypeFromExtension($path));
     })->where('path', '.*');
 
     Route::get('/appendix-other-show/{path}', function ($path) {
