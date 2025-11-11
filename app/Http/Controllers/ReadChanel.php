@@ -43,6 +43,8 @@ class ReadChanel extends Controller
 
         $newPosts = $this->removeExactDuplicateTitlesKeepHigherId($newPosts);
 
+        ksort($newPosts);
+        echo count($newPosts) . " پست خوانده شد .";
         // پردازش پست‌های جدید
         foreach ($newPosts as $id => $text) {
             $catPreder = new CategoryPredictor();
@@ -101,7 +103,24 @@ class ReadChanel extends Controller
 
     public function dom(string $url)
     {
-        $html = file_get_contents($url);
+        /// تلاش در صورت شکست فراخوانی
+        $attempts = 0;
+        $maxAttempts = 5; //تعداد تلاش در هر شکست
+        $waitSeconds = 3; // میزان صبر کردن بعد از هر شکست
+        do {
+            $html = @file_get_contents($url);
+            if ($html !== false) {
+                break;
+            }
+
+            $attempts++;
+            sleep($waitSeconds); // صبر قبل از تلاش مجدد
+        } while ($attempts < $maxAttempts);
+
+        if ($html === false) {
+            throw new \Exception("خطا در دریافت محتوا از $url بعد از $maxAttempts تلاش.");
+        }
+ /////////////
 
 // بارگذاری HTML در DOMDocument
         libxml_use_internal_errors(true);

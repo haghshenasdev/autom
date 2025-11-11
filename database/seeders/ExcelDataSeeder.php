@@ -12,42 +12,6 @@ class ExcelDataSeeder extends Seeder
     {
         $path = storage_path('app/excel/data.xlsx');
 
-        $cities = [
-            "دو شهرستان",
-            "برخوار",
-            "شهرستان شاهین شهر",
-            "استان",
-            "دولت آباد",
-            "شاهین شهر",
-            "کشور",
-            "خورزوق",
-            "گز",
-            "گرگاب",
-            "حبیب آباد",
-            "میمه",
-            "دستگرد",
-            "محسن آباد",
-            "سین",
-            "کمشچه",
-            "شاپور آباد",
-            "علی آباد ملاعلی",
-            "وزوان",
-            "ازان",
-            "علی آبادچی",
-            "پروانه",
-            "مورچه خورت",
-            "موته",
-            "لایبید",
-            "حسن رباط",
-            "لوشاب",
-            "ونداده",
-            "زیاد آباد",
-            "خسروآباد",
-            "چغاده",
-            "مراوند",
-            "رباط آغاکمال",
-        ];
-
         $rows = Excel::toArray([], $path)[0]; // فرض بر اینه که فقط یک شیت داریم
 
         foreach ($rows as $index => $row) {
@@ -55,8 +19,6 @@ class ExcelDataSeeder extends Seeder
 
             $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($row[1]);
             $time = Jalalian::fromDateTime($date)->toCarbon();
-            $cityIndex = array_search(trim($row[2]), $cities);
-            $cityId = $cityIndex !== false ? $cityIndex + 1 : null; // یا مقدار پیش‌فرض
 
             $task = \App\Models\Task::create([
                 'name' => $row[0],
@@ -65,14 +27,14 @@ class ExcelDataSeeder extends Seeder
                 'description' => $row[3],
                 'completed' => true,
                 'created_by' => 1,
-                'city_id' => $cityId,
+                'city_id' => trim($row[2]),
                 'status' => 1,
             ]);
 
             $selectedColumns = [];
             for ($i = 4; $i <= 20; $i++) {
                 if (isset($row[$i]) && $row[$i] == 1) {
-                    $selectedColumns[] = $i-3;
+                    $selectedColumns[] = $i+2216;
                 }
             }
             $task->project()->attach($selectedColumns);
