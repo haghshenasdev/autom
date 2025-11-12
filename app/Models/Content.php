@@ -82,9 +82,7 @@ class Content extends Model
 
                     SignaturePad::make('signature-pad')
                         ->label('دست نویس')
-                        ->columnSpanFull()->downloadable()->extraAttributes([
-                            'style' => 'height: 600px; width: 100%; border: 1px solid #ccc;',
-                        ])
+                        ->columnSpanFull()->downloadable()
                         ->visible(fn ($get) => $get('type') === 'signature')
                         ->required(fn ($get) => $get('type') === 'signature'),
                 ])

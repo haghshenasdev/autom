@@ -703,6 +703,7 @@ class BaleBotController extends Controller
                 ],
                 [
                     '/نامه',
+                    '/صورتجلسه',
                     '/کار'
                 ],
                 [
