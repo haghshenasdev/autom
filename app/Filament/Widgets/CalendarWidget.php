@@ -25,7 +25,9 @@ class CalendarWidget extends FullCalendarWidget
             ->map(
                 fn (Task $event) => EventData::make()
                     ->id($event->id)
-                    ->title($event->name)
+                    ->title(($event->group->contains('id', 1) ? '🧰 ' :
+                            ($event->group->contains('id', 33) ? '📝 ' : '')
+                        ) . $event->name)
                     ->start($event->started_at)
                     ->end($event->ended_at)
                     ->backgroundColor($event->completed ? 'green' : 'blue')
