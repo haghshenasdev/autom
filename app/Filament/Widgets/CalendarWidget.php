@@ -26,7 +26,7 @@ class CalendarWidget extends FullCalendarWidget
                 fn (Task $event) => EventData::make()
                     ->id($event->id)
                     ->title(($event->group->contains('id', 1) ? '🧰 ' :
-                            ($event->group->contains('id', 33) ? '📝 ' : '')
+                            ($event->group->contains('id', 33) ? '📝 ' : ($event->group->contains('id', 2) ? '🕹️ ' : ''))
                         ) . $event->name)
                     ->start($event->started_at)
                     ->end($event->ended_at)
