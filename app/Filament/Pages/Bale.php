@@ -25,7 +25,7 @@ class Bale extends Page
 
     protected static ?string $navigationGroup = 'سیستم';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 5;
 
     protected static ?string $title = 'تعامل با پیامرسان بله';
 

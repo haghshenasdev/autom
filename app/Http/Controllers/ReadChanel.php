@@ -16,6 +16,11 @@ class ReadChanel extends Controller
         $channel = \App\Models\ReadChanel::query()->findOrNew(1);
         $lastReadId = $channel->post_id ?? 0;
 
+        $channel->timestamps = false;
+        $channel->last_read_at = Carbon::now();
+        $channel->save();
+        $channel->timestamps = true;
+
         $currentId = null;
         $newPosts = [];
 
@@ -44,7 +49,8 @@ class ReadChanel extends Controller
         $newPosts = $this->removeExactDuplicateTitlesKeepHigherId($newPosts);
 
         ksort($newPosts);
-        echo count($newPosts) . " پست خوانده شد .";
+        $count = count($newPosts);
+        echo $count . " پست خوانده شد .";
         // پردازش پست‌های جدید
         foreach ($newPosts as $id => $text) {
             $catPreder = new CategoryPredictor();
@@ -72,6 +78,7 @@ class ReadChanel extends Controller
         // ذخیره آخرین ID خوانده‌شده
         if (!empty($newPosts)) {
             $channel->post_id = max(array_keys($newPosts));
+            $channel->last_count_read = $count;
             $channel->save();
         }
     }

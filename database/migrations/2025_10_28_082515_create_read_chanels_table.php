@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('read_chanels', function (Blueprint $table) {
             $table->id();
             $table->string('post_id')->nullable();
+            $table->integer('last_count_read')->nullable();
+            $table->timestamp('last_read_at')->nullable();
             $table->timestamps();
         });
     }
