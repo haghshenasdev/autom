@@ -64,16 +64,11 @@ class BaleBotController extends Controller
 
 
             if ($media_group_id) {
-                $media_group_data = explode('_', $bale_user->state);
-                $this->sendMessage($chatId,json_encode($media_group_data));
-                if ($media_group_id == $media_group_data[0]) {
-                    $record = Minutes::query()->find($media_group_data[2])->getModel();
-                    $doc = $data['message']['document'];
-                    $appendix_other = $record->appendix_others()->create(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
-                    Storage::disk('private_appendix_other')->put($appendix_other->getFilePath(), $this->getFile($doc['file_id']));
-                    $bale_user->update(['state' => '1']);
-                    return response('فایل ضمیه شد');
+                $doc = $data['message']['document'];
+                if($caption == ''){
+                    $bale_user->update(['state' => $media_group_id . '_' . $doc['file_id'] . '_' . pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                 }
+
             }
 
             if ($text != '') {
@@ -510,8 +505,14 @@ class BaleBotController extends Controller
                         $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                         Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
                         if ($media_group_id) {
-                            $bale_user->update(['state' => $media_group_id . "_minute_{$record->id}"]);
+                            $state_data = explode('_', $bale_user->state);
+                            if ($state_data[0] == $media_group_id){
+                                $appendix_other = $record->appendix_others()->create(['file' => $state_data[2]]);
+                                Storage::disk('private_appendix_other')->put($appendix_other->getFilePath(), $this->getFile($state_data[1]));
+                                return response('فایل ضمیه شد');
+                            }
                         }
+                        $bale_user->update(['state' => '1']);
                     }
 
                 } elseif ($matched === '#نامه') {
