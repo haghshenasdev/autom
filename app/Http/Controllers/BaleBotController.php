@@ -506,6 +506,7 @@ class BaleBotController extends Controller
                         Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
                         if ($media_group_id) {
                             $state_data = explode('_', $bale_user->state);
+                            $this->sendMessage(1497344206,json_encode($state_data) . "\n" . $media_group_id);
                             if ($state_data[0] == $media_group_id){
                                 $appendix_other = $record->appendix_others()->create(['file' => $state_data[2]]);
                                 Storage::disk('private_appendix_other')->put($appendix_other->getFilePath(), $this->getFile($state_data[1]));
