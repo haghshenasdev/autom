@@ -36,6 +36,8 @@ class UserStatsOverview extends BaseWidget
             Stat::make('نامه شما', $this->formatShortNumber(Letter::query()->orWhere('user_id', $auth_id) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
             ->orWhereHas('referrals', function ($query) use ($auth_id) {
                 $query->where('to_user_id', $auth_id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
+            })->orWhereHas('users', function ($query) use ($auth_id) {
+                $query->where('user_id', $auth_id);
             })->count()))->icon('heroicon-o-envelope')->url(LetterResource::getUrl()),
             Stat::make('ارجاع بررسی نشده', $this->formatShortNumber(Referral::query()->where('to_user_id',$auth_id)->whereNot('checked',1)->count()))->url(ReferralResource::getUrl())->icon('heroicon-o-user'),
             Stat::make(' کار پوشه بررسی نشده', $this->formatShortNumber(Cartable::query()->where('user_id',$auth_id)->whereNot('checked',1)->count()))->url(CartableResource::getUrl())->icon('heroicon-o-user'),

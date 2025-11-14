@@ -72,6 +72,8 @@ class LetterResource extends Resource
             return parent::getEloquentQuery()->orWhere('user_id', $user_id) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
             ->orWhereHas('referrals', function ($query) use ($user_id) {
                 $query->where('to_user_id', $user_id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
+            })->orWhereHas('users', function ($query) use ($user_id) {
+                $query->where('user_id', $user_id);
             });
         }
 

@@ -12,6 +12,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -105,6 +106,7 @@ class TaskResource extends Resource
                     ->jalaliDateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('amount')->label('اعتبار')->toggleable(isToggledHiddenByDefault: true)->sortable()->numeric()->suffix('ریال'),
                 ProgressBar::make('progress')->label('پیشرفت')
                     ->getStateUsing(function ($record) {
                         return [
