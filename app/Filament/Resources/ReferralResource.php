@@ -46,8 +46,11 @@ class ReferralResource extends Resource
 
     public static function form(Form $form): Form
     {
+        $user = auth()->user();
+
         return $form
             ->schema([
+                Forms\Components\Toggle::make('checked')->label('بررسی شده'),
                 Forms\Components\Select::make('letter_id')
                     ->label('نامه')
                     ->relationship('letter', 'id')
@@ -55,16 +58,25 @@ class ReferralResource extends Resource
                     ->searchable()
                     ->required()
                     ->preload(),
-                Forms\Components\TextInput::make('rule')
-                    ->label('دستور')
-                    ->maxLength(255),
+                Forms\Components\Textarea::make('rule')
+                    ->label('دستور')->disabled(fn (?Model $record) => $record && $record->by_user_id != $user->id), //فعال بودن دستور فق برای صاحبش
+                Forms\Components\Textarea::make('result')
+                    ->label('نتیجه')
+                    ->maxLength(500),
+                Forms\Components\Select::make('by_user_id')
+                    ->label('توسط')
+                    ->default($user->id)
+                    ->relationship('by_users', 'name')
+                    ->searchable()
+                    ->required()
+                    ->preload(),
                 Forms\Components\Select::make('to_user_id')
                     ->label('به')
+                    ->visible($user->can('restore_any_referral'))
                     ->relationship('users', 'name')
                     ->searchable()
                     ->required()
                     ->preload(),
-                Forms\Components\Toggle::make('checked')->label('بررسی شده'),
             ]);
     }
 
@@ -74,12 +86,13 @@ class ReferralResource extends Resource
             ->columns([
                 TextColumn::make('id')->label('شماره')->sortable(),
                 Tables\Columns\TextColumn::make('rule')->label('دستور')->searchable(),
+                Tables\Columns\TextColumn::make('result')->label('نتیجه')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('by_users.name')->label('توسط'),
                 Tables\Columns\TextColumn::make('users.name')->label('به')->visible(Auth::user()->can('restore_any_referral')),
                 Tables\Columns\TextColumn::make('letter_id')->label('شماره نامه')->sortable()->searchable(),
                 Tables\Columns\TextColumn::make('letter.subject')->label('موضوع نامه'),
                 Tables\Columns\CheckboxColumn::make('checked')->label('بررسی شده'),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
+                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
@@ -149,7 +162,7 @@ class ReferralResource extends Resource
         return [
             'index' => Pages\ListReferrals::route('/'),
             'create' => Pages\CreateReferral::route('/create'),
-            'edit' => Pages\EditReferral::route('/{record}/edit'),
+//            'edit' => Pages\EditReferral::route('/{record}/edit'),
         ];
     }
 }

@@ -6,7 +6,9 @@ use App\Models\Traits\HasStatus;
 use Carbon\Carbon;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
+use Filament\Support\RawJs;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
@@ -30,6 +32,7 @@ class Task extends Model
         'ended_at',
         'repeat',
         'city_id',
+        'amount',
         'minutes_id',
         'task_group_id',
         'created_by',
@@ -147,6 +150,11 @@ class Task extends Model
             Forms\Components\TextInput::make('progress')->numeric()->nullable()
                 ->label('درصد انجام')->minValue(0)
                 ->maxValue(100)->suffix('%'),
+            TextInput::make('amount')->numeric()->nullable()->suffix('ریال')
+                ->label('اعتبار اخذ شده')
+                ->mask(RawJs::make('$money($input)'))
+                ->stripCharacters(',')
+            ,
         ];
     }
 

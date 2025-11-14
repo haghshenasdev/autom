@@ -13,6 +13,7 @@ class Referral extends Model
 
     protected $fillable = [
         'rule',
+        'result',
         'by_user_id',
         'to_user_id',
         'checked',

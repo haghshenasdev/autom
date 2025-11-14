@@ -58,9 +58,9 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('id'),
-                TextColumn::make('name')->label('نام'),
-                TextColumn::make('email')->label('ایمیل'),
+                TextColumn::make('id')->searchable(),
+                TextColumn::make('name')->label('نام')->searchable(),
+                TextColumn::make('email')->label('ایمیل')->searchable(),
             ])
             ->filters([
                 //

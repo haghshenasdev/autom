@@ -25,9 +25,11 @@ class ReferralsRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('rule')
-                    ->label('دستور')
-                    ->maxLength(255),
+                Forms\Components\Textarea::make('rule')
+                    ->label('دستور'),
+                Forms\Components\Textarea::make('result')
+                    ->label('نتیجه')->visibleOn('edit')
+                    ->maxLength(500),
                 Forms\Components\Select::make('to_user_id')
                     ->label('به')
                     ->relationship('users', 'name')
@@ -45,6 +47,7 @@ class ReferralsRelationManager extends RelationManager
             ->recordTitleAttribute('rule')
             ->columns([
                 Tables\Columns\TextColumn::make('rule')->label('دستور'),
+                Tables\Columns\TextColumn::make('result')->label('نتیجه'),
                 Tables\Columns\TextColumn::make('by_users.name')->label('توسط'),
                 Tables\Columns\TextColumn::make('users.name')->label('به'),
                 Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),

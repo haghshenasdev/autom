@@ -22,6 +22,7 @@ return new class extends Migration
             $table->dateTime('started_at')->nullable();
             $table->dateTime('ended_at')->nullable();
             $table->boolean('repeat')->nullable();
+            $table->bigInteger('amount')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('Responsible_id')->nullable()->constrained('users')->onDelete('cascade'); // مسئول
             $table->foreignId('city_id')->nullable()->constrained('cities')->nullOnDelete(); // مسئول
