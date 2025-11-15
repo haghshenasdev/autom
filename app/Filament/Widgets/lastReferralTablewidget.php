@@ -9,6 +9,7 @@ use App\Models\Letter;
 use App\Models\Referral;
 use App\Models\Task;
 use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
+use Filament\Forms\Form;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
@@ -24,6 +25,41 @@ class lastReferralTablewidget extends BaseWidget
     protected static ?int $sort = 2;
     protected static ?string $heading= 'آخرین ارجاع ها';
 
+    public static function form(Form $form): Form
+    {
+        $user = auth()->user();
+
+        return $form
+            ->schema([
+                Forms\Components\Toggle::make('checked')->label('بررسی شده'),
+                Forms\Components\Select::make('letter_id')
+                    ->label('نامه')
+                    ->relationship('letter', 'id')
+                    ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->subject}")
+                    ->searchable()
+                    ->required()
+                    ->preload(),
+                Forms\Components\Textarea::make('rule')
+                    ->label('دستور')->disabled(fn (?Model $record) => $record && $record->by_user_id != $user->id), //فعال بودن دستور فق برای صاحبش
+                Forms\Components\Textarea::make('result')
+                    ->label('نتیجه')
+                    ->maxLength(500),
+                Forms\Components\Select::make('by_user_id')
+                    ->label('توسط')
+                    ->default($user->id)
+                    ->relationship('by_users', 'name')
+                    ->searchable()
+                    ->required()
+                    ->preload(),
+                Forms\Components\Select::make('to_user_id')
+                    ->label('به')
+                    ->visible($user->can('restore_any_referral'))
+                    ->relationship('users', 'name')
+                    ->searchable()
+                    ->required()
+                    ->preload(),
+            ]);
+    }
 
     public function table(Table $table): Table
     {
