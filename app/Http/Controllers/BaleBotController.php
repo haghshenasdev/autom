@@ -504,7 +504,7 @@ class BaleBotController extends Controller
                             if ($state_data[0] == "$media_group_id"){
                                 $p = 'minutes/'.$record->id . '/' .Date::now()->format('Y-m-d_H-i-s') . '.' . $state_data[2];
                                 Storage::disk('private_appendix_other')->put($p, $this->getFile($state_data[1]));
-                                $record->appendix_others()->attach(['file' => $p]);
+                                $record->appendix_others()->create(['file' => $p]);
                             }
                         }
                         $bale_user->update(['state' => '1']);
