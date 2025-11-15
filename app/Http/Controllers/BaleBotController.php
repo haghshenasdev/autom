@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Filament\Resources\LetterResource;
+use App\Filament\Resources\MinutesResource;
 use App\Filament\Resources\TaskResource;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\ai\LetterParser;
@@ -301,22 +302,8 @@ class BaleBotController extends Controller
                     }
 
                     $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین صورت‌جلسه‌های شما:\n\n";
-
                     foreach ($minutes as $minute) {
-                        $message .= "📝 عنوان: {$minute->title}\n";
-                        $message .= "🆔 شماره ثبت: {$minute->id}\n";
-                        $message .= "ℹ️ تعداد کار ها: {$minute->tasks->count()}/{$minute->tasks->where('completed', 1)->count()}\n";
-                        if ($user->can('restore_any_minutes') and $minute->typer) $message .= "👤 نویسنده: {$minute->typer->name}\n";
-                        if ($minute->date) {
-                            $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($minute->date)->format('Y/m/d') . "\n";
-                        }
-                        if ($queryText !== '' and $minute->tasks->count() != 0){
-                            $message .= "🧰 کار های صورت جلسه : ";
-                            $message .= "\n";
-                            foreach ($minute->tasks as $task) {
-                                $message .= "  " . ($task->completed ? '✅' : '❌') . " " . $task->id . " - " . $task->name ."\n";
-                            }
-                        }
+                        $message .= $this->createMinuteMessage($minute,$user,$queryText !== '');
                         $message .= "----------------------\n";
                     }
 
@@ -479,7 +466,8 @@ class BaleBotController extends Controller
                         'typer_id' => $user->id,
                         'task_id' => $parsedData['task_id'],
                     ];
-                    $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه با مشخصات زیر \n\nعنوان : {$mdata['title']}\nتاریخ : " . $mdata['date'] . "\nنويسنده : {$user->name}\nجلسه : {$mdata['task_id']}\n");
+                    $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه" . "\n");
+
                     $record = Minutes::create($mdata);
                     $record->organ()->attach($parsedData['organs']);
                     $record->group()->attach(1);
@@ -499,6 +487,9 @@ class BaleBotController extends Controller
                         $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
                     }
 
+                    $message = '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
+                    $message .= $this->createMinuteMessage($record,$user);
+                    $this->sendMessage($chatId,$message);
 
                     if (isset($data['message']['document'])) {
                         $doc = $data['message']['document'];
@@ -620,6 +611,27 @@ class BaleBotController extends Controller
             $owners_name .= $organ_owner->name . ' ، ';
         }
         if ($owners_name != '') $message .= '💌 صاحب : '.$owners_name."\n";
+
+        return $message;
+    }
+
+    public function createMinuteMessage(Model $record,$user,$withTasks = true): string
+    {
+        $message = '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$record->id]).')' . "\n\n";
+        $message .= "📝 عنوان: {$record->title}\n";
+        $message .= "🆔 شماره ثبت: {$record->id}\n";
+        $message .= "ℹ️ تعداد کار ها: {$record->tasks->count()}/{$record->tasks->where('completed', 1)->count()}\n";
+        if ($user->can('restore_any_minutes') and $record->typer) $message .= "👤 نویسنده: {$record->typer->name}\n";
+        if ($record->date) {
+            $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($record->date)->format('Y/m/d') . "\n";
+        }
+        if ($withTasks and $record->tasks->count() != 0){
+            $message .= "🧰 کار های صورت جلسه : ";
+            $message .= "\n";
+            foreach ($record->tasks as $task) {
+                $message .= "  " . ($task->completed ? '✅' : '❌') . " " . $task->id . " - " . $task->name ."\n";
+            }
+        }
 
         return $message;
     }

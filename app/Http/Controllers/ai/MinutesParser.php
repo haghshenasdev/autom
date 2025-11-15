@@ -6,6 +6,7 @@ use App\Http\Controllers\ReadChanel;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Organ;
+use Complex\Exception;
 use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
 use Carbon\Carbon;
@@ -152,8 +153,12 @@ class MinutesParser
 
     public function taskDetect(string $title) : ?int
     {
-        //دریافت جلسات جدید از کانال
-        (new ReadChanel())->read();
+        try {
+            //دریافت جلسات جدید از کانال
+            (new ReadChanel())->read();
+        }catch (Exception $e){
+            echo $e->getMessage();
+        }
 
         $cp = new \App\Http\Controllers\ai\CategoryPredictor();
         $MinuteKeywords = $cp->extractKeywords($title);
