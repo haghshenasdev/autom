@@ -15,6 +15,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Http;
 use App\Models\Minutes;
 use App\Models\Letter;
@@ -501,8 +502,9 @@ class BaleBotController extends Controller
                             $state_data = explode('_', $bale_user->state);
 //                            $this->sendMessage(1497344206,json_encode($state_data));
                             if ($state_data[0] == "$media_group_id"){
-                                $appendix_other = $record->appendix_others()->create(['file' => $state_data[2]]);
-                                Storage::disk('private_appendix_other')->put($appendix_other->getFilePath(), $this->getFile($state_data[1]));
+                                $p = 'minutes/'.$record->id . '/' .Date::now()->format('Y-m-d_H-i-s') . $state_data[2];
+                                Storage::disk('private_appendix_other')->put($p, $this->getFile($state_data[1]));
+                                $record->appendix_others()->create(['file' => $p]);
                             }
                         }
                         $bale_user->update(['state' => '1']);
