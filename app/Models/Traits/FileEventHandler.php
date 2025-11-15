@@ -4,6 +4,7 @@ namespace App\Models\Traits;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 trait FileEventHandler
 {
@@ -66,12 +67,12 @@ trait FileEventHandler
             $destinationDirectory = dirname($path . $newPath);
 
 // بررسی و ساخت پوشه اگر وجود نداشت
-            if (!File::exists($destinationDirectory)) {
-                File::makeDirectory($destinationDirectory, 0755, true);
+            if (!Storage::disk(self::$disk)->exists($destinationDirectory)) {
+                Storage::disk(self::$disk)->makeDirectory($destinationDirectory, 0755, true);
             }
 
 // جابجایی فایل
-            if (File::move($oldPath, $path . $newPath)) {
+            if (Storage::disk(self::$disk)->move($oldPath, $path . $newPath)) {
                 $model->file = $modeArray['file'];
                 return $model->save();
             }
@@ -84,7 +85,7 @@ trait FileEventHandler
         if (!is_null($model->getOriginal('file')) && $model->file != $model->getOriginal('file')) {
             $letterId = $model->{self::$RelatedName}()->get('id')->first();
             if ($letterId != null) $letterId = $letterId->id;
-            File::delete(
+            Storage::disk(self::$disk)->delete(
                 self::getRootPath() .
                 self::getFilePathByArray($letterId,$model->getOriginal(),$model->appendix_other_type ?? null)
             );
@@ -94,7 +95,7 @@ trait FileEventHandler
 
     protected static function BootFileDeleteEvent(Model $model)
     {
-        File::delete(
+        Storage::disk(self::$disk)->delete(
             self::getRootPath()
             . $model->getFilePath($model->getOriginal('letter_id'))
         );
