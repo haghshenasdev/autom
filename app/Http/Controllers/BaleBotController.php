@@ -331,6 +331,8 @@ class BaleBotController extends Controller
                     if (!$user->can('restore_any_letter')) {
                         $query->orWhere('user_id', $user->id)->orWhereHas('referrals', function ($quer) use ($user) {
                             $quer->where('to_user_id', $user->id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
+                        })->orWhereHas('users', function ($query) use ($user) {
+                            $query->where('user_id', $user->id);
                         });
                     }
 
