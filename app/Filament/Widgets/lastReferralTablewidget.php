@@ -43,9 +43,10 @@ class lastReferralTablewidget extends BaseWidget
                 Tables\Columns\CheckboxColumn::make('checked')->label('بررسی'),
 
             ])->actions([
-                Action::make('Open')->label('نمایش')->iconButton()->icon('heroicon-o-eye')
-                    ->url(fn (Referral $record): string => ReferralResource::getUrl('edit',[$record->id]))
-                    ->openUrlInNewTab(),
+//                Action::make('Open')->label('نمایش')->iconButton()->icon('heroicon-o-eye')
+//                    ->url(fn (Referral $record): string => ReferralResource::getUrl('edit',[$record->id]))
+//                    ->openUrlInNewTab(),
+                Tables\Actions\EditAction::make(),
                 Action::make('Open')->label('نامه مربوطه')->iconButton()->icon('heroicon-o-envelope')
                     ->url(fn (Referral $record): string => LetterResource::getUrl('edit',[$record->letter()->first()->id]))
                     ->openUrlInNewTab(),
