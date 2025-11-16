@@ -52,7 +52,7 @@ class Content extends Model
                         ->options([
                             'file' => 'فایل',
                             'text' => 'متن',
-                            'signature' => 'دست‌نویس',
+//                            'signature' => 'دست‌نویس',
                         ])
                         ->required()
                         ->reactive(),
@@ -80,11 +80,11 @@ class Content extends Model
                         ->visible(fn ($get) => $get('type') === 'text')
                         ->required(fn ($get) => $get('type') === 'text'),
 
-                    SignaturePad::make('signature-pad')
-                        ->label('دست نویس')
-                        ->columnSpanFull()->downloadable()
-                        ->visible(fn ($get) => $get('type') === 'signature')
-                        ->required(fn ($get) => $get('type') === 'signature'),
+//                    SignaturePad::make('signature-pad')
+//                        ->label('دست نویس')
+//                        ->columnSpanFull()->downloadable()
+//                        ->visible(fn ($get) => $get('type') === 'signature')
+//                        ->required(fn ($get) => $get('type') === 'signature'),
                 ])
                 ->columnSpanFull()->default([
                     ['type' => 'file']
