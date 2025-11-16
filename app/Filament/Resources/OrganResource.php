@@ -33,9 +33,7 @@ class OrganResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->schema([
-                //
-            ]);
+            ->schema(Organ::formSchema());
     }
 
     public static function table(Table $table): Table

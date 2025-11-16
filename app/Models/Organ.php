@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -67,8 +68,11 @@ class Organ extends Model
             TextInput::make('address')
                 ->label('آدرس'),
             TextInput::make('phone')
-                ->label('شماره تماس')
+                ->label('شماره تماس')->length(11)
                 ->tel(),
+            Select::make('organ_type_id')->label('نوع')
+                ->relationship('type','name')
+                ->preload()->searchable()
         ];
     }
 

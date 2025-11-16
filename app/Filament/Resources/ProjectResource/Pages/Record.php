@@ -6,8 +6,13 @@ use App\Filament\Resources\ProjectResource;
 use App\Filament\Resources\ProjectResource\Widgets\TaskProjectChart;
 use App\Filament\Resources\ProjectResource\Widgets\YearSelector;
 use App\Models\Project;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Form;
 use Filament\Pages\Actions\Action;
 use Filament\Resources\Pages\Page;
+use Illuminate\Contracts\View\View;
+use Morilog\Jalali\Jalalian;
 
 class Record extends Page
 {
@@ -20,9 +25,38 @@ class Record extends Page
 
     public $record; // رکورد انتخاب شده
 
+//    public $data = ['selectedYear' => 1404];
+
+    public function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Select::make('selectedYear')
+                    ->label('انتخاب سال')
+                    ->options($this->getYears())
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        redirect(request()->url() . '?year=' . $state);
+                    })
+            ])
+            ->statePath('data')->live()->reactive();
+    }
+
+    protected function getYears(): array
+    {
+        $current = Jalalian::now()->getYear();
+        $years = [];
+
+        for ($i = 0; $i <= 5; $i++) {
+            $years[$current - $i] = $current - $i;
+        }
+
+        return $years;
+    }
+
     public function mount($id): void
     {
         $this->record = Project::findOrFail($id);
+        $this->selectedYear = request()->query('year', Jalalian::now()->getYear());
         self::$title = $this->record->name;
     }
 

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('address')->nullable();
-            $table->char('phone',10)->nullable();
+            $table->char('phone',11)->nullable();
             $table->foreignId('organ_type_id')->constrained('organ_types');
             $table->timestamps();
         });
