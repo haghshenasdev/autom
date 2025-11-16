@@ -61,6 +61,7 @@ class UserResource extends Resource
                 TextColumn::make('id')->searchable(),
                 TextColumn::make('name')->label('نام')->searchable(),
                 TextColumn::make('email')->label('ایمیل')->searchable(),
+                TextColumn::make('roles.name')->label('دسترسی'),
             ])
             ->filters([
                 //
