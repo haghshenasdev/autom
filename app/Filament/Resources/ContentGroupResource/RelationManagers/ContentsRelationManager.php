@@ -30,15 +30,7 @@ class ContentsRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form
-            ->schema([
-                TextInput::make('title')
-                    ->label('عنوان'),
-                RichEditor::make('body')
-                    ->label('محتوا')
-                    ->fileAttachmentsDisk('private2')
-                    ->fileAttachmentsVisibility('private')
-                    ->required(),
-            ]);
+            ->schema(Content::formSchema());
     }
 
     public function table(Table $table): Table
