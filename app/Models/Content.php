@@ -111,5 +111,27 @@ class Content extends Model
 
             $record->updateQuietly(['body' => $attachments]);
         });
+
+        static::updated(function ($record) {
+            $attachments = $record->body;
+
+            // فایل‌های قدیمی که حذف شدند پاک شوند
+            $oldAttachments = $record->getOriginal('body') ?? [];
+            $newFiles = collect($attachments)->pluck('file')->filter()->all();
+
+            foreach ($oldAttachments as $oldItem) {
+                if (isset($oldItem['file']) && !in_array($oldItem['file'], $newFiles)) {
+                    if (Storage::disk('private2')->exists($oldItem['file'])) {
+                        Storage::disk('private2')->delete($oldItem['file']);
+                    }
+                }
+            }
+
+            $record->updateQuietly(['body' => $attachments]);
+        });
+
+        static::deleting(function ($record) {
+            Storage::disk('private2')->deleteDirectory($record->id);
+        });
     }
 }
