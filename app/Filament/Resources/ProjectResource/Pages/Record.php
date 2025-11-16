@@ -34,11 +34,12 @@ class Record extends Page
                 Select::make('selectedYear')
                     ->label('انتخاب سال')
                     ->options($this->getYears())
-                    ->afterStateUpdated(function ($state, callable $set) {
-                        redirect(request()->url() . '?year=' . $state);
+                    ->afterStateUpdated(function ($state) {
+                        // ریدایرکت به همان صفحه با پارامتر year
+                        $this->js("window.location = '" . request()->url() . "?year={$state}'");
                     })
             ])
-            ->statePath('data')->live()->reactive();
+            ->statePath('data')->live();
     }
 
     protected function getYears(): array
