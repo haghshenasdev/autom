@@ -97,7 +97,7 @@ class AdminPanelProvider extends PanelProvider
             ->plugins([
                 BreezyCore::make()->myProfile(
                     hasAvatars: true,
-                ),
+                )->enableBrowserSessions(condition: true),
                 \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
                 FilamentFullCalendarPlugin::make()
                     ->schedulerLicenseKey('')
