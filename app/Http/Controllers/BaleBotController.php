@@ -732,7 +732,8 @@ class BaleBotController extends Controller
                 ],
                 [
                     '/ارجاع',
-                    '/کارپوشه'
+                    '/کارپوشه',
+                    '/اسناد'
                 ],
             ],
             'resize_keyboard' => true,
