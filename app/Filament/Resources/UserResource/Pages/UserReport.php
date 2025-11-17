@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\UserResource\Pages;
 
-use App\Filament\Resources\ProjectResource;
+use App\Filament\Resources\UserResource;
 use App\Filament\Resources\UserResource\Widgets\StatsOverview;
 use App\Models\User;
 use Exception;
@@ -15,7 +15,7 @@ use Morilog\Jalali\Jalalian;
 
 class UserReport extends Page
 {
-    protected static string $resource = ProjectResource::class;
+    protected static string $resource = UserResource::class;
 
     protected static string $view = 'filament.resources.project-resource.pages.record';
 
