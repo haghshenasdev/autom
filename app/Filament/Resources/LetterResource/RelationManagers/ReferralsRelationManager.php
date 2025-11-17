@@ -33,6 +33,14 @@ class ReferralsRelationManager extends RelationManager
                 Forms\Components\Select::make('to_user_id')
                     ->label('به')
                     ->relationship('users', 'name')
+                    ->allowHtml()
+                    ->getOptionLabelFromRecordUsing(function ($record): string {
+                        return view('filament.components.select-user-result')
+                            ->with('name', $record->name)
+                            ->with('user', $record)
+                            ->with('image', $record->getFilamentAvatarUrl())
+                            ->render();
+                    })
                     ->searchable()
                     ->required()
                     ->preload(),

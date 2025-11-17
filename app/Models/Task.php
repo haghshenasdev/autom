@@ -107,6 +107,14 @@ class Task extends Model
             Forms\Components\DateTimePicker::make('completed_at')->jalali()->label('تکمیل')->closeOnDateSelection(),
             Forms\Components\Select::make('Responsible_id')->label('مسئول')
                 ->relationship('responsible', 'name')
+                ->allowHtml()
+                ->getOptionLabelFromRecordUsing(function ($record): string {
+                    return view('filament.components.select-user-result')
+                        ->with('name', $record->name)
+                        ->with('user', $record)
+                        ->with('image', $record->getFilamentAvatarUrl())
+                        ->render();
+                })
                 ->searchable()->preload()->default(auth()->id())->visible(auth()->user()->can('restore_any_task')),
             Forms\Components\Select::make('city_id')->label('شهر')
                 ->relationship('city', 'name')

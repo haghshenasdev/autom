@@ -5,11 +5,14 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Filament\Forms;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -36,6 +39,7 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
+                FileUpload::make('avatar_url')->label('تصویر پروفایل')->imageEditor()->imageCropAspectRatio('1:1')->disk('profile-photos'),
                 Forms\Components\TextInput::make('name')
                     ->label('نام')
                     ->required(),
@@ -60,6 +64,9 @@ class UserResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('id')->searchable(),
+                ImageColumn::make('avatar')->label('پروفایل')
+                    ->getStateUsing(fn ($record) => Filament::getUserAvatarUrl($record))
+                    ->circular(),
                 TextColumn::make('name')->label('نام')->searchable(),
                 TextColumn::make('email')->label('ایمیل')->searchable(),
                 TextColumn::make('roles.name')->label('دسترسی'),

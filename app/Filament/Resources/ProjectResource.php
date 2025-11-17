@@ -73,6 +73,14 @@ class ProjectResource extends Resource
                     ->default(null),
                 Forms\Components\Select::make('user_id')->label('مسئول')
                     ->relationship('user', 'name')
+                    ->allowHtml()
+                    ->getOptionLabelFromRecordUsing(function ($record): string {
+                        return view('filament.components.select-user-result')
+                            ->with('name', $record->name)
+                            ->with('user', $record)
+                            ->with('image', $record->getFilamentAvatarUrl())
+                            ->render();
+                    })
                     ->searchable()->preload()->default(auth()->id())->visible(auth()->user()->can('restore_any_project')),
                 Forms\Components\Select::make('city_id')->label('شهر/روستا')
                     ->relationship('city', 'name')

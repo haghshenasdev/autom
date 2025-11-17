@@ -20,6 +20,10 @@ class DatabaseSeeder extends Seeder
             ['name' => 'دستور کار'],
         ]);
 
+        DB::table('minutes_groups')->insert([
+            ['id' => 1,'name' => 'هوش مصنوعی','parent_id'=> null],
+        ]);
+
         DB::table('task_groups')->insert([
             ['id' => 1,'name' => 'جلسه','parent_id'=> null],
             ['id' => 2,'name' => 'کار','parent_id'=> null],

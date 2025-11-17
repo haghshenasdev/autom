@@ -83,6 +83,18 @@ Route::middleware('auth')->group(function () {
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 
+    Route::get('/profiles/{path}', function ($path) {
+        if (!Storage::disk('profile-photos')->exists($path)) {
+            abort(404);
+        }
+
+        $content = Storage::disk('profile-photos')->get($path);
+
+        return response($content, 200)
+            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
+    })->where('path', '.*');
+
     Route::get('/private-dl2/{path}', function ($path) {
         if (!Storage::disk('private2')->exists($path)) {
             abort(404);

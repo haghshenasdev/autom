@@ -29,7 +29,12 @@ return [
     */
 
     'disks' => [
-
+        'profile-photos' => [
+            'driver' => 'local',
+            'root' => storage_path('app/profiles'),
+            'url' => env('APP_URL').'/profiles/',
+            'throw' => false,
+        ],
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app'),

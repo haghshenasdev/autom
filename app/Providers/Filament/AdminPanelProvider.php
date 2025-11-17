@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Dashboard;
 use App\Filament\Resources\ChatResource\Pages\Chat;
+use Filament\Forms\Components\FileUpload;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -97,7 +98,9 @@ class AdminPanelProvider extends PanelProvider
             ->plugins([
                 BreezyCore::make()->myProfile(
                     hasAvatars: true,
-                )->enableBrowserSessions(condition: true),
+                )->enableBrowserSessions(condition: true)
+                    ->avatarUploadComponent(fn() => FileUpload::make('avatar_url')->label('تصویر پروفایل')->imageEditor()->imageCropAspectRatio('1:1')->disk('profile-photos'))
+                ,
                 \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
                 FilamentFullCalendarPlugin::make()
                     ->schedulerLicenseKey('')

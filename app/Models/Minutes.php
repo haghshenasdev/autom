@@ -113,6 +113,14 @@ class Minutes extends Model
                 ->visible(auth()->user()->can('restore_any_minutes'))
                 ->default(Auth::id())
                 ->relationship('typer', 'name')
+                ->allowHtml()
+                ->getOptionLabelFromRecordUsing(function ($record): string {
+                    return view('filament.components.select-user-result')
+                        ->with('name', $record->name)
+                        ->with('user', $record)
+                        ->with('image', $record->getFilamentAvatarUrl())
+                        ->render();
+                })
                 ->searchable()->preload(),
             Select::make('task_id')->label('نوشته شده در')->required()
                 ->relationship('task_creator', 'name')

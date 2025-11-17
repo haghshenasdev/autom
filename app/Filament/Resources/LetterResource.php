@@ -12,6 +12,7 @@ use App\Models\Letter;
 use App\Models\Organ;
 use App\Models\OrganType;
 use App\Models\Titleholder;
+use App\Models\User;
 use Closure;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
@@ -273,6 +274,14 @@ class LetterResource extends Resource
                         ->label('گیرنده درخواست (افزودن به کارپوشه)')
                         ->relationship('users', 'name')->multiple()
                         ->searchable()
+                        ->allowHtml()
+                        ->getOptionLabelFromRecordUsing(function ($record): string {
+                            return view('filament.components.select-user-result')
+                                ->with('name', $record->name)
+                                ->with('user', $record)
+                                ->with('image', $record->getFilamentAvatarUrl())
+                                ->render();
+                        })
                         ->preload(),
                     Forms\Components\Select::make('peiroow_letter_id')
                         ->label('پیرو')
