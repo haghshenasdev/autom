@@ -13,6 +13,8 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
+        // اجرای Job هر روز ساعت 8 صبح
+        $schedule->job(new \App\Jobs\SendTasksReminderJob)->dailyAt('08:00');
     }
 
     /**

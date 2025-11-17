@@ -261,12 +261,7 @@ class BaleBotController extends Controller
                             $message .= "🔁 وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n\n";
                         }
 
-                        $message .= "📝 عنوان: {$task->name}\n";
-                        $message .= "🆔 شماره ثبت: {$task->id}\n";
-                        $message .= "ℹ️ وضعیت انجام: " . ($task->completed ? '✅ انجام شده' : '❌ انجام نشده') ."\n";
-                        if ($user->can('restore_any_task')) $message .= "👤 مسئول: {$task->responsible->name}\n";
-                        $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($task->created_at)->format('Y/m/d') . "\n";
-                        if ($task->completed and $task->completed_at) $message .= "📅 تاریخ انجام: " . Jalalian::fromDateTime($task->completed_at)->format('Y/m/d') . "\n";
+                        $message .= $this->CreateTaskMessage($task,$user);
                         $message .= "\n" . '[بازکردن در سامانه]('.TaskResource::getUrl('edit',[$task->id]).')' . "\n\n";
                         $message .= "----------------------\n";
                     }
@@ -592,6 +587,19 @@ class BaleBotController extends Controller
         }
 
         return response('ok', 200);
+    }
+
+    public function CreateTaskMessage(Model $record,$user = null): string
+    {
+        $message = "📝 عنوان: {$record->name}\n";
+        $message .= "🆔 شماره ثبت: {$record->id}\n";
+        $message .= "ℹ️ وضعیت انجام: " . ($record->completed ? '✅ انجام شده' : '❌ انجام نشده') ."\n";
+        if ($user and $user->can('restore_any_task')) $message .= "👤 مسئول: {$record->responsible->name}\n";
+        $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($record->created_at)->format('Y/m/d') . "\n";
+        if ($record->completed and $record->completed_at) $message .= "📅 تاریخ انجام: " . Jalalian::fromDateTime($record->completed_at)->format('Y/m/d') . "\n";
+        if ($record->ended_at) $message .= "📅 تاریخ پایان: " . Jalalian::fromDateTime($record->ended_at)->format('Y/m/d') . "\n";
+
+        return $message;
     }
 
     public function CreateLetterMessage(Model $record): string
