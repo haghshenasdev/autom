@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\ProjectResource\Widgets;
 
+use Filament\Forms\Components\Select;
+use Filament\Forms\Form;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Facades\Auth;
 use Morilog\Jalali\Jalalian;
@@ -29,5 +31,20 @@ class YearSelector extends Widget
     {
         // اینجا می‌توانید سال‌ها را بر اساس نیاز خود تنظیم کنید
         return range(Jalalian::now()->getYear(), Jalalian::now()->getYear() - 5); // سال‌های از 2000 تا سال جاری
+    }
+
+    public function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Select::make('selectedYear')
+                    ->label('انتخاب سال')
+                    ->options($this->getYears())
+                    ->afterStateUpdated(function ($state) {
+                        $this->selectedYear = $state;
+                        $this->js("window.location.href = window.location.pathname + '?year={$state}'");
+                    })->live()
+            ])
+            ->live();
     }
 }

@@ -8,6 +8,9 @@ class ProjectProgressChart extends ChartWidget
 {
     public ?\App\Models\Project $record = null;
 
+    public string|null $selectedYear = null;
+    public array|null $betYear = null;
+
     protected static ?string $heading = 'نمودار پیشرفت کلی پروژه';
 
     protected function getType(): string
@@ -17,8 +20,9 @@ class ProjectProgressChart extends ChartWidget
 
     protected function getData(): array
     {
-        $total = $this->record->tasks()->count();
-        $completed = $this->record->tasks()->where('completed', true)->count();
+        if ($this->selectedYear) self::$heading .= ' در سال '. $this->selectedYear;
+        $total = $this->betYear ? $this->record->tasks()->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->tasks()->count();
+        $completed = $this->betYear ?  $this->record->tasks()->where('completed','=',1)->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->tasks()->where('completed','=',1)->count();
         $incomplete = $total - $completed;
 
         return [

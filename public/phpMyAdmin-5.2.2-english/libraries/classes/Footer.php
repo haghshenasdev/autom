@@ -181,7 +181,7 @@ class Footer
         }
 
         /**
-         * Report php errors
+         * UserReport php errors
          */
         $GLOBALS['errorHandler']->reportErrors();
 

@@ -61,12 +61,17 @@ class User extends Authenticatable implements HasAvatar,FilamentUser
 
     public function referral(): HasMany
     {
-        return $this->hasMany(Referral::class);
+        return $this->hasMany(Referral::class,'to_user_id');
+    }
+
+    public function cartable(): HasMany
+    {
+        return $this->hasMany(Cartable::class,'user_id');
     }
 
     public function minutes(): HasMany
     {
-        return $this->hasMany(Minutes::class);
+        return $this->hasMany(Minutes::class,'typer_id');
     }
 
     public function task_created()

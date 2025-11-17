@@ -413,7 +413,7 @@ class ErrorHandler
                 'server' => $GLOBALS['server'],
             ]);
             $retval .= '<input type="submit" value="'
-                    . __('Report')
+                    . __('UserReport')
                     . '" id="pma_report_errors" class="btn btn-primary float-end">'
                     . '<input type="checkbox" name="always_send"'
                     . ' id="errorReportAlwaysSendCheckbox" value="true">'

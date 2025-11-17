@@ -1,4 +1,10 @@
 <x-filament-panels::page>
-    {{ $this->form }}
-{{--    {{$data ? $data['selectedYear'] : 'خالی'}}--}}
+    {{-- فرم بالای ویجت‌ها --}}
+        {{ $this->form }}
+
+    {{-- ویجت‌ها --}}
+    <x-filament-widgets::widgets
+        :widgets="$this->mygetHeaderWidgets()"
+        :columns="2"
+    />
 </x-filament-panels::page>

@@ -11,14 +11,17 @@ class ProjectProgress extends Widget
     public $progress; // درصد پیشرفت
     public $record; // پروژه جاری
 
+    public string|null $selectedYear = null;
+    public array|null $betYear = null;
+
     public function mount($record): void
     {
         $this->record = $record;
 
         // محاسبه درصد پیشرفت
-        $totalTasks = $record->required_amount != null ? $record->required_amount : $this->record->tasks()->count();
-        $completedTasks = $this->record->tasks()->where('completed', true)->count();
+        $totalTasks = $record->required_amount != null ? $record->required_amount : ($this->betYear ? $this->record->tasks()->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->tasks()->count());
+        $completedTasks = $this->betYear ?  $this->record->tasks()->where('completed','=',1)->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->tasks()->where('completed','=',1)->count();
 
-        $this->progress = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100) : 0;
+        $this->progress = $totalTasks > 0 ? min(100,round(($completedTasks / $totalTasks) * 100)) : 0;
     }
 }

@@ -1,22 +1,19 @@
 <?php
 
-namespace App\Filament\Resources\ProjectResource\Pages;
+namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\ProjectResource;
-use App\Filament\Resources\ProjectResource\Widgets\TaskProjectChart;
-use App\Filament\Resources\ProjectResource\Widgets\YearSelector;
-use App\Models\Project;
+use App\Filament\Resources\UserResource\Widgets\StatsOverview;
+use App\Models\User;
 use Exception;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Pages\Actions\Action;
 use Filament\Resources\Pages\Page;
-use Illuminate\Contracts\View\View;
 use Morilog\Jalali\Jalalian;
-use Safe\Exceptions\ExecException;
 
-class Record extends Page
+
+class UserReport extends Page
 {
     protected static string $resource = ProjectResource::class;
 
@@ -79,7 +76,7 @@ class Record extends Page
 
     public function mount($id): void
     {
-        $this->record = Project::findOrFail($id);
+        $this->record = User::findOrFail($id);
         self::$title = $this->record->name;
         $requestData = request()->validate([
             'year' => ['nullable', 'numeric'],
@@ -93,13 +90,7 @@ class Record extends Page
     protected function mygetHeaderWidgets(): array
     {
         return [
-            ProjectResource\Widgets\ProjectStateWidget::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            TaskProjectChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            ProjectResource\Widgets\ProjectProgress::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            ProjectResource\Widgets\ProjectProgressChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            ProjectResource\Widgets\TaskDelayChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            ProjectResource\Widgets\TasksByUserChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            ProjectResource\Widgets\ProjectGanttChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            StatsOverview::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
         ];
     }
 
