@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Forms\Components\DrawingPad;
 use CodeWithDennis\FilamentSelectTree\SelectTree;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\FileUpload;
@@ -52,7 +53,7 @@ class Content extends Model
                         ->options([
                             'file' => 'فایل',
                             'text' => 'متن',
-//                            'signature' => 'دست‌نویس',
+                            'signature' => 'دست‌نویس',
                         ])
                         ->required()
                         ->reactive(),
@@ -79,7 +80,12 @@ class Content extends Model
                         ->fileAttachmentsVisibility('private')
                         ->visible(fn ($get) => $get('type') === 'text')
                         ->required(fn ($get) => $get('type') === 'text'),
-
+                    DrawingPad::make('drawing')
+                        ->label('برگه A4 برای نوشتن')
+                        ->disk('private2')
+                        ->directory(fn ($record) => $record?->id ? "{$record->id}" : 'temp')
+                        ->visible(fn ($get) => $get('type') === 'signature')
+//                        ->required(fn ($get) => $get('type') === 'signature'),
 //                    SignaturePad::make('signature-pad')
 //                        ->label('دست نویس')
 //                        ->columnSpanFull()->downloadable()
@@ -94,11 +100,13 @@ class Content extends Model
 
     protected static function booted(): void
     {
-        static::created(function ($record) {
-            $attachments = $record->body;
+        static::saved(function ($record) {
+            $attachments = $record->body ?? [];
+            $oldAttachments = $record->getOriginal('body') ?? [];
 
-            foreach ($attachments as &$item) {
-                if (isset($item['file']) && str_starts_with($item['file'], 'temp/')) {
+            foreach ($attachments as $index => &$item) {
+                // انتقال file از temp به پوشه رکورد
+                if (isset($item['file']) && is_string($item['file']) && str_starts_with($item['file'], 'temp/')) {
                     $filename = basename($item['file']);
                     $newPath = "{$record->id}/{$filename}";
 
@@ -107,26 +115,68 @@ class Content extends Model
                         $item['file'] = $newPath;
                     }
                 }
+
+                // انتقال drawing از temp به پوشه رکورد
+                if (isset($item['drawing']) && is_string($item['drawing']) && str_starts_with($item['drawing'], 'temp/')) {
+                    $filename = basename($item['drawing']);
+                    $newPath = "{$record->id}/{$filename}";
+
+                    if (Storage::disk('private2')->exists($item['drawing'])) {
+                        Storage::disk('private2')->move($item['drawing'], $newPath);
+                        $item['drawing'] = $newPath;
+                    }
+                }
+
+                // اگر drawing جدید به صورت base64 است، فقط فایل قبلی همان آیتم را پاک کن
+                if (isset($item['drawing']) && is_string($item['drawing']) && str_starts_with($item['drawing'], 'data:image')) {
+                    $oldItem = $oldAttachments[$index] ?? null;
+
+                    // اگر قبلاً مسیر فایل داشت (و base64 نبود)، آن فایل را حذف کن
+                    if ($oldItem && isset($oldItem['drawing']) && is_string($oldItem['drawing']) && !str_starts_with($oldItem['drawing'], 'data:image')) {
+                        if (Storage::disk('private2')->exists($oldItem['drawing'])) {
+                            Storage::disk('private2')->delete($oldItem['drawing']);
+                        }
+                    }
+
+                    // ذخیره‌ی فایل جدید از base64
+                    $component = \App\Forms\Components\DrawingPad::make('drawing')
+                        ->disk('private2')
+                        ->directory(fn ($r) => $r?->id ? "{$r->id}" : 'temp');
+
+                    $item['drawing'] = $component->processState($record, $item['drawing']);
+                }
             }
 
             $record->updateQuietly(['body' => $attachments]);
         });
 
         static::updated(function ($record) {
-            $attachments = $record->body;
-
-            // فایل‌های قدیمی که حذف شدند پاک شوند
+            $attachments = $record->body ?? [];
             $oldAttachments = $record->getOriginal('body') ?? [];
-            $newFiles = collect($attachments)->pluck('file')->filter()->all();
+
+            // لیست فایل‌های فعلی (برای باقی‌ماندن)
+            $currentFiles = collect($attachments)->pluck('file')->filter(fn($p) => is_string($p))->all();
+            $currentDrawings = collect($attachments)->pluck('drawing')->filter(fn($p) => is_string($p))->all();
 
             foreach ($oldAttachments as $oldItem) {
-                if (isset($oldItem['file']) && !in_array($oldItem['file'], $newFiles)) {
+                // پاک کردن فایل‌های file که دیگر وجود ندارند
+                if (isset($oldItem['file']) && is_string($oldItem['file']) && !in_array($oldItem['file'], $currentFiles, true)) {
                     if (Storage::disk('private2')->exists($oldItem['file'])) {
                         Storage::disk('private2')->delete($oldItem['file']);
                     }
                 }
+
+                // پاک کردن فایل‌های drawing که دیگر وجود ندارند (فقط اگر مسیر فایل است، نه base64)
+                if (isset($oldItem['drawing']) && is_string($oldItem['drawing']) && !str_starts_with($oldItem['drawing'], 'data:image')) {
+                    if (!in_array($oldItem['drawing'], $currentDrawings, true) && Storage::disk('private2')->exists($oldItem['drawing'])) {
+                        Storage::disk('private2')->delete($oldItem['drawing']);
+                    }
+                }
             }
 
+            // در این مرحله فقط پاک‌سازی انجام شده؛ attachments همین مقدار فعلی است.
+            // اگر در همین هندلر تغییری روی attachments نداری، نیازی به updateQuietly نیست.
+            // اما برای همسانی با منطق قبلی اگر تغییر کرده باشد، می‌توانی بگذاری:
             $record->updateQuietly(['body' => $attachments]);
         });
 
