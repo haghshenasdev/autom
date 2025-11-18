@@ -3,7 +3,6 @@
         x-data
         x-init="
             (async () => {
-                // بارگذاری داینامیک کتابخانه فقط وقتی لازم شود
                 if (!window.SignaturePad) {
                     await new Promise(resolve => {
                         const s = document.createElement('script');
@@ -20,6 +19,8 @@
                 const btnClear = el.querySelector('[data-action=clear]');
                 const btnUndo  = el.querySelector('[data-action=undo]');
                 const btnRedo  = el.querySelector('[data-action=redo]');
+                const btnDownload = el.querySelector('[data-action=download]');
+                const btnShow = el.querySelector('[data-action=show]');
 
                 const signaturePad = new window.SignaturePad(canvas, {
                     penColor: 'black',
@@ -37,7 +38,6 @@
                     ctx.scale(ratio, ratio);
                     signaturePad.clear();
 
-                    // اگر state قبلی مسیر فایل بود، بارگذاری کن
                     @if($getState())
                         @php
                             $state = $getState();
@@ -56,11 +56,8 @@
                 resizeCanvas();
                 window.addEventListener('resize', resizeCanvas);
 
-                // اگر state قبلی base64 بود، روی canvas بنویس (ریکاوری رسم)
                 @if($getState())
-                    @php
-                        $state = $getState();
-                    @endphp
+                    @php $state = $getState(); @endphp
                     @if(is_string($state) && str_starts_with($state, 'data:image'))
                         const prevImg = new Image();
                         prevImg.src = '{{ $state }}';
@@ -70,14 +67,12 @@
                     @endif
                 @endif
 
-                // اندازه قلم
                 penSize.addEventListener('input', e => {
                     const w = Number(e.target.value);
                     signaturePad.minWidth = w;
                     signaturePad.maxWidth = w;
                 });
 
-                // تاریخچه برای undo/redo
                 let history = [];
                 let step = -1;
                 function saveStep() {
@@ -87,13 +82,10 @@
                 }
                 signaturePad.addEventListener('endStroke', saveStep);
 
-                // Helper: ست کردن به Livewire و sync به input
                 function setState(value) {
-                    // روش ۱: ست مستقیم به State لایو‌وایر
                     if (window.Livewire && $wire) {
                         $wire.set('{{ $getStatePath() }}', value);
                     }
-                    // روش ۲: بروزرسانی input + دیسpatch رویداد input (اگر wire:model استفاده شده)
                     input.value = value;
                     input.dispatchEvent(new Event('input', { bubbles: true }));
                 }
@@ -109,7 +101,6 @@
                     if (step > 0) {
                         step--;
                         signaturePad.fromData(history[step]);
-                        // بعد از تغییر، state را هم آپدیت کن
                         setState(signaturePad.toDataURL('image/png'));
                     }
                 });
@@ -122,27 +113,52 @@
                     }
                 });
 
-                // هر بار پایان رسم، state را ست کن
                 signaturePad.addEventListener('endStroke', () => {
                     const dataUrl = signaturePad.toDataURL('image/png');
                     setState(dataUrl);
                 });
+
+                btnDownload.addEventListener('click', () => {
+                    const link = document.createElement('a');
+                    link.href = signaturePad.toDataURL('image/png');
+                    link.download = 'drawing.png';
+                    link.click();
+                });
+
+                btnShow.addEventListener('click', () => {
+                    if (input.value && !input.value.startsWith('data:image')) {
+                        window.open('{{ env('APP_URL') }}/private-show2/' + input.value, '_blank');
+                    }
+                });
             })();
         "
     >
-        <canvas width="794" height="1123" style="border:1px solid #ccc; background:#fff; display:block; margin:0 auto;"></canvas>
-
-        <div class="mt-2 flex gap-2 items-center justify-center">
-            <button type="button" data-action="clear" class="px-3 py-1 border rounded">پاک کردن</button>
-            <button type="button" data-action="undo" class="px-3 py-1 border rounded">Undo</button>
-            <button type="button" data-action="redo" class="px-3 py-1 border rounded">Redo</button>
+        {{-- نوار ابزار بالای صفحه با آیکون‌ها --}}
+        <div class="flex gap-2 items-center justify-center mb-2">
+            <button type="button" data-action="clear" class="p-2 border rounded">
+                <x-filament::icon icon="heroicon-o-trash" class="w-5 h-5"/>
+            </button>
+            <button type="button" data-action="undo" class="p-2 border rounded">
+                <x-filament::icon icon="heroicon-o-arrow-uturn-left" class="w-5 h-5"/>
+            </button>
+            <button type="button" data-action="redo" class="p-2 border rounded">
+                <x-filament::icon icon="heroicon-o-arrow-uturn-right" class="w-5 h-5"/>
+            </button>
+            <button type="button" data-action="download" class="p-2 border rounded">
+                <x-filament::icon icon="heroicon-o-arrow-down-tray" class="w-5 h-5"/>
+            </button>
+            <button type="button" data-action="show" class="p-2 border rounded">
+                <x-filament::icon icon="heroicon-o-eye" class="w-5 h-5"/>
+            </button>
             <label class="flex items-center gap-2">
-                <span>اندازه قلم:</span>
+                <x-filament::icon icon="heroicon-o-pencil" class="w-5 h-5"/>
                 <input type="range" min="1" max="10" value="2">
             </label>
         </div>
 
-        {{-- توجه: این input به statePath بایند شده تا Livewire مقدار را بگیرد --}}
+        <canvas width="794" height="1123"
+                style="border:1px solid #ccc; background:#fff; display:block; margin:0 auto;"></canvas>
+
         <input
             type="hidden"
             id="drawing-pad-input-{{ $getId() }}"
