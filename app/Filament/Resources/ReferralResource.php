@@ -55,6 +55,7 @@ class ReferralResource extends Resource
                     ->label('نامه')
                     ->relationship('letter', 'id')
                     ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->subject}")
+                    ->disabled(fn (?Model $record) => $record && $record->by_user_id != $user->id)
                     ->searchable()
                     ->required()
                     ->preload(),
