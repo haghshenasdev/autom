@@ -66,6 +66,7 @@ class ReferralResource extends Resource
                 Forms\Components\Select::make('by_user_id')
                     ->label('توسط')
                     ->default($user->id)
+                    ->disabled(fn (?Model $record) => $record && $record->by_user_id != $user->id) //فعال بودن دستور فق برای صاحبش
                     ->relationship('by_users', 'name')
                     ->searchable()
                     ->required()
