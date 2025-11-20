@@ -146,6 +146,9 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response('کارپوشه ارسال شد');
 
+                }elseif (str_starts_with($firstLine, '/start')) {
+                    $this->sendMessageWithReplyKeyboard($chatId, "✅ شما با موفقیت احراز هویت شدید !" . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
+                    return response('احراز شده');
                 }elseif (str_starts_with($firstLine, '/ارجاع')) {
                     if (!$user->can('view_referral')) {
                         $this->sendMessage($chatId, '❌ شما به ارجاع ها دسترسی ندارید!');
@@ -376,9 +379,10 @@ class BaleBotController extends Controller
                     }
 
                     return response('نامه ارسال شد');
-                } elseif (str_starts_with($text, '#کار')) {
+                } elseif (str_starts_with($text, '#کار') or str_starts_with($text, '#جلسه')) {
                     // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
                     $title = trim(substr($text, strlen('#کار')));
+                    $title = str_replace('#' , '',$title);
 
                     $catPreder = new CategoryPredictor();
                     $cats = $catPreder->predictWithCityOrgan($title);
