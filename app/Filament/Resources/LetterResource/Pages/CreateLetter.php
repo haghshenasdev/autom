@@ -105,6 +105,7 @@ EOT],
                     ]);
 
                     $content = $response->json('choices.0.message.content');
+                    $content = str_replace(['```','json','\n'],'',$content);
 //                    dd($content);
                     // فرض می‌کنیم خروجی هوش مصنوعی JSON باشد مثل:
                     // {"title":"...", "date":"2025/11/21", "summary":"...", "mokatebe":"123"}
