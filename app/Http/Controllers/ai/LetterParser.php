@@ -45,24 +45,24 @@ class LetterParser
         $piroNumber = null;
         if (preg_match('/پیرو\s+(\d+)/u', $text, $matches)) {
             $piroNumber = $matches[1];
-            if (!Letter::query()->find($piroNumber)){
+            if (!Letter::query()->find($piroNumber)) {
                 $piroNumber = null;
             }
         }
-        if (preg_match('/پیرومکاتبه\s+([^\n]+)/u', $text, $match)) {
+        if (preg_match('/پیرو\s*مکاتبه\s+([^\n]+)/u', $text, $match)) {
             $piroNumber = trim($match[1]);
-            if ($let = Letter::query()->where('mokatebe',$piroNumber)->first()){
+            if ($let = Letter::query()->where('mokatebe', $piroNumber)->first()) {
                 $piroNumber = $let->id;
-            }else{
+            } else {
                 $piroNumber = null;
             }
         }
 
         $mokatebeNumber = null;
-        if (preg_match('/نامه\s+(\d+)/u', $title, $matches)){
+        if (preg_match('/نامه\s+(\d+)/u', $title, $matches)) {
             $mokatebeNumber = $matches[1];
-            $title = str_replace($mokatebeNumber,'',$title);
-        }elseif (preg_match('/مکاتبه\s+(\d+)/u', $text, $matches)) {
+            $title = str_replace($mokatebeNumber, '', $title);
+        } elseif (preg_match('/مکاتبه\s+(\d+)/u', $text, $matches)) {
             $mokatebeNumber = $matches[1];
         }
 
@@ -84,21 +84,25 @@ class LetterParser
         foreach ($lines as $line) {
             $line = trim($line);
 
-            // بررسی اینکه خط با مساوی شروع شده باشد
-            if (str_starts_with($line, '=')) {
-                $content = trim(substr($line, 1)); // حذف مساوی و گرفتن بقیه خط
+            // --- حالت صاحب یا = ---
+            if (str_starts_with($line, '=') || str_starts_with($line, 'صاحب')) {
+                // حذف کاراکتر یا کلمه کلیدی
+                if (str_starts_with($line, '=')) {
+                    $content = trim(substr($line, 1));
+                } elseif (str_starts_with($line, 'صاحب')) {
+                    $content = trim(substr($line, strlen('صاحب')));
+                } else {
+                    $content = $line;
+                }
 
                 // بررسی اینکه آیا با "شخص" شروع می‌شود
                 if (str_starts_with($content, 'شخص')) {
-                    $after = trim(substr($content, strlen('شخص'))); // گرفتن متن بعد از "شخص"
+                    $after = trim(substr($content, strlen('شخص')));
 
-                    // جدا کردن اجزای خط
                     $parts = explode(' ', $after);
-
                     $nationalCode = null;
                     $name = '';
 
-                    // بررسی اینکه آیا آخرین بخش عدد است (کد ملی)
                     if (is_numeric(end($parts))) {
                         $nationalCode = array_pop($parts);
                         $name = implode(' ', $parts);
@@ -106,7 +110,6 @@ class LetterParser
                         $name = $after;
                     }
 
-                    // مرحله 1: اگر کد ملی وجود داشت
                     if ($nationalCode) {
                         $customer = Customer::query()->where('code_melli', $nationalCode)->first();
                         if ($customer) {
@@ -119,9 +122,7 @@ class LetterParser
                             $customer_owner[] = $newCustomer->id;
                         }
                     } else {
-                        // مرحله 2: اگر فقط نام وجود داشت
                         $customer = Customer::query()->where('name', $name)->first();
-
                         if ($customer) {
                             $customer_owner[] = $customer->id;
                         } elseif ($name) {
@@ -132,13 +133,28 @@ class LetterParser
                         }
                     }
                 } else {
-                    // اگر "شخص" نبود، ارسال به تابع detectOrgan
                     $owner_keywords = $this->extractKeywords($content);
                     $organ_owner[] = $this->detectOrgan($owner_keywords);
                 }
-            }
-            elseif (str_starts_with($line, '+')){
-                $summary .= trim(substr($line, 1)); // حذف مساوی و گرفتن بقیه خط
+            } // --- حالت هامش یا پاراف یا + ---
+            elseif (str_starts_with($line, '+') ||
+                str_starts_with($line, 'هامش') ||
+                str_starts_with($line, 'پاراف') ||
+                str_starts_with($line, 'نتیجه') ||
+                str_starts_with($line, 'خلاصه')
+            ) {
+
+                if (str_starts_with($line, '+')) {
+                    $summary .= trim(substr($line, 1));
+                } elseif (str_starts_with($line, 'هامش')) {
+                    $summary .= trim(substr($line, strlen('هامش')));
+                } elseif (str_starts_with($line, 'پاراف')) {
+                    $summary .= trim(substr($line, strlen('پاراف')));
+                } elseif (str_starts_with($line, 'نتیجه')) {
+                    $summary .= trim(substr($line, strlen('نتیجه')));
+                }elseif (str_starts_with($line, 'خلاصه')) {
+                    $summary .= trim(substr($line, strlen('خلاصه')));
+                }
             }
         }
 
@@ -160,7 +176,7 @@ class LetterParser
     protected function cleanTitle(string $line): string
     {
         $line = preg_replace('/\b\d{4}\/\d{1,2}\/\d{1,2}\b/u', '', $line);
-        $line = str_replace('مورخ','',$line);
+        $line = str_replace('مورخ', '', $line);
         return ltrim($line, '# ');
     }
 
