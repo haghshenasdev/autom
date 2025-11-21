@@ -42,6 +42,7 @@ class CreateLetter extends CreateRecord
                     // مسیر فایل آپلود شده
                     $filePath = $data['file'];
 
+                    dd(url('storage/' . $filePath));
                     // 1. ارسال فایل به سرویس OCR
                     $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                         'token' => env('EBOO_OCR_TOKEN'),
@@ -51,7 +52,6 @@ class CreateLetter extends CreateRecord
 
                     $ocrText = $ocrResponse->body();
 
-                    dd($ocrText);
                     // 2. ارسال متن OCR به GapGPT برای اصلاح
                     $aiResponse = Http::withHeaders([
                         'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
