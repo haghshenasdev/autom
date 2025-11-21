@@ -109,6 +109,7 @@ EOT],
                     // فرض می‌کنیم خروجی هوش مصنوعی JSON باشد مثل:
                     // {"title":"...", "date":"2025/11/21", "summary":"...", "mokatebe":"123"}
                     $dataLetter = json_decode($content, true);
+                    dd($dataLetter,$content);
 
                     // پر کردن فرم زیرین
                     $livewire->form->fill([
