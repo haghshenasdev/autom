@@ -54,6 +54,11 @@ class CreateLetter extends CreateRecord
                         'kind' => $dataLetter['kind'],
                         'peiroow_letter_id' => $dataLetter['pirow'],
                     ]);
+
+                    Notification::make()
+                        ->title('پردازش در فرم بارگزاری شد')
+                        ->success()
+                        ->send();
                 }),
             Action::make('aiParse')
                 ->label('استخراج با هوش مصنوعی')
@@ -118,7 +123,10 @@ EOT],
                         'kind'        => $dataLetter['kind'] ?? 1,
                     ]);
 
-                    $livewire->notify('success', 'اطلاعات توسط هوش مصنوعی استخراج و در فرم بارگذاری شد.');
+                    Notification::make()
+                        ->title('پردازش در فرم بارگزاری شد')
+                        ->success()
+                        ->send();
                 }),
         ];
     }
