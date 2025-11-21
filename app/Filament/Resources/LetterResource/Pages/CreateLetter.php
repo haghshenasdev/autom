@@ -50,12 +50,12 @@ class CreateLetter extends CreateRecord
                     ]);
 
                     $ocrdata = json_decode($ocrResponse->body());
-                    dd($ocrdata);
-                    if ($ocrdata['Status'] == 'Done'){
+
+                    if ($ocrdata->Status == 'Done'){
                         $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                             'token' => env('EBOO_OCR_TOKEN'),
                             'command' => 'convert',
-                            'filetoken' => $ocrdata['FileToken'],
+                            'filetoken' => $ocrdata->FileToken,
                             'method' => 4,
                         ]);
                         $ocrText = $ocrResponse2->body();
