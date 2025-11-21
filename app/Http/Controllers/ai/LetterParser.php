@@ -38,7 +38,7 @@ class LetterParser
         }
 
         $kind = 1; // پیش فرض صادره
-        if (preg_match('/نامه\s+از/', $title)) {
+        if (preg_match('/نامه(?:\s+\d+)?\s+از/u', $title)) {
             $kind = 0;
         }
 
