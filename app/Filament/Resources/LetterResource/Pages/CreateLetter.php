@@ -55,6 +55,7 @@ class CreateLetter extends CreateRecord
                         $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                             'token' => env('EBOO_OCR_TOKEN'),
                             'command' => 'convert',
+                            'output' => 'txt',
                             'filetoken' => $ocrdata->FileToken,
                             'method' => 4,
                         ]);
