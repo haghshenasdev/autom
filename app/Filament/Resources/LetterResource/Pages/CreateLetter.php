@@ -7,6 +7,7 @@ use App\Http\Controllers\ai\LetterParser;
 use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Actions\Action;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -28,6 +29,61 @@ class CreateLetter extends CreateRecord
     public function getHeaderActions(): array
     {
         return [
+            Action::make('ocrAiParse')
+                ->label('استخراج از فایل (OCR + AI)')
+                ->modalHeading('بارگذاری فایل و پردازش با OCR و هوش مصنوعی')
+                ->modalButton('پردازش و بارگذاری در فرم')
+                ->form([
+                    FileUpload::make('file')
+                        ->label('فایل نامه (PDF یا تصویر)')
+                        ->required(),
+                ])
+                ->action(function (array $data, $livewire) {
+                    // مسیر فایل آپلود شده
+                    $filePath = $data['file'];
+
+                    // 1. ارسال فایل به سرویس OCR
+                    $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+                        'token' => env('EBOO_OCR_TOKEN'),
+                        'command' => 'addfile',
+                        'filelink' => url('storage/' . $filePath), // لینک فایل روی سرور شما
+                    ]);
+
+                    $ocrText = $ocrResponse->body();
+
+                    dd($ocrText);
+                    // 2. ارسال متن OCR به GapGPT برای اصلاح
+                    $aiResponse = Http::withHeaders([
+                        'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+                    ])->post('https://api.gapgpt.app/v1/chat/completions', [
+                        'model' => 'gpt-4o',
+                        'messages' => [
+                            [
+                                'role' => 'user',
+                                'content' => <<<EOT
+متن زیر با OCR از یک نامه استخراج شده است. لطفاً اشکالاتش را برطرف کن.
+هرجا تاریخ واضح نبود، تاریخ شمسی امروز در نظر بگیر.
+اسامی شهرها معمولاً در شهرستان‌های شاهین‌شهر و میمه و برخوار هستند، بررسی کن درست باشند.
+خروجی را فقط متن اصلاح‌شده بده، بدون هیچ متن اضافی.
+
+{$ocrText}
+EOT
+                            ],
+                        ],
+                    ]);
+
+                    $fixedText = $aiResponse->json('choices.0.message.content');
+
+                    // 3. قرار دادن متن اصلاح‌شده در فیلد فرم اصلی
+                    $livewire->form->fill([
+                        'description' => $fixedText,
+                    ]);
+
+                    Notification::make()
+                        ->title('پردازش در فرم بارگزاری شد')
+                        ->success()
+                        ->send();
+                }),
             Action::make('parseText')
                 ->label('پردازش متن')
                 ->modalHeading('تکمیل فرم از طریق پردازش متن نامه')
