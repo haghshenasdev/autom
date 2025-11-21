@@ -12,6 +12,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
+use Morilog\Jalali\Jalalian;
 
 class CreateLetter extends CreateRecord
 {
@@ -80,7 +81,7 @@ class CreateLetter extends CreateRecord
 ساختار مورد انتظار:
 /*
 {
-  "title": "عنوان نامه",
+  "title": "موضوع نامه",
   "date": "YYYY/MM/DD",
   "description": "متن اصلی نامه",
   "mokatebe": "شماره مکاتبه عددی ، ممعمولا بالای متن هست و / یا - بینش دارد",
@@ -99,22 +100,22 @@ EOT],
                     ]);
 
                     $content = $response->json('choices.0.message.content');
-                    dd($content);
+//                    dd($content);
                     // فرض می‌کنیم خروجی هوش مصنوعی JSON باشد مثل:
                     // {"title":"...", "date":"2025/11/21", "summary":"...", "mokatebe":"123"}
                     $dataLetter = json_decode($content, true);
 
                     // پر کردن فرم زیرین
                     $livewire->form->fill([
-                        'subject' => $dataLetter['title'] ?? null,
-                        'created_at' => !empty($dataLetter['date'])
-                            ? Carbon::parse($dataLetter['date'])
+                        'subject'     => $dataLetter['title'] ?? null,
+                        'created_at'  => !empty($dataLetter['date'])
+                            ? Jalalian::fromFormat('Y/m/d', $dataLetter['date'])->toCarbon()
                             : Carbon::now(),
-                        'description' => $caption,
-                        'summary' => $dataLetter['summary'] ?? null,
-                        'mokatebe' => $dataLetter['mokatebe'] ?? null,
-                        'daftar_id' => $dataLetter['daftar'] ?? null,
-                        'kind' => $dataLetter['kind'] ?? 1,
+                        'description' => $dataLetter['description'] ?? $caption,
+                        'summary'     => implode("\n", $dataLetter['refrals'] ?? []),
+                        'mokatebe'    => $dataLetter['mokatebe'] ?? null,
+                        'daftar_id'   => null,
+                        'kind'        => $dataLetter['kind'] ?? 1,
                     ]);
 
                     $livewire->notify('success', 'اطلاعات توسط هوش مصنوعی استخراج و در فرم بارگذاری شد.');
