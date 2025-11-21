@@ -60,7 +60,7 @@ class CreateLetter extends CreateRecord
                             'method' => 4,
                         ]);
                         $ocrText = $ocrResponse2->body();
-                        dd($ocrText);
+
                         // 2. ارسال متن OCR به GapGPT برای اصلاح
                         $aiResponse = Http::withHeaders([
                             'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
