@@ -42,7 +42,6 @@ class CreateLetter extends CreateRecord
                     // مسیر فایل آپلود شده
                     $filePath = $data['file'];
 
-                    dd(url('storage/' . $filePath));
                     // 1. ارسال فایل به سرویس OCR
                     $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                         'token' => env('EBOO_OCR_TOKEN'),
