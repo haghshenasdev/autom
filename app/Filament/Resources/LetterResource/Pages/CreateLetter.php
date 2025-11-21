@@ -92,6 +92,16 @@ EOT
                             ->title('پردازش در فرم بارگزاری شد')
                             ->success()
                             ->send();
+                    }elseif ($ocrdata->Status == 'NoEnoughCredit'){
+                        Notification::make()
+                            ->title('اعتبار پردازش تصویر تمام شده است .')
+                            ->danger()
+                            ->send();
+                    }else{
+                        Notification::make()
+                            ->title('خطا : '. $ocrdata->Status ?? '0')
+                            ->danger()
+                            ->send();
                     }
                 }),
             Action::make('parseText')
