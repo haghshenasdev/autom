@@ -59,6 +59,7 @@ class MinutesParser
                         $name = str_replace('_', '%', $mention);
                         $name = str_replace('-', '%', $name);
                         $name = str_replace('@', '', $name);
+                        $name = trim($name);
 //                        $organsName[] = $name;
                         $organ = Organ::where('name', 'like', "%$name%")
                             ->orWhere('id', $mention)
