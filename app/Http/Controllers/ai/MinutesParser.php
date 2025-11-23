@@ -32,9 +32,9 @@ class MinutesParser
                 $approve = [];
 
                 // استخراج @ها از approve
-                preg_match_all('/@([\w_]+)/u', $rawLine, $matches);
+                preg_match_all('/@\s*([^\s]+)/u', $rawLine, $matches);
                 foreach ($matches[1] as $mention) {
-                    $name = str_replace('_', ' ', $mention);
+                    $name = str_replace(['_','-'], ' ', $mention);
                     $user = User::where('name', 'like', "%$name%")
                         ->orWhere('id', $mention)
                         ->first();
@@ -44,7 +44,7 @@ class MinutesParser
                 }
 
                 // حذف @ها از متن
-                $cleanLine = preg_replace('/@[\w_]+/u', '', $rawLine);
+                $cleanLine = preg_replace('/@\s*([^\s]+)/u', '', $rawLine);
                 $approve['text'] = trim($cleanLine);
 
                 // استخراج تاریخ‌های نسبی
@@ -53,7 +53,7 @@ class MinutesParser
                 $approves[] = $approve;
             }else{
                 // استخراج @های مستقل برای organs
-                preg_match_all('/@[\w_]+/u', $line, $organMatchesLine);
+                preg_match_all('/@\s*([^@]+)/u', $line, $organMatchesLine);
                 foreach ($organMatchesLine as $organMatches ){
                     foreach ($organMatches as $mention) {
                         $name = str_replace('_', '%', $mention);
