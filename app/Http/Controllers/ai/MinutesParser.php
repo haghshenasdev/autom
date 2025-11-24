@@ -6,7 +6,7 @@ use App\Http\Controllers\ReadChanel;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Organ;
-use Complex\Exception;
+use Exception;
 use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
 use Carbon\Carbon;
@@ -26,8 +26,8 @@ class MinutesParser
 //        $organsName = [];
 
         foreach ($lines as $line) {
-            if (str_starts_with($line, '-')) {
-                $rawLine = ltrim($line, '- ');
+            if (str_starts_with($line, '-') || str_starts_with($line, '_')) {
+                $rawLine = ltrim($line, "-_ ");
 
                 $approve = [];
 
@@ -51,6 +51,12 @@ class MinutesParser
                 $approve['due_at'] = $this->extractRelativeDate($rawLine,$titleDate);
 
                 $approves[] = $approve;
+            }else if ($titleDate === null) {
+                // تشخیص تاریخ در خط های بعدی
+                $maybeDate = $this->extractDateFromTitle($line);
+                if ($maybeDate) {
+                    $titleDate = $maybeDate;
+                }
             }else{
                 // استخراج @های مستقل برای organs
                 preg_match_all('/@\s*([^@]+)/u', $line, $organMatchesLine);

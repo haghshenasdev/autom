@@ -25,7 +25,7 @@ class LetterParser
         $organ_ghirandeh = $this->detectOrgan($words);
 
         $user = [];
-        if (preg_match_all('/@[\w_]+/u', $text, $mentions)) {
+        if (preg_match_all('/@\s*([^\s]+)/u', $text, $mentions)) {
             foreach ($mentions as $mention) {
                 foreach ($mention as $m) {
                     $m = trim(str_replace('@', '', $m));
@@ -81,6 +81,7 @@ class LetterParser
         $organ_owner = [];
         $customer_owner = [];
         $summary = '';
+        $description = '';
         foreach ($lines as $line) {
             $line = trim($line);
 
@@ -145,15 +146,30 @@ class LetterParser
             ) {
 
                 if (str_starts_with($line, '+')) {
-                    $summary .= trim(substr($line, 1));
+                    $summary .= trim(substr($line, 1)) . "\n";
                 } elseif (str_starts_with($line, 'هامش')) {
-                    $summary .= trim(substr($line, strlen('هامش')));
+                    $summary .= trim(substr($line, strlen('هامش'))) . "\n";
                 } elseif (str_starts_with($line, 'پاراف')) {
-                    $summary .= trim(substr($line, strlen('پاراف')));
+                    $summary .= trim(substr($line, strlen('پاراف'))) . "\n";
                 } elseif (str_starts_with($line, 'نتیجه')) {
-                    $summary .= trim(substr($line, strlen('نتیجه')));
+                    $summary .= trim(substr($line, strlen('نتیجه'))) . "\n";
                 }elseif (str_starts_with($line, 'خلاصه')) {
-                    $summary .= trim(substr($line, strlen('خلاصه')));
+                    $summary .= trim(substr($line, strlen('خلاصه'))) . "\n";
+                }
+            }elseif (str_starts_with($line, '-') ||
+                str_starts_with($line, 'توضیح') ||
+                str_starts_with($line, 'متن') ||
+                str_starts_with($line, 'توضیحات')
+            ) {
+
+                if (str_starts_with($line, '-')) {
+                    $description .= trim(substr($line, 1)) . "\n";
+                } elseif (str_starts_with($line, 'توضیح')) {
+                    $description .= trim(substr($line, strlen('توضیح'))) . "\n";
+                } elseif (str_starts_with($line, 'متن')) {
+                    $description .= trim(substr($line, strlen('متن'))) . "\n";
+                } elseif (str_starts_with($line, 'توضیحات')) {
+                    $description .= trim(substr($line, strlen('توضیحات'))) . "\n";
                 }
             }
         }
@@ -168,6 +184,7 @@ class LetterParser
             'mokatebe' => $mokatebeNumber,
             'daftar' => $daftar,
             'summary' => $summary,
+            'description' => $description,
             'organ_owners' => $organ_owner,
             'customer_owners' => $customer_owner,
         ];

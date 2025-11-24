@@ -8,78 +8,83 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Morilog\Jalali\Jalalian;
+use Exception;
 
 class ReadChanel extends Controller
 {
     public function read()
     {
-        $channel = \App\Models\ReadChanel::query()->findOrNew(1);
-        $lastReadId = $channel->post_id ?? 0;
+        try {
+            $channel = \App\Models\ReadChanel::query()->findOrNew(1);
+            $lastReadId = $channel->post_id ?? 0;
 
-        $channel->timestamps = false;
-        $channel->last_read_at = Carbon::now();
-        $channel->save();
-        $channel->timestamps = true;
+            $channel->timestamps = false;
+            $channel->last_read_at = Carbon::now();
+            $channel->save();
+            $channel->timestamps = true;
 
-        $currentId = null;
-        $newPosts = [];
+            $currentId = null;
+            $newPosts = [];
 
-        do {
-            $url = 'https://eitaa.com/Hamase4' . ($currentId ? "?before=$currentId" : '');
-            $result = $this->dom($url);
+            do {
+                $url = 'https://eitaa.com/Hamase4' . ($currentId ? "?before=$currentId" : '');
+                $result = $this->dom($url);
 
-            // مرتب‌سازی بر اساس ID برای اطمینان از ترتیب
-            krsort($result);
+                // مرتب‌سازی بر اساس ID برای اطمینان از ترتیب
+                krsort($result);
 
-            $foundNew = false;
-            foreach ($result as $id => $text) {
-                if ((int) $id <= (int) $lastReadId) {
-                    continue;
+                $foundNew = false;
+                foreach ($result as $id => $text) {
+                    if ((int) $id <= (int) $lastReadId) {
+                        continue;
+                    }
+
+                    $foundNew = true;
+                    $newPosts[$id] = $text;
                 }
 
-                $foundNew = true;
-                $newPosts[$id] = $text;
+                // گرفتن کوچک‌ترین ID برای رفتن به عقب‌تر
+                $currentId = array_key_first($result);
+
+            } while ($foundNew);
+
+            $newPosts = $this->removeExactDuplicateTitlesKeepHigherId($newPosts);
+
+            ksort($newPosts);
+            $count = count($newPosts);
+            echo $count . " پست خوانده شد .";
+            // پردازش پست‌های جدید
+            foreach ($newPosts as $id => $text) {
+                $catPreder = new CategoryPredictor();
+                $cats = $catPreder->predictWithCity($text[0]);
+                $time = Carbon::parse($text[1]);
+                if ($cats && $cats['categories']) {
+                    $task = Task::create([
+                        'name' => mb_substr($catPreder->cleanTitle($text[0]), 0, 350),
+                        'description' => $text[0],
+                        'created_at' => $time,
+                        'completed_at' => $time,
+                        'started_at' => $time,
+                        'completed' => 1,
+                        'status' => 1,
+                        'Responsible_id' => 1,
+                        'city_id' => $cats['city'],
+                    ]);
+                    $task->project()->attach($cats['categories']);
+                    $task->group()->attach([1, 32]);
+                }
+
+                echo "Inserted ID: $id\n";
             }
 
-            // گرفتن کوچک‌ترین ID برای رفتن به عقب‌تر
-            $currentId = array_key_first($result);
-
-        } while ($foundNew);
-
-        $newPosts = $this->removeExactDuplicateTitlesKeepHigherId($newPosts);
-
-        ksort($newPosts);
-        $count = count($newPosts);
-        echo $count . " پست خوانده شد .";
-        // پردازش پست‌های جدید
-        foreach ($newPosts as $id => $text) {
-            $catPreder = new CategoryPredictor();
-            $cats = $catPreder->predictWithCity($text[0]);
-            $time = Carbon::parse($text[1]);
-            if ($cats && $cats['categories']) {
-                $task = Task::create([
-                    'name' => mb_substr($catPreder->cleanTitle($text[0]), 0, 350),
-                    'description' => $text[0],
-                    'created_at' => $time,
-                    'completed_at' => $time,
-                    'started_at' => $time,
-                    'completed' => 1,
-                    'status' => 1,
-                    'Responsible_id' => 1,
-                    'city_id' => $cats['city'],
-                ]);
-                $task->project()->attach($cats['categories']);
-                $task->group()->attach([1, 32]);
+            // ذخیره آخرین ID خوانده‌شده
+            if (!empty($newPosts)) {
+                $channel->post_id = max(array_keys($newPosts));
+                $channel->last_count_read = $count;
+                $channel->save();
             }
-
-            echo "Inserted ID: $id\n";
-        }
-
-        // ذخیره آخرین ID خوانده‌شده
-        if (!empty($newPosts)) {
-            $channel->post_id = max(array_keys($newPosts));
-            $channel->last_count_read = $count;
-            $channel->save();
+        }catch (Exception $exception){
+            echo $exception->getMessage();
         }
     }
 
@@ -110,51 +115,56 @@ class ReadChanel extends Controller
 
     public function dom(string $url)
     {
-        /// تلاش در صورت شکست فراخوانی
-        $attempts = 0;
-        $maxAttempts = 5; //تعداد تلاش در هر شکست
-        $waitSeconds = 3; // میزان صبر کردن بعد از هر شکست
-        do {
-            $html = @file_get_contents($url);
-            if ($html !== false) {
-                break;
+        try {
+            /// تلاش در صورت شکست فراخوانی
+            $attempts = 0;
+            $maxAttempts = 5; //تعداد تلاش در هر شکست
+            $waitSeconds = 3; // میزان صبر کردن بعد از هر شکست
+            do {
+                $html = @file_get_contents($url);
+                if ($html !== false) {
+                    break;
+                }
+
+                $attempts++;
+                sleep($waitSeconds); // صبر قبل از تلاش مجدد
+            } while ($attempts < $maxAttempts);
+
+            if ($html === false) {
+                throw new \Exception("خطا در دریافت محتوا از $url بعد از $maxAttempts تلاش.");
             }
-
-            $attempts++;
-            sleep($waitSeconds); // صبر قبل از تلاش مجدد
-        } while ($attempts < $maxAttempts);
-
-        if ($html === false) {
-            throw new \Exception("خطا در دریافت محتوا از $url بعد از $maxAttempts تلاش.");
-        }
- /////////////
+            /////////////
 
 // بارگذاری HTML در DOMDocument
-        libxml_use_internal_errors(true);
-        $dom = new \DOMDocument();
-        $dom->loadHTML($html);
-        libxml_clear_errors();
+            libxml_use_internal_errors(true);
+            $dom = new \DOMDocument();
+            $dom->loadHTML($html);
+            libxml_clear_errors();
 
 // استفاده از XPath برای واکاوی تگ‌ها
-        $xpath = new \DOMXPath($dom);
+            $xpath = new \DOMXPath($dom);
 
 // پیدا کردن بخش اصلی پیام‌ها
-        $section = $xpath->query('//section[contains(@class, "etme_channel_history")]')->item(0);
-        if (!$section) {
-            die("بخش پیام‌ها پیدا نشد.");
-        }
+            $section = $xpath->query('//section[contains(@class, "etme_channel_history")]')->item(0);
+            if (!$section) {
+                die("بخش پیام‌ها پیدا نشد.");
+            }
 
 // واکاوی divهای پیام
-        $messages = $xpath->query('.//div[contains(@class, "etme_widget_message_wrap")]', $section);
-        $result = [];
-        foreach ($messages as $msg) {
-            $id = $msg->getAttribute('id');
-            $msg2 = $xpath->query('.//time[contains(@class, "time")]', $msg)[0];
-            $msg = $xpath->query('.//div[contains(@class, "etme_widget_message_text")]', $msg)[0];
-            $textContent = trim($msg->textContent);
-            $result[$id] = [$textContent, $msg2->getAttribute('datetime')];
-        }
+            $messages = $xpath->query('.//div[contains(@class, "etme_widget_message_wrap")]', $section);
+            $result = [];
+            foreach ($messages as $msg) {
+                $id = $msg->getAttribute('id');
+                $msg2 = $xpath->query('.//time[contains(@class, "time")]', $msg)[0];
+                $msg = $xpath->query('.//div[contains(@class, "etme_widget_message_text")]', $msg)[0];
+                $textContent = trim($msg->textContent);
+                $result[$id] = [$textContent, $msg2->getAttribute('datetime')];
+            }
 
-        return $result;
+            return $result;
+        }catch (Exception $exception){
+            echo $exception->getMessage();
+            return [];
+        }
     }
 }
