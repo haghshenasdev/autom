@@ -30,14 +30,14 @@ class CreateMinutes extends CreateRecord
                 ])
                 ->action(function (array $data, $livewire) {
                     $caption = $data['caption'];
-                    $minu = new MinutesParser();
+                    $minu = new MinutesParser(false);
                     $dataMinute = $minu->parse($caption);
 
                     // پر کردن فرم زیرین
                     $livewire->form->fill([
                         'title' => $dataMinute['title'],
                         'date' => $dataMinute['title_date'] ?? Carbon::now(),
-                        'description' => $caption,
+                        'text' => $caption,
                         'organ' => $dataMinute['organs'],
                         'task_id' => $dataMinute['task_id'],
                     ]);

@@ -52,6 +52,9 @@ class ContentResource extends Resource
                     ->label('عنوان'),
 
                 Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
+                Tables\Columns\TextColumn::make('user.name')->toggleable(isToggledHiddenByDefault: true)
+                    ->searchable()
+                    ->label('ایجاد کننده'),
             ])
             ->filters([
                 Filter::make('tree')->label('دسته بندی')

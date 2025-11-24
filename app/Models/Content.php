@@ -14,6 +14,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 use Saade\FilamentAutograph\Forms\Components\SignaturePad;
 
@@ -24,12 +25,17 @@ class Content extends Model
     protected $fillable = [
         'title',
         'body',
+        'user_id',
     ];
 
     protected $casts = [
         'body' => 'array', // یا 'json'
     ];
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function group()
     {

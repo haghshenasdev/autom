@@ -13,6 +13,11 @@ use Carbon\Carbon;
 
 class MinutesParser
 {
+
+    public function __construct(public bool $readChanelTasks = true)
+    {
+    }
+
     public function parse(string $text): array
     {
         $lines = array_filter(array_map('trim', explode("\n", $text)));
@@ -60,18 +65,17 @@ class MinutesParser
             }else{
                 // استخراج @های مستقل برای organs
                 preg_match_all('/@\s*([^@]+)/u', $line, $organMatchesLine);
-                foreach ($organMatchesLine as $organMatches ){
-                    foreach ($organMatches as $mention) {
-                        $name = str_replace('_', '%', $mention);
-                        $name = str_replace('-', '%', $name);
+                if (!empty($organMatchesLine[1])) {
+                    foreach ($organMatchesLine[1] as $mention) {
+                        $name = str_replace(['_', '-'], '%', $mention);
                         $name = str_replace('@', '', $name);
                         $name = trim($name);
-//                        $organsName[] = $name;
+
                         $organ = Organ::where('name', 'like', "%$name%")
                             ->orWhere('id', $mention)
                             ->first();
+
                         if ($organ) {
-//                            $organs[] = ['id' => $organ->id, 'name' => $organ->name];
                             $organs[] = $organ->id;
                         }
                     }
@@ -79,6 +83,8 @@ class MinutesParser
 
             }
         }
+
+        $organs = array_unique($organs);
 
         return [
             'title' => $title,
@@ -160,11 +166,13 @@ class MinutesParser
 
     public function taskDetect(string $title) : ?int
     {
-        try {
-            //دریافت جلسات جدید از کانال
-            (new ReadChanel())->read();
-        }catch (Exception $e){
-            echo $e->getMessage();
+        if ($this->readChanelTasks){
+            try {
+                //دریافت جلسات جدید از کانال
+                (new ReadChanel())->read();
+            }catch (Exception $e){
+                echo $e->getMessage();
+            }
         }
 
         $cp = new \App\Http\Controllers\ai\CategoryPredictor();

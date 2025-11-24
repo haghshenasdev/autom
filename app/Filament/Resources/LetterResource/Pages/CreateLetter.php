@@ -13,6 +13,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Morilog\Jalali\Jalalian;
 
 class CreateLetter extends CreateRecord
@@ -48,6 +49,8 @@ class CreateLetter extends CreateRecord
                         'command' => 'addfile',
                         'filelink' => url('storage/' . $filePath), // لینک فایل روی سرور شما
                     ]);
+
+                    Storage::disk('public')->delete($filePath);
 
                     $ocrdata = json_decode($ocrResponse->body());
 

@@ -70,9 +70,9 @@ class Organ extends Model
             TextInput::make('phone')
                 ->label('شماره تماس')->length(11)
                 ->tel(),
-            Select::make('organ_type_id')->label('نوع')
+            Select::make('organ_type_id')->label('نوع')->required()
                 ->relationship('type','name')
-                ->preload()->searchable()
+                ->preload()->searchable()->createOptionForm(OrganType::formSchema())
         ];
     }
 
