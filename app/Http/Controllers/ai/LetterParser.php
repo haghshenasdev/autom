@@ -8,75 +8,83 @@ use App\Models\Organ;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
 
 class LetterParser
-{
-    public function parse(string $text): array
-    {
-        $text = CalendarUtils::convertNumbers($text, true);
-        $lines = array_filter(array_map('trim', explode("\n", $text)));
+        {
+            public function parse(string $text): array
+            {
+                $text = CalendarUtils::convertNumbers($text, true);
 
-        $titleLine = array_shift($lines);
-        $titleDate = $this->extractDateFromTitle($titleLine);
-        $title = $this->cleanTitle($titleLine);
-        $words = $this->extractKeywords($title);
-        $organ_ghirandeh = $this->detectOrgan($words);
+                $lines = array_filter(array_map('trim', explode("\n", $text)));
 
-        $user = [];
-        if (preg_match_all('/@\s*([^\s]+)/u', $text, $mentions)) {
-            foreach ($mentions as $mention) {
-                foreach ($mention as $m) {
-                    $m = trim(str_replace('@', '', $m));
-                    $us = User::where('name', 'like', "%$m%")
-                        ->orWhere('id', $m)
-                        ->first();
-                    if ($us) $user[] = $us->id;
+                $titleLine = array_shift($lines);
+                $titleDate = $this->extractDateFromTitle($titleLine);
+                $title = $this->cleanTitle($titleLine);
+                $words = $this->extractKeywords($title);
+                $organ_ghirandeh = $this->detectOrgan($words);
+
+                $user = [];
+                if (preg_match_all('/@\s*([^\s]+)/u', $text, $mentions)) {
+                    if (!empty($mentions[1])) {
+                        foreach ($mentions[1] as $m) {
+                            $m = trim(str_replace('@', '', $m));
+                            $us = User::where('name', 'like', "%$m%")
+                                ->orWhere('id', $m)
+                                ->first();
+                            if ($us) $user[] = $us->id;
+                        }
+                    }
                 }
-            }
-        }
+                $user = array_unique($user);
 
-        $kind = 1; // پیش فرض صادره
-        if (preg_match('/نامه(?:\s+\d+)?\s+از/u', $title)) {
-            $kind = 0;
-        }
+                $kind = 1; // پیش فرض صادره
+                if (preg_match('/نامه(?:\s+\d+)?\s+از/u', $title)) {
+                    $kind = 0;
+                }
 
-        $piroNumber = null;
-        if (preg_match('/پیرو\s+(\d+)/u', $text, $matches)) {
-            $piroNumber = $matches[1];
-            if (!Letter::query()->find($piroNumber)) {
                 $piroNumber = null;
-            }
-        }
-        if (preg_match('/پیرو\s*مکاتبه\s+([^\n]+)/u', $text, $match)) {
-            $piroNumber = trim($match[1]);
-            if ($let = Letter::query()->where('mokatebe', $piroNumber)->first()) {
-                $piroNumber = $let->id;
-            } else {
-                $piroNumber = null;
-            }
-        }
+                if (preg_match('/پیرو\s+(\d+)/u', $text, $matches)) {
+                    $piroNumber = $matches[1];
+                    if (!Letter::query()->find($piroNumber)) {
+                        $piroNumber = null;
+                    }
+                }
+                if (preg_match('/پیرو\s*مکاتبه\s+(\S+)/u', $text, $match)) {
+                    $piroNumber = trim($match[1]);
+                    if ($let = Letter::query()->where('mokatebe', $piroNumber)->first()) {
+                        $piroNumber = $let->id;
+                    } else {
+                        $piroNumber = null;
+                    }
+                }
 
-        $mokatebeNumber = null;
-        if (preg_match('/نامه\s+(\d+)/u', $title, $matches)) {
-            $mokatebeNumber = $matches[1];
-            $title = str_replace($mokatebeNumber, '', $title);
-        } elseif (preg_match('/مکاتبه\s+(\d+)/u', $text, $matches)) {
-            $mokatebeNumber = $matches[1];
-        }
+                $mokatebeNumber = null;
+                if (preg_match('/نامه\s+(\S+)/u', $title, $matches)) {
+                    $mokatebeNumber = $matches[1];
+                    $title = str_replace($mokatebeNumber, '', $title);
+                } elseif (preg_match('/مکاتبه\s+(\S+)/u', $text, $matches)) {
+                    $mokatebeNumber = $matches[1];
+                }
 
-        $daftar = 461; // دفتر تهران به صورت پیش فرض
-        if (preg_match('/دفتر\s+(\S+)/u', $text, $matches)) {
-            $afterDaftar = $matches[1];
+                $daftar = 461; // دفتر تهران به صورت پیش فرض
+                if (preg_match('/دفتر\s+(\S+)/u', $text, $matches)) {
+                    $afterDaftar = $matches[1];
 
-            // استفاده در کوئری لاراول
-            $organ = Organ::query()
-                ->where('organ_type_id', 20)
-                ->where('name', 'like', '%' . $afterDaftar . '%')
-                ->first();
-            if ($organ) $daftar = $organ->id;
-        }
+                    // استفاده در کوئری لاراول
+                    $organ = Organ::query()
+                        ->where('organ_type_id', 20)
+                        ->where('name', 'like', '%' . $afterDaftar . '%')
+                        ->first();
+                    if ($organ) $daftar = $organ->id;
+                }
+
+        $completionKeywords = ['#اتمام','#انجام', '#شد', '#انجام_شد'];
+        $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
+            return mb_strpos($text, $kw) !== false;
+        });
 
         $organ_owner = [];
         $customer_owner = [];
@@ -173,6 +181,8 @@ class LetterParser
                 }
             }
         }
+        $organ_owner = array_unique($organ_owner);
+        $customer_owner = array_unique($customer_owner);
 
         return [
             'title' => $title,
@@ -187,8 +197,208 @@ class LetterParser
             'description' => $description,
             'organ_owners' => $organ_owner,
             'customer_owners' => $customer_owner,
+            'status' => $isCompletion ? 1 : 2,
         ];
     }
+
+    public function aiParse(string $text)
+    {
+
+        // فراخوانی API هوش مصنوعی
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+        ])->post('https://api.gapgpt.app/v1/chat/completions', [
+            'model' => 'gpt-4o',
+            'messages' => [
+                ['role' => 'user', 'content' => <<<EOT
+لطفاً متن زیر را پردازش کن و اطلاعات نامه را استخراج کن.
+خروجی را فقط در قالب JSON بده، بدون هیچ متن اضافی.
+
+ساختار مورد انتظار:
+/*
+{
+  "title": "موضوع نامه",
+  "date": "YYYY/MM/DD",
+  "description": "متن اصلی نامه",
+  "mokatebe": "شماره مکاتبه عددی ، ممعمولا بالای متن هست و / یا - بینش دارد",
+  "kind": "اگر نامه از طرف حسینعلی حاجی دلیگانی بود، 1 بزار در غیر این صورت 0",
+  "pirow": "ببین اگر این نامه kind آن 0 بود ، شماره نامه ای که این نامه پیرو آن است را مقدار بده در غیر این صورت نال",
+  "organ": "سمت گیرنده اصلی نامه ، اگر kind برابر 0 بود نال بزار",
+  "refrals": ["سمت و نام رونوشت ها در صورت وجود"],
+  "customer_owners": [" کد ملی صاحب های حقیقی نامه در صورت وجود"],
+  "organ_owners": [" سمت یا نام های صاحب های حقوقی مثل شرکت یا ارگان نامه در صورت وجود"],
+}
+*/
+
+متن:
+{$text}
+EOT],
+            ],
+        ]);
+
+        $content = $response->json('choices.0.message.content');
+        $content = str_replace(['```','json','\n'],'',$content);
+
+        $dataLetter = json_decode($content, true);
+//                    dd($dataLetter,$content);
+
+        // --- پردازش ارگان ---
+        $organId = null;
+        if (!empty($dataLetter['organ'])) {
+            $words = $this->extractKeywords($dataLetter['organ']);
+            $organId = $this->detectOrgan($words);
+        }
+
+        // --- پردازش صاحب‌ها ---
+        $customerIds = [];
+        if (!empty($dataLetter['customer_owners'])) {
+            foreach ($dataLetter['customer_owners'] as $ownerName) {
+                $ownerName = trim($ownerName);
+                if (!$ownerName) continue;
+
+                $customer = Customer::query()->where('code_melli', $ownerName)->first();
+                if ($customer) {
+                    $customerIds[] = $customer->id;
+                }
+            }
+        }
+        $organIds = [];
+        if (!empty($dataLetter['organ_owners'])) {
+            foreach ($dataLetter['organ_owners'] as $ownerName) {
+                $ownerName = trim($ownerName);
+                $words = $this->extractKeywords($ownerName);
+                $customer = $this->detectOrgan($words);
+
+                if ($customer) {
+                    $organIds[] = $customer;
+                }
+            }
+        }
+
+        // پر کردن فرم زیرین
+        return[
+            'subject'     => $dataLetter['title'] ?? null,
+            'created_at'  => !empty($dataLetter['date']),
+            'description' => $dataLetter['description'] ?? $text,
+            'summary'     => implode("\n", $dataLetter['refrals'] ?? []),
+            'mokatebe'    => $dataLetter['mokatebe'] ?? null,
+            'daftar_id'   => null,
+            'kind'        => $dataLetter['kind'] ?? 1,
+            'organ_id'       => $organId,
+            'organ_owners' => array_unique($organIds),
+            'customer_owners' =>  array_unique($customerIds),
+        ];
+    }
+
+    public function mixedParse(string $text): array
+    {
+        // جدا کردن بخش قبل و بعد از #متن
+        $parts = explode('#متن', $text, 2);
+        $beforeText = trim($parts[0]);
+        $afterText = $parts[1] ?? null;
+
+        // پردازش بخش قبل با تابع parse
+        $parsedBefore = $this->parse($beforeText);
+
+        // پردازش بخش بعد با تابع aiParse
+        $parsedAfter = $afterText ? $this->aiParse($afterText) : [];
+
+        // ترکیب نتایج با اولویت مقادیر parse
+        $result = $parsedBefore;
+
+        foreach ($parsedAfter as $key => $value) {
+            if (empty($result[$key]) && !empty($value)) {
+                $result[$key] = $value;
+            }
+        }
+
+        // نگاشت کلیدها: title = subject ، title_date = created_at
+        $result['title'] = $result['subject'] ?? null;
+        $result['title_date'] = $result['created_at'] ?? null;
+
+        return $result;
+    }
+
+    public function rebuildText(array $parsed): string
+    {
+        $lines = [];
+
+        // عنوان و تاریخ
+        if (!empty($parsed['title'])) {
+            $line = '# ' . $parsed['title'];
+            if (!empty($parsed['title_date'])) {
+                $line .= ' ' . $parsed['title_date'];
+            }
+            $lines[] = $line;
+        }
+
+        // شماره مکاتبه
+        if (!empty($parsed['mokatebe'])) {
+            $lines[] = 'مکاتبه ' . $parsed['mokatebe'];
+        }
+
+        // پیرو
+        if (!empty($parsed['pirow'])) {
+            $lines[] = 'پیرو ' . $parsed['pirow'];
+        }
+
+        // نوع نامه
+        if (isset($parsed['kind'])) {
+            $lines[] = $parsed['kind'] == 1 ? 'نامه صادره' : 'نامه وارده';
+        }
+
+        // ارگان گیرنده
+        if (!empty($parsed['organ_id'])) {
+            $organ = Organ::find($parsed['organ_id']);
+            if ($organ) {
+                $lines[] = '@' . $organ->name;
+            }
+        }
+
+        // صاحب‌های حقوقی
+        if (!empty($parsed['organ_owners'])) {
+            foreach ($parsed['organ_owners'] as $orgId) {
+                $org = Organ::find($orgId);
+                if ($org) {
+                    $lines[] = 'صاحب ' . $org->name;
+                }
+            }
+        }
+
+        // صاحب‌های حقیقی
+        if (!empty($parsed['customer_owners'])) {
+            foreach ($parsed['customer_owners'] as $custId) {
+                $cust = Customer::find($custId);
+                if ($cust) {
+                    $lines[] = 'صاحب شخص ' . $cust->name . ' ' . $cust->code_melli;
+                }
+            }
+        }
+
+        // خلاصه / هامش / پاراف
+        if (!empty($parsed['summary'])) {
+            foreach (explode("\n", trim($parsed['summary'])) as $s) {
+                if ($s) $lines[] = '+ ' . $s;
+            }
+        }
+
+        // توضیحات / متن
+        if (!empty($parsed['description'])) {
+            foreach (explode("\n", trim($parsed['description'])) as $d) {
+                if ($d) $lines[] = '- ' . $d;
+            }
+        }
+
+        // وضعیت
+        if (isset($parsed['status'])) {
+            if ($parsed['status'] == 1) {
+                $lines[] = '#اتمام';
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
 
     protected function cleanTitle(string $line): string
     {

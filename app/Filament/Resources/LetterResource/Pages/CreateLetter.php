@@ -131,6 +131,7 @@ EOT
                         'mokatebe' => $dataLetter['mokatebe'],
                         'daftar' => $dataLetter['daftar'],
                         'kind' => $dataLetter['kind'],
+                        'cartables' => $dataLetter['user_id'],
                         'peiroow_letter_id' => $dataLetter['pirow'],
                     ]);
 

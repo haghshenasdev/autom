@@ -309,7 +309,14 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response('صورت‌جلسه ارسال شد');
 
-                } elseif (str_starts_with($firstLine, '/نامه')) {
+                } elseif (str_starts_with($firstLine, '#نامه')) {
+                    if (str_contains($caption,'#متن')){
+                        $ltp = new LetterParser();
+                        $dataLetter = $ltp->mixedParse($caption);
+                        $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
+                        $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
+                    }
+                }elseif (str_starts_with($firstLine, '/نامه')) {
                     if (!$user->can('view_letter')) {
                         $this->sendMessage($chatId, '❌ شما به نامه‌ها دسترسی ندارید!');
                         return response('عدم دسترسی');
@@ -517,55 +524,57 @@ class BaleBotController extends Controller
                     return response('صورت جلسه ایجاد شد.');
 
                 } elseif ($matched === '#نامه') {
-                    if (!$user->can('create_letter')) {
-                        $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
-                        return response('عدم دسترسی');
-                    }
-
-                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد'];
-                    $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($caption) {
-                        return mb_strpos($caption, $kw) !== false;
-                    });
-                    if ($isCompletion) $caption = trim(str_replace($completionKeywords, '', $caption));
-
-                    $ltp = new LetterParser();
-                    $dataLetter = $ltp->parse($caption);
-
-                    $record = Letter::create([
-                        'subject' => $dataLetter['title'],
-                        'created_at' => $dataLetter['title_date'] ?? Carbon::now(),
-                        'description' => $dataLetter['description'] . "\n\n" . $caption,
-                        'summary' => $dataLetter['summary'],
-                        'mokatebe' => $dataLetter['mokatebe'],
-                        'daftar_id' => $dataLetter['daftar'],
-                        'kind' => $dataLetter['kind'],
-                        'user_id' => $user->id,
-                        'peiroow_letter_id' => $dataLetter['pirow'],
-                        'status' => $isCompletion ? 1 : 2,
-                    ]);
-
-                    if ($dataLetter['kind'] == 1 ){
-                        $record->organ_id = $dataLetter['organ_id'];
-                        $record->save();
+                    if (str_contains($caption,'#متن')){
+                        $ltp = new LetterParser();
+                        $dataLetter = $ltp->mixedParse($caption);
+                        $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
+                        $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
                     }else{
-                        $record->organs_owner()->attach($dataLetter['organ_id']);
-                    }
+                        if (!$user->can('create_letter')) {
+                            $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
+                            return response('عدم دسترسی');
+                        }
 
-                    $record->users()->attach($dataLetter['user_id']); //افزودن به کارپوشه
-                    $record->organs_owner()->attach($dataLetter['organ_owners']);
-                    $record->customers()->attach($dataLetter['customer_owners']);
 
-                    $message = '✉️ اطلاعاعت نامه ذخیره شده'."\n\n";
-                    $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$record->id]).')' . "\n\n";
-                    $message .= $this->CreateLetterMessage($record);
-                    $this->sendMessage($chatId,$message);
+                        $ltp = new LetterParser();
+                        $dataLetter = $ltp->parse($caption);
 
-                    if (isset($data['message']['document'])) {
-                        $doc = $data['message']['document'];
-                        $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
-                        Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
-                        if ($media_group_id) {
-                            $bale_user->update(['state' => $media_group_id . "_letter_{$record->id}"]);
+                        $record = Letter::create([
+                            'subject' => $dataLetter['title'],
+                            'created_at' => $dataLetter['title_date'] ?? Carbon::now(),
+                            'description' => $dataLetter['description'] . "\n\n" . $caption,
+                            'summary' => $dataLetter['summary'],
+                            'mokatebe' => $dataLetter['mokatebe'],
+                            'daftar_id' => $dataLetter['daftar'],
+                            'kind' => $dataLetter['kind'],
+                            'user_id' => $user->id,
+                            'peiroow_letter_id' => $dataLetter['pirow'],
+                            'status' => $dataLetter['status'],
+                        ]);
+
+                        if ($dataLetter['kind'] == 1 ){
+                            $record->organ_id = $dataLetter['organ_id'];
+                            $record->save();
+                        }else{
+                            $record->organs_owner()->attach($dataLetter['organ_id']);
+                        }
+
+                        $record->users()->attach($dataLetter['user_id']); //افزودن به کارپوشه
+                        $record->organs_owner()->attach($dataLetter['organ_owners']);
+                        $record->customers()->attach($dataLetter['customer_owners']);
+
+                        $message = '✉️ اطلاعاعت نامه ذخیره شده'."\n\n";
+                        $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$record->id]).')' . "\n\n";
+                        $message .= $this->CreateLetterMessage($record);
+                        $this->sendMessage($chatId,$message);
+
+                        if (isset($data['message']['document'])) {
+                            $doc = $data['message']['document'];
+                            $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
+                            Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
+                            if ($media_group_id) {
+                                $bale_user->update(['state' => $media_group_id . "_letter_{$record->id}"]);
+                            }
                         }
                     }
                 }
@@ -951,9 +960,23 @@ TEXT;
 با نوشتن کلمه دفتر و بعد از آن نام دفتر مربوطه، نام دفتر تشخیص داده می شود و در سامانه ثبت می شود .به عنوان مثال
 دفتر شاهین شهر یا دفتر تهران
 نکته : می‌توان نام دفتر را ننوشت در آن صورت دفتر تهران به طور پیش فرض دفتر تهران در نظر گرفته می شود .
+
 ☑️ @
 اگر نیاز هست نامه به کارتابل اشخاصی اضافه گردد کافی است درخط های بعدی کپشن از @نام استفاده کرد . به عنوان مثال
 @طالبی @نظری
+نکته : تنها یک کلمه از فامیلی یا سمت شخص کافی است ، مابقی اسم را ربات توی ثبت نمامه می نویسد . اگر تشابه فامیلی ها وجود دارد بهتر است یک کلمه از سمت شخص مورد نظر را بنویسید مانند @رئیس یا @مدیر
+
+☑️ مکاتبه
+این کلمه را هر کجای متن زیر عکس بنویسید (ترجیحا در خط بعدی از عنوان ) در ادامه آن میتوانید شماره مکاتبه فیزیکی را وارد نمایید .
+مانند :
+مکاتبه 110/45 یا مکاتبه 1404-12
+نکته : اگر شماره مکاتبه فیزیکی را بعد از # نامه وارد کردید دیگر نیاز نیست دوباره از کلمه مکاتبه برای افزودن شماره مکاتبه فیزیکی استفاده کنید . به عبارت دیگر استفاده از یکی از حالات کافی است .
+
+☑️ پیرو
+این کلمه را هر کجای متن زیر عکس بنویسید (ترجیحا در خط بعدی از عنوان ) در ادامه آن میتوانید مشخص کنید این نامه پیرو کدام نامه است ، شماره ثبت نامه در سامانه را باید بعد از این کلمه بیارید . اگر نیاز هست نامه ای که میخواهید برای آن پیرو بزنید بر اساس شماره مکاتبه فیزیکی پیدا شود ، کافی است بعد از کلمه پیرو ، کلمه مکاتبه و بعد از آن شماره مکاتبه فیزیکی نامه مورد نظر.
+مانند :
+پیرو 1345
+پیرو مکاتبه 1404/15
 
 ☑️ = یا کلمات : صاحب ، شخص
 با استفاده از کاراتر مساوی یا کلمه صاحب در ابتدای خط های بعدی می‌توان صاحب نامه را مشخص کرد . تعداد صاحب های نامه محدودیت تعداد ندارد و به تعداد آن ها می توان در خط های مجازا = گذاشت .
@@ -969,6 +992,9 @@ TEXT;
 
 ☑️ - یا کلمات : توضیح ، متن ‌، توضیحات
 کاراکتر یا کلمات تعریف شده باید ابتدای خط بیاید و بعد از آن توضیحات یا متن نامه را نوشت.
+
+☑️ #اتمام یا #انجام یا #شد یا #انجام_شد
+این هشتک اگر در متن باشد وضعیت نامه در حالت اتمام قرار می گیرد در غیر این صورت وضعیت در حالت درحال پیگیری قرار می گیرد.
 
 ✅ /نامه
 این دستور ۵ نامه آخر مربوط به کاربر احراز هویت شده را ارسال می کند .
