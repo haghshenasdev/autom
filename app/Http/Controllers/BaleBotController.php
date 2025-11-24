@@ -487,6 +487,7 @@ class BaleBotController extends Controller
                             'name' => $approve['text'],
                             'started_at' => $mdata['date'],
                             'created_at' => $mdata['date'],
+                            'amount' => $approve['amount'],
                             'ended_at' => $approve['due_at'] ?? null,
                             'Responsible_id' => $approve['user']['id'] ?? $user->id,
                             'minutes_id' => $record->id,

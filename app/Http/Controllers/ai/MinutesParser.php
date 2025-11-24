@@ -48,6 +48,15 @@ class MinutesParser
                     }
                 }
 
+                // --- استخراج amount (اعداد با $) ---
+                $amount = null;
+                if (preg_match('/\$\s*([\d][\d,.\s]*)/u', $rawLine, $m)) {
+                    $amount = trim(preg_replace('/[^\d]/', '', $m[1]));
+                    // پاک کردن مقدار از متن
+                    $rawLine = preg_replace('/\$\s*([\d][\d,.\s]*)/u', '', $rawLine);
+                }
+                $approve['amount'] = $amount;
+
                 // حذف @ها از متن
                 $cleanLine = preg_replace('/@\s*([^\s]+)/u', '', $rawLine);
                 $approve['text'] = trim($cleanLine);
