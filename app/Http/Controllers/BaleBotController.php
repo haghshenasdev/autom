@@ -657,6 +657,16 @@ class BaleBotController extends Controller
         if ($record->date) {
             $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($record->date)->format('Y/m/d') . "\n";
         }
+        if ($record->task_id) {
+            $message .= "❇️ جلسه : " . $record->task_creator->name . "\n";
+        }
+        if ($record->organ->count() != 0){
+            $message .= "🏢 امضا کنندگان : ";
+            foreach ($record->organ as $organ) {
+                $message .= "  "  . $organ->name ."،";
+            }
+            $message .= "\n";
+        }
         if ($withTasks and $record->tasks->count() != 0){
             $message .= "🧰 کار های صورت جلسه : ";
             $message .= "\n";
