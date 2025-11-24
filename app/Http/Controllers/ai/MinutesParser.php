@@ -50,10 +50,10 @@ class MinutesParser
 
                 // --- استخراج amount (اعداد با $) ---
                 $amount = null;
-                if (preg_match('/\$\s*([\d][\d,.\s]*)/u', $rawLine, $m)) {
-                    $amount = trim(preg_replace('/[^\d]/', '', $m[1]));
+                if (preg_match('/\$\s*([\d][\d,٫،.\s]*)/u', $rawLine, $m)) {
+                    $amount = trim(preg_replace('/[^\d]/u', '', $m[1]));
                     // پاک کردن مقدار از متن
-                    $rawLine = preg_replace('/\$\s*([\d][\d,.\s]*)/u', '', $rawLine);
+                    $rawLine = preg_replace('/\$\s*([\d][\d,٫،.\s]*)/u', '', $rawLine);
                 }
                 $approve['amount'] = $amount;
 
