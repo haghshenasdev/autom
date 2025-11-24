@@ -325,7 +325,13 @@ EOT],
 
         // عنوان و تاریخ
         if (!empty($parsed['title'])) {
-            $line = '# ' . $parsed['title'];
+            $line = '#نامه ';
+            // نوع نامه
+            if (isset($parsed['kind'])) {
+                $line .= $parsed['kind'] == 1 ? 'به' : 'از';
+                $line .= ' ';
+            }
+            $line .= $parsed['title'];
             if (!empty($parsed['title_date'])) {
                 $line .= ' ' . $parsed['title_date'];
             }
@@ -342,10 +348,6 @@ EOT],
             $lines[] = 'پیرو ' . $parsed['pirow'];
         }
 
-        // نوع نامه
-        if (isset($parsed['kind'])) {
-            $lines[] = $parsed['kind'] == 1 ? 'نامه صادره' : 'نامه وارده';
-        }
 
         // ارگان گیرنده
         if (!empty($parsed['organ_id'])) {
