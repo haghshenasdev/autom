@@ -5,6 +5,7 @@ namespace App\Http\Controllers\ai;
 use App\Models\Customer;
 use App\Models\Letter;
 use App\Models\Organ;
+use App\Models\Project;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -13,81 +14,82 @@ use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
 
 class LetterParser
-        {
-            public function parse(string $text): array
-            {
-                $text = CalendarUtils::convertNumbers($text, true);
+{
+    public function parse(string $text): array
+    {
+        $text = CalendarUtils::convertNumbers($text, true);
 
-                $lines = array_filter(array_map('trim', explode("\n", $text)));
+        $lines = array_filter(array_map('trim', explode("\n", $text)));
 
-                $titleLine = array_shift($lines);
-                $titleDate = $this->extractDateFromTitle($titleLine);
-                $title = $this->cleanTitle($titleLine);
-                $words = $this->extractKeywords($title);
-                $organ_ghirandeh = $this->detectOrgan($words);
+        $titleLine = array_shift($lines);
+        $titleDate = $this->extractDateFromTitle($titleLine);
+        $title = $this->cleanTitle($titleLine);
+        $words = $this->extractKeywords($title);
+        $organ_ghirandeh = $this->detectOrgan($words);
 
-                $user = [];
-                if (preg_match_all('/@\s*([^\s]+)/u', $text, $mentions)) {
-                    if (!empty($mentions[1])) {
-                        foreach ($mentions[1] as $m) {
-                            $m = trim(str_replace('@', '', $m));
-                            $us = User::where('name', 'like', "%$m%")
-                                ->orWhere('id', $m)
-                                ->first();
-                            if ($us) $user[] = $us->id;
-                        }
-                    }
-                }
-                $user = array_unique($user);
-
-                $kind = 1; // پیش فرض صادره
-                if (preg_match('/نامه(?:\s+\d+)?\s+از/u', $title)) {
-                    $kind = 0;
-                }
-
-                $piroNumber = null;
-                if (preg_match('/پیرو\s+(\d+)/u', $text, $matches)) {
-                    $piroNumber = $matches[1];
-                    if (!Letter::query()->find($piroNumber)) {
-                        $piroNumber = null;
-                    }
-                }
-                if (preg_match('/پیرو\s*مکاتبه\s+(\S+)/u', $text, $match)) {
-                    $piroNumber = trim($match[1]);
-                    if ($let = Letter::query()->where('mokatebe', $piroNumber)->first()) {
-                        $piroNumber = $let->id;
-                    } else {
-                        $piroNumber = null;
-                    }
-                }
-
-                $mokatebeNumber = null;
-                if (preg_match('/نامه\s+(\S+)/u', $title, $matches)) {
-                    $mokatebeNumber = $matches[1];
-                    $title = str_replace($mokatebeNumber, '', $title);
-                } elseif (preg_match('/مکاتبه\s+(\S+)/u', $text, $matches)) {
-                    $mokatebeNumber = $matches[1];
-                }
-
-                $daftar = 461; // دفتر تهران به صورت پیش فرض
-                if (preg_match('/دفتر\s+(\S+)/u', $text, $matches)) {
-                    $afterDaftar = $matches[1];
-
-                    // استفاده در کوئری لاراول
-                    $organ = Organ::query()
-                        ->where('organ_type_id', 20)
-                        ->where('name', 'like', '%' . $afterDaftar . '%')
+        $user = [];
+        if (preg_match_all('/@\s*([^\s]+)/u', $text, $mentions)) {
+            if (!empty($mentions[1])) {
+                foreach ($mentions[1] as $m) {
+                    $m = trim(str_replace('@', '', $m));
+                    $us = User::where('name', 'like', "%$m%")
+                        ->orWhere('id', $m)
                         ->first();
-                    if ($organ) $daftar = $organ->id;
+                    if ($us) $user[] = $us->id;
                 }
+            }
+        }
+        $user = array_unique($user);
 
-        $completionKeywords = ['#اتمام','#انجام', '#شد', '#انجام_شد'];
+        $kind = 1; // پیش فرض صادره
+        if (preg_match('/نامه(?:\s+\d+)?\s+از/u', $title)) {
+            $kind = 0;
+        }
+
+        $piroNumber = null;
+        if (preg_match('/پیرو\s+(\d+)/u', $text, $matches)) {
+            $piroNumber = $matches[1];
+            if (!Letter::query()->find($piroNumber)) {
+                $piroNumber = null;
+            }
+        }
+        if (preg_match('/پیرو\s*مکاتبه\s+(\S+)/u', $text, $match)) {
+            $piroNumber = trim($match[1]);
+            if ($let = Letter::query()->where('mokatebe', $piroNumber)->first()) {
+                $piroNumber = $let->id;
+            } else {
+                $piroNumber = null;
+            }
+        }
+
+        $mokatebeNumber = null;
+        if (preg_match('/نامه\s+([0-9]+(?:[\/\-][0-9]+)*)/u', $title, $matches)) {
+            $mokatebeNumber = $matches[1];
+            $title = str_replace($mokatebeNumber, '', $title);
+        } elseif (preg_match('/مکاتبه\s+(\S+)/u', $text, $matches)) {
+            $mokatebeNumber = $matches[1];
+        }
+
+        $daftar = 461; // دفتر تهران به صورت پیش فرض
+        if (preg_match('/دفتر\s+(\S+)/u', $text, $matches)) {
+            $afterDaftar = $matches[1];
+
+            // استفاده در کوئری لاراول
+            $organ = Organ::query()
+                ->where('organ_type_id', 20)
+                ->where('name', 'like', '%' . $afterDaftar . '%')
+                ->first();
+            if ($organ) $daftar = $organ->id;
+        }
+
+        $completionKeywords = ['#اتمام', '#انجام', '#شد', '#انجام_شد'];
         $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
             return mb_strpos($text, $kw) !== false;
         });
 
         $organ_owner = [];
         $customer_owner = [];
+        $projects_id = [];
         $summary = '';
         $description = '';
         foreach ($lines as $line) {
@@ -161,10 +163,10 @@ class LetterParser
                     $summary .= trim(substr($line, strlen('پاراف'))) . "\n";
                 } elseif (str_starts_with($line, 'نتیجه')) {
                     $summary .= trim(substr($line, strlen('نتیجه'))) . "\n";
-                }elseif (str_starts_with($line, 'خلاصه')) {
+                } elseif (str_starts_with($line, 'خلاصه')) {
                     $summary .= trim(substr($line, strlen('خلاصه'))) . "\n";
                 }
-            }elseif (str_starts_with($line, '-') ||
+            } elseif (str_starts_with($line, '-') ||
                 str_starts_with($line, 'توضیح') ||
                 str_starts_with($line, 'متن') ||
                 str_starts_with($line, 'توضیحات')
@@ -179,10 +181,45 @@ class LetterParser
                 } elseif (str_starts_with($line, 'توضیحات')) {
                     $description .= trim(substr($line, strlen('توضیحات'))) . "\n";
                 }
+            } elseif (str_starts_with($line, 'پروژه') ||
+                str_starts_with($line, 'دستورکار') ||
+                str_starts_with($line, 'دستور کار')) {
+                // حذف کلیدواژه
+                if (str_starts_with($line, 'پروژه')) {
+                    $content = trim(substr($line, strlen('پروژه')));
+                }elseif (str_starts_with($line, 'دستور کار')) {
+                    $content = trim(substr($line, strlen('دستور کار')));
+                } else {
+                    $content = trim(substr($line, strlen('دستورکار')));
+                }
+
+                // جدا کردن چند پروژه با کاما فارسی یا نقطه
+                $items = preg_split('/[،\.]+/u', $content);
+
+                foreach ($items as $item) {
+                    $item = trim($item);
+                    if (!$item) continue;
+
+                    // اگر عدد بود → جستجو در id
+                    if (is_numeric($item)) {
+                        $project = Project::find($item);
+                        if ($project) {
+                            $projects_id[] = $project->id;
+                        }
+                    } else {
+                        // اگر متن بود → جستجو در name
+                        $project = Project::where('name', 'like', '%' . $item . '%')->first();
+                        if ($project) {
+                            $projects_id[] = $project->id;
+                        }
+                    }
+                }
             }
+
         }
         $organ_owner = array_unique($organ_owner);
         $customer_owner = array_unique($customer_owner);
+        $projects_id = array_unique($projects_id);
 
         return [
             'title' => $title,
@@ -198,6 +235,7 @@ class LetterParser
             'organ_owners' => $organ_owner,
             'customer_owners' => $customer_owner,
             'status' => $isCompletion ? 1 : 2,
+            'projects' => $projects_id,
         ];
     }
 
@@ -237,7 +275,7 @@ EOT],
         ]);
 
         $content = $response->json('choices.0.message.content');
-        $content = str_replace(['```','json','\n'],'',$content);
+        $content = str_replace(['```', 'json', '\n'], '', $content);
 
         $dataLetter = json_decode($content, true);
 //                    dd($dataLetter,$content);
@@ -276,17 +314,17 @@ EOT],
         }
 
         // پر کردن فرم زیرین
-        return[
-            'subject'     => $dataLetter['title'] ?? null,
-            'created_at'  => !empty($dataLetter['date']),
+        return [
+            'subject' => $dataLetter['title'] ?? null,
+            'created_at' => !empty($dataLetter['date']),
             'description' => $dataLetter['description'] ?? $text,
-            'summary'     => implode("\n", $dataLetter['refrals'] ?? []),
-            'mokatebe'    => $dataLetter['mokatebe'] ?? null,
-            'daftar_id'   => null,
-            'kind'        => $dataLetter['kind'] ?? 1,
-            'organ_id'       => $organId,
+            'summary' => implode("\n", $dataLetter['refrals'] ?? []),
+            'mokatebe' => $dataLetter['mokatebe'] ?? null,
+            'daftar_id' => null,
+            'kind' => $dataLetter['kind'] ?? 1,
+            'organ_id' => $organId,
             'organ_owners' => array_unique($organIds),
-            'customer_owners' =>  array_unique($customerIds),
+            'customer_owners' => array_unique($customerIds),
         ];
     }
 

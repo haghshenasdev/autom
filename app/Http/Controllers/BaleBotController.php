@@ -495,6 +495,7 @@ class BaleBotController extends Controller
                             'organ_id' => $cp->detectOrgan($keywords),
                         ]);
                         $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
+                        $task->project()->attach($approve['projects']);
                     }
 
                     $message = '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
@@ -563,6 +564,7 @@ class BaleBotController extends Controller
                         $record->users()->attach($dataLetter['user_id']); //افزودن به کارپوشه
                         $record->organs_owner()->attach($dataLetter['organ_owners']);
                         $record->customers()->attach($dataLetter['customer_owners']);
+                        $record->projects()->attach($dataLetter['projects']);
 
                         $message = '✉️ اطلاعاعت نامه ذخیره شده'."\n\n";
                         $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$record->id]).')' . "\n\n";

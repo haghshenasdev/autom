@@ -133,6 +133,7 @@ EOT
                         'kind' => $dataLetter['kind'],
                         'cartables' => $dataLetter['user_id'],
                         'peiroow_letter_id' => $dataLetter['pirow'],
+                        'projects' => $dataLetter['projects'],
                     ]);
 
                     Notification::make()

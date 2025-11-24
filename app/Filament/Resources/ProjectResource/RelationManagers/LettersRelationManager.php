@@ -40,7 +40,7 @@ class LettersRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table
+        return $table->defaultSort('id','desc')
             ->recordTitleAttribute('subject')
             ->columns([
                 TextColumn::make('id')->label('ثبت')->searchable(),

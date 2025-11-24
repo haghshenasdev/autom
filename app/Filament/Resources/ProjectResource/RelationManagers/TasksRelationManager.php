@@ -8,6 +8,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -33,12 +34,13 @@ class TasksRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table
+        return $table->defaultSort('id','desc')
             ->recordTitleAttribute('name')
             ->columns([
-                Tables\Columns\TextColumn::make('name')->label('عنوان'),
-                Tables\Columns\CheckboxColumn::make('completed')->label('وضعیت انجام'),
-                Tables\Columns\TextColumn::make('completed_at')->label('تاریخ انجام')->jalaliDateTime(),
+                TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('name')->label('عنوان')->searchable(),
+                Tables\Columns\CheckboxColumn::make('completed')->label('وضعیت انجام')->sortable(),
+                Tables\Columns\TextColumn::make('completed_at')->label('تاریخ انجام')->sortable()->jalaliDateTime(),
             ])
             ->filters([
                 //

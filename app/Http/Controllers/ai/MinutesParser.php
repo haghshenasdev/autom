@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ai;
 
 use App\Http\Controllers\ReadChanel;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Organ;
@@ -56,6 +57,36 @@ class MinutesParser
                     $rawLine = preg_replace('/\$\s*([\d][\d,٫،.\s]*)/u', '', $rawLine);
                 }
                 $approve['amount'] = $amount;
+
+                // --- استخراج پروژه‌ها / دستورکارها ---
+                $projects_id = [];
+                if (preg_match('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $rawLine, $pm)) {
+                    $content = trim($pm[1]);
+
+                    // جدا کردن چند پروژه با کاما فارسی یا نقطه
+                    $items = preg_split('/[،\.]+/u', $content);
+
+                    foreach ($items as $item) {
+                        $item = trim($item);
+                        if (!$item) continue;
+
+                        if (is_numeric($item)) {
+                            $project = Project::find($item);
+                            if ($project) {
+                                $projects_id[] = $project->id;
+                            }
+                        } else {
+                            $projects = Project::where('name', 'like', '%' . $item . '%')->get();
+                            foreach ($projects as $project) {
+                                $projects_id[] = $project->id;
+                            }
+                        }
+                    }
+
+                    // پاک کردن بخش پروژه/دستورکار از متن
+                    $rawLine = preg_replace('/(?:پروژه|دستور\s*کار)\s+.+/u', '', $rawLine);
+                }
+                $approve['projects'] = array_unique($projects_id);
 
                 // حذف @ها از متن
                 $cleanLine = preg_replace('/@\s*([^\s]+)/u', '', $rawLine);
