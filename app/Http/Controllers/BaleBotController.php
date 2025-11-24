@@ -310,9 +310,9 @@ class BaleBotController extends Controller
                     return response('صورت‌جلسه ارسال شد');
 
                 } elseif (str_starts_with($firstLine, '#نامه')) {
-                    if (str_contains($caption,'#متن')){
+                    if (str_contains($text,'#متن')){
                         $ltp = new LetterParser();
-                        $dataLetter = $ltp->mixedParse($caption);
+                        $dataLetter = $ltp->mixedParse($text);
                         $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
                     }
