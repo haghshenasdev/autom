@@ -208,7 +208,7 @@ class LetterParser
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
         ])->post('https://api.gapgpt.app/v1/chat/completions', [
-            'model' => 'gpt-4o',
+            'model' => 'gpt-5.1',
             'messages' => [
                 ['role' => 'user', 'content' => <<<EOT
 لطفاً متن زیر را پردازش کن و اطلاعات نامه را استخراج کن.
