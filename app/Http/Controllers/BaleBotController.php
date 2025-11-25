@@ -450,6 +450,7 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response("آمار ارسال شد .");
                 }else if(isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private"){
+                    $this->sendMessage($chatId,'🔁 درحال پردازش ...');
                     $response = Http::withHeaders([
                         'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
                     ])->post('https://api.gapgpt.app/v1/chat/completions', [
