@@ -466,7 +466,7 @@ class BaleBotController extends Controller
                         return response('عدم دسترسی');
                     }
                     $mp = new \App\Http\Controllers\ai\MinutesParser();
-                    $parsedData = $mp->parse($caption);
+                    $parsedData = $mp->parse($caption,$user->id);
 
                     $mdata = [
                         'title' => $parsedData['title'],

@@ -19,7 +19,7 @@ class MinutesParser
     {
     }
 
-    public function parse(string $text): array
+    public function parse(string $text,int $user_id = 1): array
     {
         $lines = array_filter(array_map('trim', explode("\n", $text)));
 
@@ -29,6 +29,7 @@ class MinutesParser
 
         $approves = [];
         $organs = [];
+        $taskId = null;
 //        $organsName = [];
 
         foreach ($lines as $line) {
@@ -96,13 +97,46 @@ class MinutesParser
                 $approve['due_at'] = $this->extractRelativeDate($rawLine,$titleDate);
 
                 $approves[] = $approve;
-            }else if ($titleDate === null) {
+            }
+            else if (preg_match('/(?:ایجاد\s*جلسه|جلسه)(.*)/u', $line, $m)) {
+                $after = trim($m[1]);
+                $meetingTitle = null;
+                if ($after and $after != '') {
+                    $meetingTitle = $after;
+                } else {
+                    $meetingTitle = str_replace('صورتجلسه', 'جلسه', $title);
+                }
+
+                // ایجاد جلسه در دیتابیس
+                $catPreder = new CategoryPredictor();
+                $cats = $catPreder->predictWithCity($meetingTitle);
+                $time = $titleDate ?? Carbon::now();
+                $task = Task::create([
+                    'name' => $meetingTitle,
+                    'description' => $text,
+                    'created_at' => $time,
+                    'completed_at' => $time,
+                    'started_at' => $time,
+                    'completed' => 1,
+                    'status' => 1,
+                    'Responsible_id' => $user_id,
+                    'city_id' => $cats['city'] ?? null,
+                ]);
+                if (isset($cats['categories'])){
+                    $task->project()->attach($cats['categories']);
+                }
+                $task->group()->attach([1, 32]);
+
+                $taskId = $task->id;
+            }
+            else if ($titleDate === null) {
                 // تشخیص تاریخ در خط های بعدی
                 $maybeDate = $this->extractDateFromTitle($line);
                 if ($maybeDate) {
                     $titleDate = $maybeDate;
                 }
-            }else{
+            }
+            else{
                 // استخراج @های مستقل برای organs
                 preg_match_all('/@\s*([^@]+)/u', $line, $organMatchesLine);
                 if (!empty($organMatchesLine[1])) {
@@ -124,6 +158,10 @@ class MinutesParser
             }
         }
 
+        if (!$taskId) {
+            // اگر جلسه نبود، همان تسک دیتکت
+            $taskId = $this->taskDetect($title);
+        }
         $organs = array_unique($organs);
 
         return [
@@ -131,7 +169,7 @@ class MinutesParser
             'title_date' => $titleDate,
             'approves' => $approves,
             'organs' => $organs,
-            'task_id' => $this->taskDetect($title),
+            'task_id' => $taskId,
         ];
     }
 
