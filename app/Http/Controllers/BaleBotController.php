@@ -449,6 +449,35 @@ class BaleBotController extends Controller
 
                     $this->sendMessage($chatId, $message);
                     return response("آمار ارسال شد .");
+                }else if(isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private"){
+                    $response = Http::withHeaders([
+                        'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+                    ])->post('https://api.gapgpt.app/v1/chat/completions', [
+                        'model' => 'gpt-4o',
+                        'messages' => [
+                            ['role' => 'user', 'content' => <<<EOT
+برام جواب مناسب برای پیام کاربر را با توجه به اطلاعات زیر بفرست، بدون هیچ توضیح اضافی.
+این پیام را از طرف ربات کارنما که می تواند به کاربر کمک کند بتوانید به راحتی و سریع ترین حالت ممکن از سامانه کارنما استفاده کند و کار ها و صورت جلسه های خود را مدیریت کنید.
+
+پیام کاربر:
+{$text}
+
+اطلاعات :
+{$this->HelpHandler('')}
+----------------
+{$this->HelpHandler('صورتجلسه')}
+----------------
+{$this->HelpHandler('نامه')}
+----------------
+{$this->HelpHandler('کار')}
+----------------
+EOT],
+                        ],
+                    ]);
+
+                    $content = $response->json('choices.0.message.content');
+
+                    $this->sendMessage($chatId,$content);
                 }
 
             } elseif ($caption != '') {
