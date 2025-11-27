@@ -15,7 +15,10 @@ class TasksByCityChart extends ChartWidget
 
     protected function getFilters(): ?array
     {
-        return [null => 'همه شهرستان‌ها'] + City::whereNull('parent_id')
+        return [
+                'all' => 'همه شهرها',
+                'counties' => 'نمایش شهرستانی',
+            ] + City::whereNull('parent_id')
                     ->pluck('name', 'id')
                     ->all();
     }
@@ -23,24 +26,14 @@ class TasksByCityChart extends ChartWidget
     protected function getData(): array
     {
         $tasks = $this->record->tasks()->with('city')->get();
-
-        $countyId = $this->filter ?? null;
+        $filter = $this->filter ?? 'all';
 
         $labels = [];
         $assignedCounts = [];
         $completedCounts = [];
 
-        if ($countyId) {
-            // همه‌ی شهرهای زیرمجموعه‌ی شهرستان انتخاب‌شده
-            $cityIds = City::where('parent_id', $countyId)->pluck('id');
-
-            $filteredTasks = $tasks->filter(fn($task) => $task->city && $cityIds->contains($task->city->id));
-
-            $labels[] = City::find($countyId)?->name ?? 'شهرستان انتخابی';
-            $assignedCounts[] = $filteredTasks->count();
-            $completedCounts[] = $filteredTasks->where('completed', true)->count();
-        } else {
-            // حالت عادی: گروه‌بندی بر اساس شهر
+        if ($filter === 'all') {
+            // حالت نرمال: همه‌ی شهرها جداگانه
             $grouped = $tasks->groupBy(fn($task) => optional($task->city)->id);
 
             $stats = collect();
@@ -55,12 +48,39 @@ class TasksByCityChart extends ChartWidget
                 ]);
             }
 
-            // مرتب‌سازی بر اساس بیشترین انجام‌شده
             $stats = $stats->sortByDesc('completed')->values();
-
             $labels = $stats->pluck('label')->all();
             $assignedCounts = $stats->pluck('assigned')->all();
             $completedCounts = $stats->pluck('completed')->all();
+
+        } elseif ($filter === 'counties') {
+            // حالت شهرستانی: هر شهرستان یک ستون
+            $counties = City::whereNull('parent_id')->get();
+
+            foreach ($counties as $county) {
+                $cityIds = City::where('parent_id', $county->id)->pluck('id');
+                $countyTasks = $tasks->filter(fn($task) => $task->city && $cityIds->contains($task->city->id));
+
+                $labels[] = $county->name;
+                $assignedCounts[] = $countyTasks->count();
+                $completedCounts[] = $countyTasks->where('completed', true)->count();
+            }
+
+        } else {
+            // حالت انتخاب یک شهرستان خاص: نمایش شهرهای زیرمجموعه
+            $cityIds = City::where('parent_id', $filter)->pluck('id');
+            $filteredTasks = $tasks->filter(fn($task) => $task->city && $cityIds->contains($task->city->id));
+
+            $grouped = $filteredTasks->groupBy(fn($task) => optional($task->city)->id);
+
+            foreach ($grouped as $cityId => $cityTasks) {
+                $city = $cityTasks->first()->city;
+                if (!$city) continue;
+
+                $labels[] = $city->name;
+                $assignedCounts[] = $cityTasks->count();
+                $completedCounts[] = $cityTasks->where('completed', true)->count();
+            }
         }
 
         return [
