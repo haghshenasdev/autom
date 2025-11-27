@@ -17,8 +17,7 @@ class TasksByCityChart extends ChartWidget
     {
         return [
             'county' => City::whereNull('parent_id')
-                        ->pluck('name', 'id')
-                        ->toArray()
+                ->pluck('name', 'id'),
         ];
     }
 
