@@ -24,7 +24,7 @@ class TasksByCityChart extends ChartWidget
     {
         $tasks = $this->record->tasks()->with('city')->get();
 
-        $countyId = $this->filterFormData['county'] ?? null;
+        $countyId = $this->filter ?? null;
 
         $labels = [];
         $assignedCounts = [];
