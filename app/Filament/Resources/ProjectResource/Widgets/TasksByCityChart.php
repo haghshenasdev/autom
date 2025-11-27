@@ -15,13 +15,9 @@ class TasksByCityChart extends ChartWidget
 
     protected function getFilters(): ?array
     {
-        dd(City::whereNull('parent_id')
-            ->pluck('name', 'id')->all());
-        return [
-            'county' => [null => 'همه شهرستان‌ها'] + City::whereNull('parent_id')
+        return [null => 'همه شهرستان‌ها'] + City::whereNull('parent_id')
                     ->pluck('name', 'id')
-                    ->all(),
-        ];
+                    ->all();
     }
 
     protected function getData(): array
