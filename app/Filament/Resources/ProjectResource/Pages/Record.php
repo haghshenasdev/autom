@@ -99,6 +99,7 @@ class Record extends Page
             ProjectResource\Widgets\ProjectProgressChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             ProjectResource\Widgets\TaskDelayChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             ProjectResource\Widgets\TasksByUserChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            ProjectResource\Widgets\TasksByCityChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             ProjectResource\Widgets\ProjectGanttChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
         ];
     }
