@@ -15,10 +15,15 @@ class City extends Model
     use HasFactory,LogsActivity;
 
     protected $fillable = [
-        'name'
+        'name',
+        'parent_id',
     ];
 
     public $timestamps = false;
+
+    public function parent(){
+        return $this->belongsTo(City::class);
+    }
 
     public function customers(): HasMany
     {

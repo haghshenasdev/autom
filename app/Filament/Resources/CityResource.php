@@ -6,6 +6,7 @@ use App\Filament\Resources\CityResource\Pages;
 use App\Filament\Resources\CityResource\RelationManagers;
 use App\Models\City;
 use Filament\Forms;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -38,6 +39,9 @@ class CityResource extends Resource
                     ->required()
                     ->label('نام شهر')
                 ,
+                Select::make('parent_id')->label('زیر مجموعه')
+                    ->relationship('parent', 'name')
+                    ->searchable()->preload()
             ]);
     }
 
@@ -47,6 +51,7 @@ class CityResource extends Resource
             ->columns([
                 TextColumn::make('id'),
                 TextColumn::make('name')->label('نام')->searchable(),
+                TextColumn::make('parent.name')->label('شهرستان')->searchable(),
             ])
             ->filters([
                 //

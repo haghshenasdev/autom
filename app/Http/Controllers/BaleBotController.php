@@ -388,7 +388,7 @@ class BaleBotController extends Controller
                     return response('نامه ارسال شد');
                 } elseif (str_starts_with($text, '#کار') or str_starts_with($text, '#جلسه')) {
                     // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
-                    $title = trim(substr($text, strlen('#کار')));
+                    if (str_starts_with($text, '#کار')) $title = trim(substr($text, strlen('#کار')));
                     $title = str_replace('#' , '',$title);
 
                     $catPreder = new CategoryPredictor();
