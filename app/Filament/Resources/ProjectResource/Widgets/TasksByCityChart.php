@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Filament\Resources\ProjectResource\Widgets;
-use App\Models\City;
 use Filament\Forms\Components\Select;
 use Filament\Widgets\ChartWidget;
 use App\Models\Task;
@@ -19,11 +18,11 @@ class TasksByCityChart extends ChartWidget
             'county' => Select::make('county')
                 ->label('شهرستان')
                 ->options(
-                    City::whereNull('parent_id')
+                    \App\Models\City::whereNull('parent_id')
                         ->pluck('name', 'id')
                         ->toArray()
                 )
-                ->placeholder('همه شهرها'),
+                ->placeholder('همه شهرستان‌ها'),
         ];
     }
 
@@ -31,59 +30,44 @@ class TasksByCityChart extends ChartWidget
     {
         $tasks = $this->record->tasks()->with('city')->get();
 
+        // اگر فیلتر شهرستان انتخاب شده باشد
         $countyId = $this->filterFormData['county'] ?? null;
-
-        $labels = [];
-        $assignedCounts = [];
-        $completedCounts = [];
-
         if ($countyId) {
-            // همه‌ی شهرهای زیرمجموعه‌ی شهرستان انتخاب‌شده
-            $cityIds = City::where('parent_id', $countyId)->pluck('id');
-
-            $filteredTasks = $tasks->filter(fn($task) => $task->city && $cityIds->contains($task->city->id));
-
-            $labels[] = City::find($countyId)?->name ?? 'شهرستان انتخابی';
-            $assignedCounts[] = $filteredTasks->count();
-            $completedCounts[] = $filteredTasks->where('completed', true)->count();
-        } else {
-            // حالت عادی: گروه‌بندی بر اساس شهر
-            $grouped = $tasks->groupBy(fn($task) => optional($task->city)->id);
-
-            $stats = collect();
-            foreach ($grouped as $cityId => $cityTasks) {
-                $city = $cityTasks->first()->city;
-                if (!$city) continue;
-
-                $stats->push([
-                    'label' => $city->name,
-                    'assigned' => $cityTasks->count(),
-                    'completed' => $cityTasks->where('completed', true)->count(),
-                ]);
-            }
-
-            // مرتب‌سازی بر اساس بیشترین انجام‌شده
-            $stats = $stats->sortByDesc('completed')->values();
-
-            $labels = $stats->pluck('label')->all();
-            $assignedCounts = $stats->pluck('assigned')->all();
-            $completedCounts = $stats->pluck('completed')->all();
+            $cityIds = \App\Models\City::where('parent_id', $countyId)->pluck('id');
+            $tasks = $tasks->filter(fn($task) => $task->city && $cityIds->contains($task->city->id));
         }
+
+        $grouped = $tasks->groupBy(fn($task) => optional($task->city)->id);
+
+        $stats = collect();
+        foreach ($grouped as $cityId => $cityTasks) {
+            $city = $cityTasks->first()->city;
+            if (!$city) continue;
+
+            $stats->push([
+                'label' => $city->name,
+                'assigned' => $cityTasks->count(),
+                'completed' => $cityTasks->where('completed', true)->count(),
+            ]);
+        }
+
+        // مرتب‌سازی بر اساس بیشترین انجام‌شده
+        $stats = $stats->sortByDesc('completed')->values();
 
         return [
             'datasets' => [
                 [
                     'label' => 'تعریف شده',
-                    'data' => $assignedCounts,
+                    'data' => $stats->pluck('assigned')->all(),
                     'backgroundColor' => '#f59e0b',
                 ],
                 [
                     'label' => 'انجام‌شده',
-                    'data' => $completedCounts,
+                    'data' => $stats->pluck('completed')->all(),
                     'backgroundColor' => '#10b981',
                 ],
             ],
-            'labels' => $labels,
+            'labels' => $stats->pluck('label')->all(),
         ];
     }
 
