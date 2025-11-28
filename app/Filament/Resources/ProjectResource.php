@@ -208,7 +208,7 @@ class ProjectResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-                ExportBulkAction::make()->label('دریافت فایل exel'),
+                ExportBulkAction::make()->label('دریافت خروجی'),
             ])->headerActions([
                 Action::make('print')
                     ->label('چاپ جدول')
@@ -216,7 +216,7 @@ class ProjectResource extends Resource
                     ->extraAttributes([
                         'onclick' => 'window.print()',
                     ]),
-                FilamentExportHeaderAction::make('Export'),
+                FilamentExportHeaderAction::make('Export')->label('دریافت خروجی'),
             ])
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),

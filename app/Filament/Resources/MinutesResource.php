@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Filament\Resources\MinutesResource\Pages;
 use App\Filament\Resources\MinutesResource\RelationManagers;
 use App\Models\Minutes;
@@ -12,6 +13,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
@@ -21,6 +23,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
+use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 
 class MinutesResource extends Resource
 {
@@ -117,11 +120,20 @@ class MinutesResource extends Resource
                 Tables\Actions\EditAction::make(),
                 MediaAction::make('media-url')
                     ->media(fn($record) => env('APP_URL').'/appendix-other-dl/'.$record->getFilePath())
+            ])->headerActions([
+                Action::make('print')
+                    ->label('چاپ جدول')
+                    ->icon('heroicon-o-printer')
+                    ->extraAttributes([
+                        'onclick' => 'window.print()',
+                    ]),
+                FilamentExportHeaderAction::make('Export')->label('دریافت خروجی'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
+                ExportBulkAction::make()->label('دریافت فایل exel'),
             ]);
     }
 

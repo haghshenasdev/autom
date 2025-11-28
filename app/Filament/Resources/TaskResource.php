@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Filament\Resources\TaskResource\Pages;
 use App\Filament\Resources\TaskResource\RelationManagers;
 use App\Models\Project;
@@ -12,6 +13,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -84,6 +86,7 @@ class TaskResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('task_group.name')->label('دسته بندی'),
+                Tables\Columns\TextColumn::make('city.name')->label('شهر')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('started_at')->label('شروع')
                     ->jalaliDateTime()
                     ->sortable()
@@ -164,6 +167,14 @@ class TaskResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
                 ExportBulkAction::make()->label('دریافت فایل exel'),
+            ])->headerActions([
+                Action::make('print')
+                    ->label('چاپ جدول')
+                    ->icon('heroicon-o-printer')
+                    ->extraAttributes([
+                        'onclick' => 'window.print()',
+                    ]),
+                FilamentExportHeaderAction::make('Export')->label('دریافت خروجی'),
             ])
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),

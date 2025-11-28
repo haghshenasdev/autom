@@ -38,9 +38,9 @@ class AdminPanelProvider extends PanelProvider
         Notifications::verticalAlignment(VerticalAlignment::End);
         return $panel
             ->default()
-            ->spa()->spaUrlExceptions(fn(): array => [
-                '*/admin/contents*',
-            ])
+//            ->spa()->spaUrlExceptions(fn(): array => [
+//                '*/admin/contents*',
+//            ])
             ->id('admin')
             ->brandLogo(asset('karnama.png'))
             ->brandLogoHeight('4rem')
