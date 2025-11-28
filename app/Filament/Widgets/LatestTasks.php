@@ -30,6 +30,7 @@ class LatestTasks extends BaseWidget
         return $table
             ->query(
                 Task::query()->whereNot('completed',1)->orderByRaw("CASE
+                WHEN ended_at IS NULL THEN 3
             WHEN DATE(ended_at) = ? THEN 0
             WHEN DATE(ended_at) < ? THEN 2
             ELSE 1 END", [$today, $today])
