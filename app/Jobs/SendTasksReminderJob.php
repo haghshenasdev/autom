@@ -29,21 +29,26 @@ class SendTasksReminderJob implements ShouldQueue
 
     public function handle()
     {
-        $today = Carbon::today();
+        $today = \Carbon\Carbon::today();
         $threeDaysLater = Carbon::today()->addDays(3);
 
         // گرفتن همه کاربران
         $users = User::all();
         $bale_bot = new BaleBotController();
-
         foreach ($users as $user) {
             // تسک‌های کاربر که completed = false و ended_at <= امروز
-            $tasks = Task::where('user_id', $user->id)
+            $tasks = Task::where('Responsible_id', $user->id)
                 ->where('completed', false)
                 ->where(function ($query) use ($today, $threeDaysLater) {
                     $query->whereDate('ended_at', '<=', $today) // گذشته
                     ->orWhereBetween('ended_at', [$today, $threeDaysLater]); // تا 3 روز آینده
                 })
+                ->orderByRaw("CASE
+            WHEN DATE(ended_at) = ? THEN 0
+            WHEN DATE(ended_at) < ? THEN 1
+            ELSE 2 END", [$today, $today])
+                ->orderBy('ended_at', 'asc')
+                ->limit(10)
                 ->get();
 
             if ($tasks->isEmpty()) {
@@ -57,16 +62,23 @@ class SendTasksReminderJob implements ShouldQueue
 
             foreach ($tasks as $task) {
                 $delayDays = $today->diffInDays(Carbon::parse($task->ended_at), false);
-                $delayText = $delayDays < 0 ? abs($delayDays) . " روز تاخیر" : "امروز موعد انجام";
+//            $delayText = $delayDays < 0 ? abs($delayDays) . " روز تاخیر" : "امروز موعد انجام";
+
+                if ($delayDays < 0) {
+                    $delayText = abs($delayDays) . ' روز گذشته';
+                } elseif ($delayDays === 0) {
+                    $delayText = "امروز موعد انجام";
+                } else {
+                    $delayText = abs($delayDays) . ' روز مانده';
+                }
 
                 $message .= $bale_bot->CreateTaskMessage($task);
-                $message .= "ℹ️ میزان تاخیر : {$delayText}\n";
-                $message .= "\n" . '[بازکردن در سامانه]('.TaskResource::getUrl('edit',[$task->id]).')' . "\n\n";
+                $message .= "ℹ️ فرصت انجام : {$delayText}\n";
+                $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
                 $message .= "----------------------\n";
             }
 
             // ارسال پیام به ربات بله
-
             $bale_bot->sendNotifBale($user->id, $message);
             // ارسال به پنل سامانه
             Notification::make()

@@ -26,17 +26,48 @@ class LatestTasks extends BaseWidget
 
     public function table(Table $table): Table
     {
+        $today = \Carbon\Carbon::today();
         return $table
             ->query(
-                Task::query()->whereNot('completed',1)
+                Task::query()->whereNot('completed',1)->orderByRaw("CASE
+            WHEN DATE(ended_at) = ? THEN 0
+            WHEN DATE(ended_at) < ? THEN 2
+            ELSE 1 END", [$today, $today])
+                    ->orderBy('ended_at', 'asc')
             )
             ->columns([
                 Tables\Columns\TextColumn::make('name')->label('عنوان'),
                 Tables\Columns\IconColumn::make('completed')->label('وضعیت انجام')
                     ->boolean(),
-                Tables\Columns\TextColumn::make('started_at_diff')
-                    ->label('زمان')
+                Tables\Columns\TextColumn::make('ended_at_diff')
+                    ->label('زمان اتمام')
                     ->state(function (Model $record): string {
+                        if (is_null($record->ended_at)) return 'نامشخص';
+                        $diff = Carbon::now()->diffInDays(Carbon::parse($record->ended_at), false);
+
+                        if ($diff < 0) {
+                            return abs($diff) . ' روز گذشته';
+                        } elseif ($diff === 0) {
+                            return 'امروز';
+                        } else {
+                            return abs($diff) . ' روز مانده';
+                        }
+                    })
+                    ->color(function (Model $record): string {
+                        $diff = Carbon::now()->diffInDays(Carbon::parse($record->ended_at), false);
+
+                        if ($diff < 0) {
+                            return 'danger'; // قرمز
+                        } elseif ($diff === 0) {
+                            return 'success'; // سبز
+                        } else {
+                            return 'info'; // آبی
+                        }
+                    }),
+                Tables\Columns\TextColumn::make('started_at_diff')
+                    ->label('زمان شروع')
+                    ->state(function (Model $record): string {
+                        if (is_null($record->started_at)) return 'نامشخص';
                         $diff = Carbon::parse($record->started_at)->diffInDays(Carbon::now(), false);
 
                         if ($diff < 0) {
