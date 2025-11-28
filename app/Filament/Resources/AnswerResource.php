@@ -22,7 +22,7 @@ class AnswerResource extends Resource
 {
     protected static ?string $model = Answer::class;
 
-    protected static ?string $navigationGroup = 'نامه';
+    protected static ?string $navigationGroup = 'دبیرخانه';
 
     protected static ?int $navigationSort = 1;
 

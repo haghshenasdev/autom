@@ -29,7 +29,7 @@ class TypeResource extends Resource
 
     protected static ?string $pluralLabel = "نوع نامه";
 
-    protected static ?string $navigationGroup = 'نامه';
+    protected static ?string $navigationGroup = 'دبیرخانه';
 
 
     public static function form(Form $form): Form

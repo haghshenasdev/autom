@@ -76,7 +76,7 @@ class AdminPanelProvider extends PanelProvider
                     ->label('اسناد')
                     ->icon('heroicon-o-document'),
                 NavigationGroup::make()
-                    ->label('نامه')->collapsed(),
+                    ->label('دبیرخانه')->collapsed(),
                 NavigationGroup::make()
                     ->label('دستور')->collapsed(),
                 NavigationGroup::make()

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\TaskCreated;
 use App\Models\Traits\HasStatus;
 use Carbon\Carbon;
 use Filament\Forms\Components\Actions\Action;
@@ -171,7 +172,11 @@ class Task extends Model
         parent::boot();
 
         static::creating(function ($model) {
-            $model->created_by = Auth::id();
+            if ($model->created_by == null) $model->created_by = Auth::id();
+        });
+
+        static::created(function ($model) {
+            event(new TaskCreated($model));
         });
 
         static::updating(function ( $model) {

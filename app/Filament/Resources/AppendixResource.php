@@ -21,7 +21,7 @@ class AppendixResource extends Resource
 {
     protected static ?string $model = Appendix::class;
 
-    protected static ?string $navigationGroup = 'نامه';
+    protected static ?string $navigationGroup = 'دبیرخانه';
 
     protected static ?int $navigationSort = 4;
 

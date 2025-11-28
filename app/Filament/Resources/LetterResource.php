@@ -56,7 +56,7 @@ class LetterResource extends Resource
 
     protected static ?string $label = "نامه";
 
-    protected static ?string $navigationGroup = 'نامه';
+    protected static ?string $navigationGroup = 'دبیرخانه';
 
 
     protected static ?string $pluralModelLabel = "نامه ها";
