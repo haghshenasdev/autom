@@ -27,7 +27,7 @@ class UsersActivityChart extends ChartWidget
             'minutes',
             'referral',
             'letters',
-        ])->get();
+        ])->where('id', '!=', 1)->get();
 
         // فیلتر کردن کاربرانی که همه شمارش‌ها صفر است
         $users = $users->filter(function ($user) {
