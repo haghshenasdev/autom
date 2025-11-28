@@ -54,6 +54,7 @@ class LatestTasks extends BaseWidget
                         }
                     })
                     ->color(function (Model $record): string {
+                        if (is_null($record->ended_at)) return '';
                         $diff = Carbon::now()->diffInDays(Carbon::parse($record->ended_at), false);
 
                         if ($diff < 0) {
@@ -79,6 +80,7 @@ class LatestTasks extends BaseWidget
                         }
                     })
                     ->color(function (Model $record): string {
+                        if (is_null($record->started_at)) return '';
                         $diff = Carbon::parse($record->started_at)->diffInDays(Carbon::now(), false);
 
                         if ($diff < 0) {
