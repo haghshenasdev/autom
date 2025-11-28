@@ -45,7 +45,6 @@ class BaleBotController extends Controller
 //            $this->sendMessage($chatId, json_encode($data));
 
 
-
             // احراز هویت کاربر
             $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
             if ($bale_user == null) {
@@ -67,14 +66,14 @@ class BaleBotController extends Controller
 
             if ($media_group_id) {
                 $doc = $data['message']['document'];
-                if($caption == ''){
+                if ($caption == '') {
                     $bale_user->update(['state' => $media_group_id . '_' . $doc['file_id'] . '_' . pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
                 }
 
             }
 
             if ($text != '') {
-                $text = trim(CalendarUtils::convertNumbers($text,true)); // حذف فاصله‌های اضافی و تبدیل اعداد فارسی
+                $text = trim(CalendarUtils::convertNumbers($text, true)); // حذف فاصله‌های اضافی و تبدیل اعداد فارسی
                 $lines = explode("\n", $text);
                 $firstLine = $lines[0] ?? '';
                 $secondLine = $lines[1] ?? '';
@@ -86,7 +85,7 @@ class BaleBotController extends Controller
                     }
 
                     $queryText = trim(str_replace('/کارپوشه', '', $firstLine));
-                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد' , '#بررسی'];
+                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد', '#بررسی'];
                     $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
                         return mb_strpos($text, $kw) !== false;
                     });
@@ -97,7 +96,7 @@ class BaleBotController extends Controller
                     });
                     if ($isFilter) $queryText = trim(str_replace($completionKeywords, '', $queryText));
 
-                    $query = Cartable::query()->where('user_id',$user->id);
+                    $query = Cartable::query()->where('user_id', $user->id);
 
                     if (is_numeric($queryText)) {
                         $query->WhereHas('letter', function ($query) use ($queryText) {
@@ -112,7 +111,7 @@ class BaleBotController extends Controller
                     }
 
                     if (!$isFilter) {
-                        $query->where('cartables.checked','=',null);
+                        $query->where('cartables.checked', '=', null);
                     }
 
                     $letters = $query->get();
@@ -130,39 +129,31 @@ class BaleBotController extends Controller
                             $letter->checked = 1;
                             $letter->save();
                         }
-                        $message .= "📝 عنوان: {$letter->letter->subject}\n";
-                        $message .= "🆔 شماره ثبت: {$letter->letter->id}\n";
-                        $message .= "✔️ وضعیت بررسی : ". ($letter->checked == 1 ? "✅ بررسی شده" : "❌ بررسی نشده") ."\n";
-                        if ($letter->letter->created_at) {
-                            $message .= "📅 تاریخ ثبت نامه: " . Jalalian::fromDateTime($letter->letter->created_at)->format('Y/m/d') . "\n";
-                        }
-                        if ($letter->created_at) {
-                            $message .= "📅 تاریخ ثبت در کارتابل: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
-                        }
-                        $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->letter->id]).')' . "\n";
+                        $message .= $this->createCartableMessage($letter);
+                        $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letter->letter->id]) . ')' . "\n";
                         $message .= "----------------------\n";
                     }
 
                     $this->sendMessage($chatId, $message);
                     return response('کارپوشه ارسال شد');
 
-                }elseif (str_starts_with($firstLine, '/start')) {
-                    $this->sendMessageWithReplyKeyboard($chatId, "🌺 سلام {$user->name} ، به ربات کارنما خوش آمدید !" ."\n". "من میتونم به شما کمک کنم بتوانید به راحتی و سریع ترین حالت ممکن از سامانه کارنما استفاده کنید و کار ها و صورت جلسه های خود را مدیریت کنید." . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
+                } elseif (str_starts_with($firstLine, '/start')) {
+                    $this->sendMessageWithReplyKeyboard($chatId, "🌺 سلام {$user->name} ، به ربات کارنما خوش آمدید !" . "\n" . "من میتونم به شما کمک کنم بتوانید به راحتی و سریع ترین حالت ممکن از سامانه کارنما استفاده کنید و کار ها و صورت جلسه های خود را مدیریت کنید." . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
                     return response('احراز شده');
-                }elseif (str_starts_with($firstLine, '/ارجاع')) {
+                } elseif (str_starts_with($firstLine, '/ارجاع')) {
                     if (!$user->can('view_referral')) {
                         $this->sendMessage($chatId, '❌ شما به ارجاع ها دسترسی ندارید!');
                         return response('عدم دسترسی');
                     }
 
                     $queryText = trim(str_replace('/ارجاع', '', $firstLine));
-                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد' , '#بررسی'];
+                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد', '#بررسی'];
                     $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
                         return mb_strpos($text, $kw) !== false;
                     });
                     if ($isCompletion) $queryText = trim(str_replace($completionKeywords, '', $queryText));
 
-                    $query = Referral::query()->where('to_user_id',$user->id);
+                    $query = Referral::query()->where('to_user_id', $user->id);
 
                     if (is_numeric($queryText)) {
                         $query->WhereHas('letter', function ($query) use ($queryText) {
@@ -191,26 +182,15 @@ class BaleBotController extends Controller
                             $letter->checked = 1;
                             $letter->save();
                         }
-                        $message .= "📝 عنوان: {$letter->letter->subject}\n";
-                        $message .= "🆔 شماره ثبت: {$letter->letter->id}\n";
-                        $message .= "✔️ وضعیت بررسی : ". ($letter->checked == 1 ? "✅ بررسی شده" : "❌ بررسی نشده") ."\n";
-                        if ($letter->rule) $message .= "ℹ️ دستور : ". $letter->rule ."\n";
-                        $message .= "↖️ توسط : ". $letter->by_users->name ."\n";
-                        if ($letter->letter->created_at) {
-                            $message .= "📅 تاریخ ثبت نامه: " . Jalalian::fromDateTime($letter->letter->created_at)->format('Y/m/d') . "\n";
-                        }
-                        if ($letter->created_at) {
-                            $message .= "📅 تاریخ ثبت در کارتابل: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
-                        }
-                        $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->letter->id]).')' . "\n";
+                        $message .= $this->CreateReferralMessage($letter);
+                        $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letter->letter->id]) . ')' . "\n";
                         $message .= "----------------------\n";
                     }
 
                     $this->sendMessage($chatId, $message);
                     return response('ارجاع ارسال شد');
 
-                }
-                elseif (str_starts_with($firstLine, '/کار')) {
+                } elseif (str_starts_with($firstLine, '/کار')) {
                     if (!$user->can('view_task')) {
                         $this->sendMessage($chatId, '❌ شما به کارها دسترسی ندارید!');
                         return response('عدم دسترسی');
@@ -233,7 +213,7 @@ class BaleBotController extends Controller
                         $query->orderByDesc('id')->limit(5);
                     }
 
-                    if ($secondLine != ''){
+                    if ($secondLine != '') {
                         $queryMinText = trim($secondLine);
                         if (is_numeric($queryText)) {
                             $query->where('minutes_id', $queryMinText);
@@ -264,8 +244,8 @@ class BaleBotController extends Controller
                             $message .= "🔁 وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n\n";
                         }
 
-                        $message .= $this->CreateTaskMessage($task,$user);
-                        $message .= "\n" . '[بازکردن در سامانه]('.TaskResource::getUrl('edit',[$task->id]).')' . "\n\n";
+                        $message .= $this->CreateTaskMessage($task, $user);
+                        $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
                         $message .= "----------------------\n";
                     }
 
@@ -302,7 +282,7 @@ class BaleBotController extends Controller
 
                     $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین صورت‌جلسه‌های شما:\n\n";
                     foreach ($minutes as $minute) {
-                        $message .= $this->createMinuteMessage($minute,$user,$queryText !== '');
+                        $message .= $this->createMinuteMessage($minute, $user, $queryText !== '');
                         $message .= "----------------------\n";
                     }
 
@@ -310,13 +290,13 @@ class BaleBotController extends Controller
                     return response('صورت‌جلسه ارسال شد');
 
                 } elseif (str_starts_with($firstLine, '#نامه')) {
-                    if (str_contains($text,'#متن')){
+                    if (str_contains($text, '#متن')) {
                         $ltp = new LetterParser();
                         $dataLetter = $ltp->mixedParse($text);
                         $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
                     }
-                }elseif (str_starts_with($firstLine, '/نامه')) {
+                } elseif (str_starts_with($firstLine, '/نامه')) {
                     if (!$user->can('view_letter')) {
                         $this->sendMessage($chatId, '❌ شما به نامه‌ها دسترسی ندارید!');
                         return response('عدم دسترسی');
@@ -352,12 +332,12 @@ class BaleBotController extends Controller
                         return response('نامه خالی');
                     }
 
-                    if (count($letters) == 1){
-                        $message = '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letters[0]->id]).')' . "\n\n";
+                    if (count($letters) == 1) {
+                        $message = '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letters[0]->id]) . ')' . "\n\n";
                         $message .= $this->CreateLetterMessage($letters[0]);
                         $path = $letters[0]->getFilePath();
-                        $this->sendDocumentFromContent($chatId,Storage::disk('private')->get($path),basename($path),$this->getMimeTypeFromExtension($path),$message);
-                    }else{
+                        $this->sendDocumentFromContent($chatId, Storage::disk('private')->get($path), basename($path), $this->getMimeTypeFromExtension($path), $message);
+                    } else {
                         $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - صفحه {$page}:\n\n" : "🗂 لیست نامه‌های شما - صفحه {$page} از {$query->count()}:\n\n";
 
                         foreach ($letters as $letter) {
@@ -366,7 +346,7 @@ class BaleBotController extends Controller
                             if ($letter->created_at) {
                                 $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
                             }
-                            $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->id]).')' . "\n";
+                            $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letter->id]) . ')' . "\n";
                             $message .= "----------------------\n";
                         }
 
@@ -389,7 +369,7 @@ class BaleBotController extends Controller
                 } elseif (str_starts_with($text, '#کار') or str_starts_with($text, '#جلسه')) {
                     // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
                     if (str_starts_with($text, '#کار')) $title = trim(substr($text, strlen('#کار')));
-                    $title = str_replace('#' , '',$title);
+                    $title = str_replace('#', '', $title);
 
                     $catPreder = new CategoryPredictor();
                     $cats = $catPreder->predictWithCityOrgan($title);
@@ -422,7 +402,7 @@ class BaleBotController extends Controller
                         $message .= "✅ *وضعیت:* انجام شده\n";
                         $message .= "📍 *شهر:* {$dataTask['city_id']}\n";
                         $message .= "👤 *مسئول:* {$user->name}";
-                        $message .= "\n" . '[بازکردن در سامانه]('.TaskResource::getUrl('edit',[$task->id]).')' . "\n\n";
+                        $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
 
                         $this->sendMessage($chatId, $message);
                     }
@@ -434,24 +414,24 @@ class BaleBotController extends Controller
 
                     $this->sendMessage($chatId, $message);
                     return response("راهنما ارسال شد .");
-                } elseif (str_starts_with($firstLine, '/آمار')){
+                } elseif (str_starts_with($firstLine, '/آمار')) {
                     $message = "📈 آمار \n\n";
                     $message .= "📄 نامه های شما : " . Letter::query()->whereHas('users', function ($query) use ($user) {
                             $query->where('user_id', $user->id);
                         }) // نامه‌هایی که user_id برابر با آیدی کاربر لاگین شده است
                         ->orWhereHas('referrals', function ($query) use ($user) {
                             $query->where('to_user_id', $user->id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
-                        })->count() ."\n";
-                    $message .= "↖️ ارجاع بررسی نشده : " . Referral::query()->where('to_user_id',$user->id)->whereNot('checked',1)->count() ."\n";
-                    $message .= "🧰  کار پوشه بررسی نشده : " . Cartable::query()->where('user_id',$user->id)->whereNot('checked',1)->count()."\n";
-                    $message .= "ℹ️ پروژه های شما : " . Project::query()->where('user_id',$user->id)->count() ."\n";
-                    $message .= "🕹️ کار های شما : " . Task::query()->where('Responsible_id',$user->id)->count() ."\n";
-                    $message .= "📝 صورت جلسه های شما : " . Minutes::query()->where('typer_id',$user->id)->count();
+                        })->count() . "\n";
+                    $message .= "↖️ ارجاع بررسی نشده : " . Referral::query()->where('to_user_id', $user->id)->whereNot('checked', 1)->count() . "\n";
+                    $message .= "🧰  کار پوشه بررسی نشده : " . Cartable::query()->where('user_id', $user->id)->whereNot('checked', 1)->count() . "\n";
+                    $message .= "ℹ️ پروژه های شما : " . Project::query()->where('user_id', $user->id)->count() . "\n";
+                    $message .= "🕹️ کار های شما : " . Task::query()->where('Responsible_id', $user->id)->count() . "\n";
+                    $message .= "📝 صورت جلسه های شما : " . Minutes::query()->where('typer_id', $user->id)->count();
 
                     $this->sendMessage($chatId, $message);
                     return response("آمار ارسال شد .");
-                }else if(isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private"){
-                    $this->sendMessage($chatId,'🔁 درحال پردازش ...');
+                } else if (isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private") {
+                    $this->sendMessage($chatId, '🔁 درحال پردازش ...');
                     $response = Http::withHeaders([
                         'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
                     ])->post('https://api.gapgpt.app/v1/chat/completions', [
@@ -479,11 +459,11 @@ EOT],
 
                     $content = $response->json('choices.0.message.content');
 
-                    $this->sendMessage($chatId,$content);
+                    $this->sendMessage($chatId, $content);
                 }
 
             } elseif ($caption != '') {
-                $caption = CalendarUtils::convertNumbers($caption,true); // تبدیل اعداد فارسی به انگلیسی
+                $caption = CalendarUtils::convertNumbers($caption, true); // تبدیل اعداد فارسی به انگلیسی
                 // تشخیص هشتگ‌ها
                 $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
@@ -497,7 +477,7 @@ EOT],
                         return response('عدم دسترسی');
                     }
                     $mp = new \App\Http\Controllers\ai\MinutesParser();
-                    $parsedData = $mp->parse($caption,$user->id);
+                    $parsedData = $mp->parse($caption, $user->id);
 
                     $mdata = [
                         'title' => $parsedData['title'],
@@ -531,8 +511,8 @@ EOT],
                     }
 
                     $message = '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
-                    $message .= $this->createMinuteMessage($record,$user);
-                    $this->sendMessage($chatId,$message);
+                    $message .= $this->createMinuteMessage($record, $user);
+                    $this->sendMessage($chatId, $message);
 
                     if (isset($data['message']['document'])) {
                         $doc = $data['message']['document'];
@@ -541,11 +521,11 @@ EOT],
                         if ($media_group_id) {
                             $state_data = explode('_', $bale_user->state);
 //                            $this->sendMessage(1497344206,json_encode($state_data));
-                            if ($state_data[0] == "$media_group_id"){
+                            if ($state_data[0] == "$media_group_id") {
                                 $child = $record::withoutEvents(function () use ($record, $state_data) {
                                     return $record->appendix_others()->create([
                                         'title' => 'ضمیمه',
-                                        'file'  => $state_data[2],
+                                        'file' => $state_data[2],
                                     ]);
                                 });
 
@@ -558,12 +538,12 @@ EOT],
                     return response('صورت جلسه ایجاد شد.');
 
                 } elseif ($matched === '#نامه') {
-                    if (str_contains($caption,'#متن')){
+                    if (str_contains($caption, '#متن')) {
                         $ltp = new LetterParser();
                         $dataLetter = $ltp->mixedParse($caption);
                         $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
-                    }else{
+                    } else {
                         if (!$user->can('create_letter')) {
                             $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
                             return response('عدم دسترسی');
@@ -586,10 +566,10 @@ EOT],
                             'status' => $dataLetter['status'],
                         ]);
 
-                        if ($dataLetter['kind'] == 1 ){
+                        if ($dataLetter['kind'] == 1) {
                             $record->organ_id = $dataLetter['organ_id'];
                             $record->save();
-                        }else{
+                        } else {
                             $record->organs_owner()->attach($dataLetter['organ_id']);
                         }
 
@@ -598,10 +578,10 @@ EOT],
                         $record->customers()->attach($dataLetter['customer_owners']);
                         $record->projects()->attach($dataLetter['projects']);
 
-                        $message = '✉️ اطلاعاعت نامه ذخیره شده'."\n\n";
-                        $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$record->id]).')' . "\n\n";
+                        $message = '✉️ اطلاعاعت نامه ذخیره شده' . "\n\n";
+                        $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
                         $message .= $this->CreateLetterMessage($record);
-                        $this->sendMessage($chatId,$message);
+                        $this->sendMessage($chatId, $message);
 
                         if (isset($data['message']['document'])) {
                             $doc = $data['message']['document'];
@@ -637,29 +617,60 @@ EOT],
         return response('ok', 200);
     }
 
-    public function CreateTaskMessage(Model $record,$user = null): string
+    public function CreateTaskMessage(Model $record, $user = null): string
     {
         $message = "📝 عنوان: {$record->name}\n";
         $message .= "🆔 شماره ثبت: {$record->id}\n";
-        $message .= "ℹ️ وضعیت انجام: " . ($record->completed ? '✅ انجام شده' : '❌ انجام نشده') ."\n";
+        $message .= "ℹ️ وضعیت انجام: " . ($record->completed ? '✅ انجام شده' : '❌ انجام نشده') . "\n";
         if ($user and $user->can('restore_any_task')) $message .= "👤 مسئول: {$record->responsible->name}\n";
         $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($record->created_at)->format('Y/m/d') . "\n";
         if ($record->completed and $record->completed_at) $message .= "📅 تاریخ انجام: " . Jalalian::fromDateTime($record->completed_at)->format('Y/m/d') . "\n";
         if ($record->ended_at) $message .= "📅 تاریخ پایان: " . Jalalian::fromDateTime($record->ended_at)->format('Y/m/d') . "\n";
-        if ($record->project->count() != 0){
+        if ($record->project->count() != 0) {
             $message .= "🎚️ دستورکار : ";
             foreach ($record->project as $project) {
-                $message .= $project->name ."، ";
+                $message .= $project->name . "، ";
             }
             $message .= "\n";
         }
-        if ($record->group->count() != 0){
+        if ($record->group->count() != 0) {
             $message .= "📚 دسته بندی : ";
             foreach ($record->group as $group) {
-                $message .= $group->name ."، ";
+                $message .= $group->name . "، ";
             }
             $message .= "\n";
         }
+        return $message;
+    }
+
+    public function CreateReferralMessage(Model $record): string
+    {
+        $message = "📝 عنوان: {$record->letter->subject}\n";
+        $message .= "🆔 شماره ثبت: {$record->letter->id}\n";
+        $message .= "✔️ وضعیت بررسی : " . ($record->checked == 1 ? "✅ بررسی شده" : "❌ بررسی نشده") . "\n";
+        if ($record->rule) $message .= "ℹ️ دستور : " . $record->rule . "\n";
+        $message .= "↖️ توسط : " . $record->by_users->name . "\n";
+        if ($record->letter->created_at) {
+            $message .= "📅 تاریخ ثبت نامه: " . Jalalian::fromDateTime($record->letter->created_at)->format('Y/m/d') . "\n";
+        }
+        if ($record->created_at) {
+            $message .= "📅 تاریخ ثبت در کارتابل: " . Jalalian::fromDateTime($record->created_at)->format('Y/m/d') . "\n";
+        }
+        return $message;
+    }
+
+    public function createCartableMessage(Model $record): string
+    {
+        $message = "📝 عنوان: {$record->letter->subject}\n";
+        $message .= "🆔 شماره ثبت: {$record->letter->id}\n";
+        $message .= "✔️ وضعیت بررسی : " . ($record->checked == 1 ? "✅ بررسی شده" : "❌ بررسی نشده") . "\n";
+        if ($record->letter->created_at) {
+            $message .= "📅 تاریخ ثبت نامه: " . Jalalian::fromDateTime($record->letter->created_at)->format('Y/m/d') . "\n";
+        }
+        if ($record->created_at) {
+            $message .= "📅 تاریخ ثبت در کارتابل: " . Jalalian::fromDateTime($record->created_at)->format('Y/m/d') . "\n";
+        }
+
         return $message;
     }
 

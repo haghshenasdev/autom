@@ -2,7 +2,11 @@
 
 namespace App\Providers;
 
+use App\Events\AddedToCartable;
+use App\Events\NewReferral;
 use App\Events\TaskCreated;
+use App\Listeners\SendAddedToCartableNotification;
+use App\Listeners\SendReferralCreatedNotification;
 use App\Listeners\SendTaskCreatedNotification;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
@@ -25,7 +29,13 @@ class EventServiceProvider extends ServiceProvider
         ],
         TaskCreated::class => [
             SendTaskCreatedNotification::class,
-        ]
+        ],
+        NewReferral::class => [
+            SendReferralCreatedNotification::class,
+        ],
+        AddedToCartable::class => [
+            SendAddedToCartableNotification::class,
+        ],
     ];
 
     /**

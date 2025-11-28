@@ -18,7 +18,7 @@ class AddedToCartable
     /**
      * Create a new event instance.
      */
-    public function __construct(public Cartable $record)
+    public function __construct(public Cartable $cartable)
     {
         //
     }
