@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Resources\UserResource\Widgets\UsersReport\UsersActivityChart;
 use App\Filament\Resources\UserResource\Widgets\UsersReport\UsersReportStatsOverview;
+use App\Filament\Resources\UserResource\Widgets\UsersReport\UsersTasksGroupsChart;
 use Filament\Pages\Page;
 
 class UsersReport extends Page
@@ -20,6 +21,7 @@ class UsersReport extends Page
         return [
             UsersReportStatsOverview::make(),
             UsersActivityChart::make(),
+            UsersTasksGroupsChart::make(),
         ];
     }
 }

@@ -27,6 +27,13 @@ class UsersActivityChart extends ChartWidget
             'minutes',
             'referral',
             'letters',
+            // شمارش شرطی برای کارهای انجام شده و انجام نشده
+            'task_responsible as tasks_completed_count' => function ($query) {
+                $query->where('completed', true);
+            },
+            'task_responsible as tasks_incompleted_count' => function ($query) {
+                $query->where('completed', false);
+            },
         ])->where('id', '!=', 1)->get();
 
         // فیلتر کردن کاربرانی که همه شمارش‌ها صفر است
@@ -43,9 +50,14 @@ class UsersActivityChart extends ChartWidget
         switch ($this->filter) {
             case 'tasks':
                 $datasets[] = [
-                    'label' => 'کارها',
-                    'data' => $users->pluck('task_responsible_count')->toArray(),
+                    'label' => 'کارهای انجام شده',
+                    'data' => $users->pluck('tasks_completed_count')->toArray(),
                     'backgroundColor' => '#3b82f6',
+                ];
+                $datasets[] = [
+                    'label' => 'کارهای انجام نشده',
+                    'data' => $users->pluck('tasks_incompleted_count')->toArray(),
+                    'backgroundColor' => '#ef4444',
                 ];
                 break;
 
