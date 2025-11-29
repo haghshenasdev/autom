@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Widgets\UsersReport;
+namespace App\Filament\Resources\UserResource\Widgets\UsersReport;
 
 use App\Models\User;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;

@@ -2,8 +2,8 @@
 
 namespace App\Filament\Pages;
 
-use App\Filament\Widgets\UsersReport\UsersActivityChart;
-use App\Filament\Widgets\UsersReport\UsersReportStatsOverview;
+use App\Filament\Resources\UserResource\Widgets\UsersReport\UsersActivityChart;
+use App\Filament\Resources\UserResource\Widgets\UsersReport\UsersReportStatsOverview;
 use Filament\Pages\Page;
 
 class UsersReport extends Page

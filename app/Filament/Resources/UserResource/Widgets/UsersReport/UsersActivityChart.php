@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Filament\Widgets\UsersReport;
+namespace App\Filament\Resources\UserResource\Widgets\UsersReport;
 
-use Filament\Widgets\ChartWidget;
 use App\Models\User;
+use Filament\Widgets\ChartWidget;
 
 class UsersActivityChart extends ChartWidget
 {
