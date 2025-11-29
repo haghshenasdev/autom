@@ -13,41 +13,59 @@ class UsersTasksGroupsChart extends ChartWidget
     protected function getData(): array
     {
         // همه گروه‌ها
-        $groups = TaskGroup::with('tasks')->get();
+        $groups = TaskGroup::all();
 
-        // همه کاربران به همراه کارها و گروه‌ها
-        $users = User::with(['task_responsible.group'])->get();
-
-        // حذف کاربر شماره 1
-        $users = $users->where('id', '!=', 1);
-
-        // حذف کاربرانی که هیچ کار در هیچ گروهی ندارند
-        $users = $users->filter(function ($user) {
-            return $user->task_responsible->isNotEmpty();
-        });
-
-        // حذف گروه‌هایی که هیچ کار ندارند
-        $groups = $groups->filter(function ($group) {
-            return $group->tasks->isNotEmpty();
-        });
+        // همه کاربران
+        $users = User::query()
+            ->where('id', '!=', 1) // حذف کاربر شماره 1
+            ->get();
 
         $datasets = [];
 
         foreach ($groups as $index => $group) {
+            // شمارش تعداد کارهای هر کاربر در این گروه با کوئری مستقیم
+            $data = $users->map(function ($user) use ($group) {
+                return $user->task_responsible()
+                    ->whereHas('group', fn($q) => $q->where('task_groups.id', $group->id))
+                    ->count();
+            });
+
+            // اگر همه مقادیر صفر بود، این گروه را حذف کن
+            if ($data->sum() === 0) {
+                continue;
+            }
+
             $datasets[] = [
                 'label' => $group->name,
-                'data' => $users->map(function ($user) use ($group) {
-                    return $user->task_responsible
-                        ->filter(fn($task) => $task->group->contains($group))
-                        ->count();
-                })->toArray(),
+                'data' => $data->toArray(),
                 'backgroundColor' => $this->getmyColor($index),
             ];
         }
 
+        // حذف کاربرانی که هیچ داده‌ای ندارند
+        $labels = [];
+        $finalData = [];
+        foreach ($users as $userIndex => $user) {
+            $total = 0;
+            foreach ($datasets as $dataset) {
+                $total += $dataset['data'][$userIndex];
+            }
+            if ($total > 0) {
+                $labels[] = $user->name;
+                foreach ($datasets as $i => $dataset) {
+                    $finalData[$i][] = $dataset['data'][$userIndex];
+                }
+            }
+        }
+
+        // بازسازی datasets با داده‌های فیلتر شده
+        foreach ($datasets as $i => $dataset) {
+            $datasets[$i]['data'] = $finalData[$i] ?? [];
+        }
+
         return [
             'datasets' => $datasets,
-            'labels' => $users->pluck('name')->toArray(),
+            'labels' => $labels,
         ];
     }
 
