@@ -21,22 +21,32 @@ class TasksGroupsPieChart extends ChartWidget
             'datasets' => [
                 [
                     'data' => $groups->pluck('tasks_count')->toArray(),
-                    'backgroundColor' => $groups->map(fn($group) => $this->getmyColor((string)$group->id))->toArray(),
+                    'backgroundColor' => [
+                        '#3b82f6', // آبی
+                        '#10b981', // سبز
+                        '#f59e0b', // نارنجی
+                        '#ef4444', // قرمز
+                        '#6366f1', // بنفش
+                        '#14b8a6', // فیروزه‌ای
+                        '#84cc16', // سبز روشن
+                        '#d946ef', // صورتی
+                        '#f97316', // نارنجی تیره
+                        '#22c55e', // سبز چمنی
+                        '#0ea5e9', // آبی فیروزه‌ای
+                        '#a855f7', // بنفش روشن
+                        '#eab308', // زرد
+                        '#dc2626', // قرمز تیره
+                        '#06b6d4', // آبی آسمانی
+                        '#65a30d', // سبز زیتونی
+                        '#9333ea', // بنفش پررنگ
+                        '#f43f5e', // قرمز صورتی
+                        '#0891b2', // آبی نفتی
+                        '#c2410c', // قهوه‌ای نارنجی
+                    ],
                 ],
             ],
             'labels' => $groups->pluck('name')->toArray(),
         ];
-    }
-
-    // تولید رنگ پایدار بر اساس id گروه
-    private function getmyColor(string $key): string
-    {
-        $hash = crc32($key);
-        $r = ($hash & 0xFF0000) >> 16;
-        $g = ($hash & 0x00FF00) >> 8;
-        $b = ($hash & 0x0000FF);
-
-        return sprintf('#%02X%02X%02X', $r, $g, $b);
     }
 
     protected function getType(): string
