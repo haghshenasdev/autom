@@ -38,7 +38,7 @@ class UsersTasksGroupsChart extends ChartWidget
             $datasets[] = [
                 'label' => $group->name,
                 'data' => $data->toArray(),
-                'backgroundColor' => $this->getmyColor($index),
+                'backgroundColor' => $this->getmyColor((string)$group->id),
             ];
         }
 
@@ -70,20 +70,17 @@ class UsersTasksGroupsChart extends ChartWidget
     }
 
     // رنگ ثابت بر اساس ایندکس گروه
-    private function getmyColor(int $index): string
+    private function getmyColor(string $key): string
     {
-        $colors = [
-            '#3b82f6', // آبی
-            '#10b981', // سبز
-            '#f59e0b', // نارنجی
-            '#ef4444', // قرمز
-            '#6366f1', // بنفش
-            '#14b8a6', // فیروزه‌ای
-            '#84cc16', // سبز روشن
-            '#d946ef', // صورتی
-        ];
+        // تولید یک هش از نام یا id گروه
+        $hash = crc32($key);
 
-        return $colors[$index % count($colors)];
+        // استخراج سه بخش از هش برای RGB
+        $r = ($hash & 0xFF0000) >> 16;
+        $g = ($hash & 0x00FF00) >> 8;
+        $b = ($hash & 0x0000FF);
+
+        return sprintf('#%02X%02X%02X', $r, $g, $b);
     }
 
     protected function getType(): string
