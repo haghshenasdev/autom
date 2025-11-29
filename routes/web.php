@@ -1,20 +1,7 @@
 <?php
 
-use App\Filament\Resources\LetterResource;
-use App\Filament\Resources\TaskResource;
-use App\Http\Controllers\ai\CategoryPredictor;
-use App\Http\Controllers\BaleBotController;
-use App\Jobs\SendTasksReminderJob;
-use App\Models\Letter;
-use App\Models\Referral;
-use App\Models\Task;
-use App\Models\User;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
-use Morilog\Jalali\Jalalian;
 
 /*
 |--------------------------------------------------------------------------
@@ -164,58 +151,6 @@ Route::get('/uaherituayhsrtuiaury/eeita',[\App\Http\Controllers\ReadChanel::clas
 
 
 Route::get('so',function (){
-    SendTasksReminderJob::dispatch();
-
-    $today = \Carbon\Carbon::today();
-    $threeDaysLater = \Carbon\Carbon::today()->addDays(3);
-
-    // گرفتن همه کاربران
-    $users = User::all();
-    $bale_bot = new BaleBotController();
-    foreach ($users as $user) {
-        // تسک‌های کاربر که completed = false و ended_at <= امروز
-        $tasks = Task::where('Responsible_id', $user->id)
-            ->where('completed', false)
-            ->where(function ($query) use ($today, $threeDaysLater) {
-                $query->whereDate('ended_at', '<=', $today) // گذشته
-                ->orWhereBetween('ended_at', [$today, $threeDaysLater]); // تا 3 روز آینده
-            })
-            ->orderByRaw("CASE
-            WHEN DATE(ended_at) = ? THEN 0
-            WHEN DATE(ended_at) < ? THEN 1
-            ELSE 2 END", [$today, $today])
-            ->orderBy('ended_at', 'asc')
-            ->limit(10)
-            ->get();
-
-        if ($tasks->isEmpty()) {
-            continue;
-        }
-
-        // ساخت پیام
-        $message = "سلام صبح بخیر {$user->name} 🌺\n"
-            . "🤗 امیدوارم روز خوبی داشته باشی\n\n"
-            . "🗂 کار های زیر برای شما در کارنما ثبت شده است و موعد انجام آن ها روبه اتمام است یا از موعد آن گذشته \n\n";
-
-        foreach ($tasks as $task) {
-            $delayDays = $today->diffInDays(Carbon::parse($task->ended_at), false);
-//            $delayText = $delayDays < 0 ? abs($delayDays) . " روز تاخیر" : "امروز موعد انجام";
-
-            if ($delayDays < 0) {
-                $delayText = abs($delayDays) . ' روز گذشته';
-            } elseif ($delayDays === 0) {
-                $delayText = "امروز موعد انجام";
-            } else {
-                $delayText = abs($delayDays) . ' روز مانده';
-            }
-
-            $message .= $bale_bot->CreateTaskMessage($task);
-            $message .= "ℹ️ فرصت انجام : {$delayText}\n";
-            $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
-            $message .= "----------------------\n";
-        }
-        dd($message);
-    }
 //$tst = null;
 //    $englishDigits = ['0','1','2','3','4','5','6','7','8','9'];
 //    $persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
