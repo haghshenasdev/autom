@@ -4,6 +4,7 @@ use App\Filament\Resources\LetterResource;
 use App\Filament\Resources\TaskResource;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\BaleBotController;
+use App\Jobs\SendTasksReminderJob;
 use App\Models\Letter;
 use App\Models\Referral;
 use App\Models\Task;
@@ -163,6 +164,8 @@ Route::get('/uaherituayhsrtuiaury/eeita',[\App\Http\Controllers\ReadChanel::clas
 
 
 Route::get('so',function (){
+    SendTasksReminderJob::dispatch();
+
     $today = \Carbon\Carbon::today();
     $threeDaysLater = \Carbon\Carbon::today()->addDays(3);
 
