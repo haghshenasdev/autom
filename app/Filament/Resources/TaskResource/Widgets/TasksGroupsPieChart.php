@@ -9,7 +9,7 @@ class TasksGroupsPieChart extends ChartWidget
 {
     protected static ?string $heading = 'توزیع کارها بر اساس دسته‌بندی';
 
-    public ?array $betYear;
+    public ?array $betYear = null;
     public string|null $selectedYear = null;
 
     protected function getData(): array
