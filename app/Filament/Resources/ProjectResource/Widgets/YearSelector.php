@@ -3,34 +3,26 @@
 namespace App\Filament\Resources\ProjectResource\Widgets;
 
 use Filament\Forms\Components\Select;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Widgets\Widget;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Morilog\Jalali\Jalalian;
+use phpDocumentor\Reflection\Types\Static_;
 
-class YearSelector extends Widget
+class YearSelector extends Widget implements HasForms
 {
     protected static string $view = 'filament.resources.project-resource.widgets.year-selector';
 
-    public $selectedYear;
+    use InteractsWithForms;
 
-    public function mount(): void
-    {
-        // مقدار پیش‌فرض سال را تنظیم کنید (مثلاً سال جاری)
-        $this->selectedYear = now()->year;
-    }
+    public string|null $selectedYear = null;
 
-    public function render(): \Illuminate\Contracts\View\View
+    public function mount($selectedYear): void
     {
-        return view(static::$view, [
-            'years' => $this->getYears(),
-        ]);
-    }
-
-    protected function getYears(): array
-    {
-        // اینجا می‌توانید سال‌ها را بر اساس نیاز خود تنظیم کنید
-        return range(Jalalian::now()->getYear(), Jalalian::now()->getYear() - 5); // سال‌های از 2000 تا سال جاری
+        $this->selectedYear = $selectedYear;
     }
 
     public function form(Form $form): Form
@@ -38,13 +30,29 @@ class YearSelector extends Widget
         return $form
             ->schema([
                 Select::make('selectedYear')
-                    ->label('انتخاب سال')
+                    ->label('انتخاب سال')->placeholder('همه سال ها')
                     ->options($this->getYears())
                     ->afterStateUpdated(function ($state) {
-                        $this->selectedYear = $state;
                         $this->js("window.location.href = window.location.pathname + '?year={$state}'");
                     })->live()
             ])
             ->live();
+    }
+
+    protected function getYears(): array
+    {
+        $current = Jalalian::now()->getYear();
+        $years = [];
+
+        for ($i = 0; $i <= 5; $i++) {
+            $years[$current - $i] = $current - $i;
+        }
+
+        return $years;
+    }
+
+    public function getColumnSpan(): int | string | array
+    {
+        return 'full'; // پر کردن عرض صفحه
     }
 }

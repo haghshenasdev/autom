@@ -9,10 +9,24 @@ class TasksGroupsPieChart extends ChartWidget
 {
     protected static ?string $heading = 'توزیع کارها بر اساس دسته‌بندی';
 
+    public ?array $betYear;
+    public string|null $selectedYear = null;
+
     protected function getData(): array
     {
         // همه گروه‌ها همراه با شمارش کارها
-        $groups = TaskGroup::withCount('tasks')->get();
+        $groups = null;
+        if ($this->betYear){
+            self::$heading .= '، انجام شده در سال ' . $this->selectedYear;
+            $groups = TaskGroup::withCount([
+                'tasks as tasks_count' => function ($query) {
+                    $query->whereBetween('completed_at', $this->betYear);
+                },
+            ])->get();
+        }else{
+            $groups = TaskGroup::withCount('tasks')->get();
+        }
+
 
         // حذف گروه‌هایی که هیچ کار ندارند
         $groups = $groups->filter(fn($group) => $group->tasks_count > 0);

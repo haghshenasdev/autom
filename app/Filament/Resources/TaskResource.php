@@ -101,7 +101,7 @@ class TaskResource extends Resource
                     ->color(fn (string $state): string => Task::getStatusColor($state))
                     ->state(function (Model $record): string {
                         return Task::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
-                Tables\Columns\TextColumn::make('created_at')->label('ایجاد')
+                Tables\Columns\TextColumn::make('created_at')->label('تاریخ ایجاد')
                     ->jalaliDateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
