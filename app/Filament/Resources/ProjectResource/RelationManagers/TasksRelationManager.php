@@ -34,7 +34,7 @@ class TasksRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table->defaultSort('id','desc')
+        return $table->defaultSort('tasks.id','desc')
             ->recordTitleAttribute('name')
             ->columns([
                 TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
