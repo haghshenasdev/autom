@@ -129,7 +129,7 @@ class Letter extends Model
         $events->push([
             'type' => 'letter',
             'title' => 'ایجاد نامه',
-            'description' => isset($this->user->name) ? 'نامه توسط ' . $this->user->name  . 'ثبت شد .' : 'نامه ثبت شد .',
+            'description' => isset($this->user->name) ? 'نامه توسط ' . $this->user->name  . ' ثبت شد .' : 'نامه ثبت شد .',
             'created_at' => $this->created_at,
             'icon' => 'heroicon-o-document-text',
             'color' => 'blue',
