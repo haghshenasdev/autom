@@ -252,6 +252,48 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response('کار ارسال شد');
 
+                } elseif (str_starts_with($firstLine, '#مصوبه')){
+                    $queryText = trim(str_replace('#مصوبه', '', $firstLine));
+                    if (is_numeric($queryText)){
+                        $minute = Minutes::query()->where('id', $queryText)->first();
+                        if ($minute){
+                            $mp = new \App\Http\Controllers\ai\MinutesParser();
+                            $parsedData = $mp->parse($text, $user->id,$minute->date);
+                            if (count($parsedData['approves']) != 0) {
+                                $message = 'مصوبات زیر به صورجلسه "' . $minute->title . '" اضافه شد .' . "\n\n";
+
+                                foreach ($parsedData['approves'] as $approve) {
+                                    $cp = new \App\Http\Controllers\ai\CategoryPredictor();
+                                    $keywords = $cp->extractKeywords($approve['text']);
+                                    $task = Task::create([
+                                        'name' => $approve['text'],
+                                        'started_at' => $minute->date,
+                                        'created_at' => $minute->date,
+                                        'amount' => $approve['amount'],
+                                        'ended_at' => $approve['due_at'] ?? null,
+                                        'Responsible_id' => $approve['user']['id'] ?? $user->id,
+                                        'created_by' => $user->id,
+                                        'minutes_id' => $minute->id,
+                                        'city_id' => $cp->detectCity($keywords),
+                                        'organ_id' => $cp->detectOrgan($keywords),
+                                    ]);
+                                    $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
+                                    $task->project()->attach($approve['projects']);
+
+                                    //ایجاد پیام
+                                    $message .= $this->CreateTaskMessage($task, $user);
+                                    $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
+                                    $message .= "----------------------\n";
+                                }
+
+                                $this->sendMessage($chatId, $message);
+                                return response('مصوبه ها ایجاد شدند');
+                            }
+                        }
+                    }else{
+                        $this->sendMessage($chatId,'لطفا بعد از #مصوبه شماره ثبت صورتجلسه مورد نظر را یاداشت کنید .');
+                    }
+
                 } elseif (str_starts_with($firstLine, '/صورتجلسه')) {
                     if (!$user->can('view_minutes')) {
                         $this->sendMessage($chatId, '❌ شما به صورت‌جلسه‌ها دسترسی ندارید!');

@@ -19,13 +19,13 @@ class MinutesParser
     {
     }
 
-    public function parse(string $text,int $user_id = 1): array
+    public function parse(string $text,int $user_id = 1,$titleDate = null): array
     {
         $lines = array_filter(array_map('trim', explode("\n", $text)));
 
         $titleLine = array_shift($lines);
         $title = $this->cleanTitle($titleLine);
-        $titleDate = $this->extractDateFromTitle($title);
+        $titleDate = $titleDate ?? $this->extractDateFromTitle($title);
 
         $approves = [];
         $organs = [];
