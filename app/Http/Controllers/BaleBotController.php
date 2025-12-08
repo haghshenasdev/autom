@@ -260,7 +260,7 @@ class BaleBotController extends Controller
                         if ($minute){
                             $mp = new \App\Http\Controllers\ai\MinutesParser();
                             $parsedData = $mp->parse($text, $user->id,$minute->date);
-                            $this->sendMessage($chatId,json_decode($parsedData));
+                            $this->sendMessage($chatId,json_encode($parsedData));
                             if (count($parsedData['approves']) != 0) {
                                 $message = 'مصوبات زیر به صورجلسه "' . $minute->title . '" اضافه شد .' . "\n\n";
 
