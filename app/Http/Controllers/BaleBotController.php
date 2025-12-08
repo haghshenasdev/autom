@@ -258,8 +258,8 @@ class BaleBotController extends Controller
                     if (is_numeric($queryText)){
                         $minute = Minutes::query()->where('id', $queryText)->first();
                         if ($minute){
-                            $mp = new \App\Http\Controllers\ai\MinutesParser();
-                            $parsedData = $mp->parse($text, $user->id,$minute->date);
+                            $mp = new \App\Http\Controllers\ai\MinutesParser(false);
+                            $parsedData = $mp->parse($text, $user->id,Carbon::createFromTimestamp($minute->date));
                             $this->sendMessage($chatId,json_encode($parsedData));
                             if (count($parsedData['approves']) != 0) {
                                 $message = 'مصوبات زیر به صورجلسه "' . $minute->title . '" اضافه شد .' . "\n\n";

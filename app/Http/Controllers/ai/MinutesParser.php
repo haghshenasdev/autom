@@ -19,7 +19,7 @@ class MinutesParser
     {
     }
 
-    public function parse(string $text,int $user_id = 1,$titleDate = null): array
+    public function parse(string $text,int $user_id = 1,Carbon $titleDate = null): array
     {
         $lines = array_filter(array_map('trim', explode("\n", $text)));
 
