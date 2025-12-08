@@ -157,36 +157,36 @@ class Letter extends Model
                 'icon' => 'heroicon-o-arrow-path',
                 'color' => 'purple',
             ]);
-        }
 
-        // لاگ‌های فعالیت ارجاع
-        foreach ($referral->activities as $activity) {
-            $changes = [];
+            // لاگ‌های فعالیت ارجاع
+            foreach ($referral->activities as $activity) {
+                $changes = [];
 
-            if ($activity->event === 'updated') {
-                $old = $activity->properties['old'] ?? [];
-                $new = $activity->properties['attributes'] ?? [];
+                if ($activity->event === 'updated') {
+                    $old = $activity->properties['old'] ?? [];
+                    $new = $activity->properties['attributes'] ?? [];
 
-                foreach ($new as $field => $value) {
-                    $changes[$field] = [
-                        'label' => $fieldLabels[$field] ?? $field,
-                        'old' => $old[$field] ?? null,
-                        'new' => $value,
-                    ];
+                    foreach ($new as $field => $value) {
+                        $changes[$field] = [
+                            'label' => $fieldLabels[$field] ?? $field,
+                            'old' => $old[$field] ?? null,
+                            'new' => $value,
+                        ];
+                    }
                 }
-            }
 
-            $events->push([
-                'type' => 'referral_activity',
-                'title' => 'تغییر وضعیت ارجاع',
-                'description' => $activity->description,
-                'created_at' => $activity->created_at,
-                'icon' => 'heroicon-o-adjustments-horizontal',
-                'color' => 'pink',
-                'event' => $activity->event,
-                'changes' => $changes,
-                'user' => $activity->causer?->name ?? 'سیستم',
-            ]);
+                $events->push([
+                    'type' => 'referral_activity',
+                    'title' => 'تغییر وضعیت ارجاع',
+                    'description' => $activity->description,
+                    'created_at' => $activity->created_at,
+                    'icon' => 'heroicon-o-adjustments-horizontal',
+                    'color' => 'pink',
+                    'event' => $activity->event,
+                    'changes' => $changes,
+                    'user' => $activity->causer?->name ?? 'سیستم',
+                ]);
+            }
         }
 
         // اضافه کردن لاگ‌های فعالیت
