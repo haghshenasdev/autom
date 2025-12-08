@@ -288,7 +288,12 @@ class BaleBotController extends Controller
 
                                 $this->sendMessage($chatId, $message);
                                 return response('مصوبه ها ایجاد شدند');
+                            }else{
+                                $this->sendMessage($chatId,'مصوبه ای برای افزودن یافت نشد !');
                             }
+                        }
+                        else{
+                            $this->sendMessage($chatId,'صورت جلسه مورد نظر یافت نشد .');
                         }
                     }else{
                         $this->sendMessage($chatId,'لطفا بعد از #مصوبه شماره ثبت صورتجلسه مورد نظر را یاداشت کنید .');
