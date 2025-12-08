@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\LetterResource\Pages;
 
 use App\Filament\Resources\LetterResource;
+use App\Models\Letter;
 use Filament\Actions;
+use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\EditRecord;
@@ -17,6 +19,14 @@ class EditLetter extends EditRecord
     {
         return [
             Actions\DeleteAction::make(),
+            Action::make('timeline')
+                ->label('تایم‌لاین')
+                ->icon('heroicon-o-clock')
+                ->modalHeading('تایم‌لاین نامه')
+                ->modalContent(fn (Letter $record) => view('filament.components.timeline-modal', [
+                    'events' => $record->timeline(),
+                ]))
+                ->modalWidth('xl'),
         ];
     }
 

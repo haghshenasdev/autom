@@ -93,6 +93,138 @@ class Letter extends Model
         return $this->hasMany(Referral::class);
     }
 
+    public function timeline()
+    {
+        // نگاشت نام فیلدها به فارسی
+        $fieldLabels = [
+            'subject' => 'موضوع',
+            'status' => 'وضعیت',
+            'description'=> 'توضیحات',
+            'file' => 'فایل',
+            'type_id'=> 'نوع',
+            'kind'=> 'صادره یا وارده',
+            'peiroow_letter_id'=> 'پیرو نامه',
+            'summary'=> 'خلاصه/نتیجه',
+            'mokatebe' => 'شماره مکاتبه',
+            'daftar_id' => 'آیدی دفتر',
+            'organ_id' => 'گیرنده نامه',
+
+            'rule' => 'دستور',
+            'result' => 'نتیجه',
+            'by_user_id' => 'ارجاع کننده',
+            'to_user_id' => 'ارجاع شده',
+            'checked' => 'وضعیت بررسی',
+        ];
+
+        // نگاشت رویدادهای Activity به فارسی
+        $eventLabels = [
+            'created' => 'ایجاد',
+            'updated' => 'بروزرسانی',
+            'deleted' => 'حذف',
+        ];
+
+        $events = collect();
+
+        // اضافه کردن خود نامه
+        $events->push([
+            'type' => 'letter',
+            'title' => 'ایجاد نامه',
+            'description' => isset($this->user->name) ? 'نامه توسط ' . $this->user->name  . 'ثبت شد .' : 'نامه ثبت شد .',
+            'created_at' => $this->created_at,
+            'icon' => 'heroicon-o-document-text',
+            'color' => 'blue',
+        ]);
+
+        // اضافه کردن پاسخ‌ها
+        foreach ($this->Answer as $answer) {
+            $events->push([
+                'type' => 'answer',
+                'title' => 'پاسخ ثبت شد',
+                'description' => $answer->result ? 'نتیجه : ' . $answer->result . ($answer->summary ?   " -" . ' خلاصه : ' . $answer->summary : '') : '',
+                'created_at' => $answer->created_at,
+                'icon' => 'heroicon-o-chat-bubble-left-right',
+                'color' => 'green',
+            ]);
+        }
+
+        // اضافه کردن ارجاعات
+        foreach ($this->referrals as $referral) {
+            $events->push([
+                'type' => 'referral',
+                'title' => 'ارجاع شد',
+                'description' => 'توسط ' . $referral->by_users->name . ' به ' . $referral->users->name . ' ارجاع شد ',
+                'created_at' => $referral->created_at,
+                'icon' => 'heroicon-o-arrow-path',
+                'color' => 'purple',
+            ]);
+        }
+
+        // لاگ‌های فعالیت ارجاع
+        foreach ($referral->activities as $activity) {
+            $changes = [];
+
+            if ($activity->event === 'updated') {
+                $old = $activity->properties['old'] ?? [];
+                $new = $activity->properties['attributes'] ?? [];
+
+                foreach ($new as $field => $value) {
+                    $changes[$field] = [
+                        'label' => $fieldLabels[$field] ?? $field,
+                        'old' => $old[$field] ?? null,
+                        'new' => $value,
+                    ];
+                }
+            }
+
+            $events->push([
+                'type' => 'referral_activity',
+                'title' => 'تغییر وضعیت ارجاع',
+                'description' => $activity->description,
+                'created_at' => $activity->created_at,
+                'icon' => 'heroicon-o-adjustments-horizontal',
+                'color' => 'pink',
+                'event' => $activity->event,
+                'changes' => $changes,
+                'user' => $activity->causer?->name ?? 'سیستم',
+            ]);
+        }
+
+        // اضافه کردن لاگ‌های فعالیت
+        // فعالیت‌ها
+        foreach ($this->activities as $activity) {
+            $changes = [];
+
+            if ($activity->event === 'updated') {
+                $old = $activity->properties['old'] ?? [];
+                $new = $activity->properties['attributes'] ?? [];
+
+                foreach ($new as $field => $value) {
+                    $changes[$field] = [
+                        'label' => $fieldLabels[$field] ?? $field,
+                        'old' => $old[$field] ?? null,
+                        'new' => $value,
+                    ];
+                }
+            }
+
+            $events->push([
+                'type' => 'activity',
+                'title' => $eventLabels[$activity->event] ?? $activity->event,
+                'description' => $activity->description,
+                'created_at' => $activity->created_at,
+                'icon' => 'heroicon-o-clock',
+                'color' => 'orange',
+                'event' => $activity->event,
+                'changes' => $changes,
+                'user' => $activity->causer?->name ?? 'سیستم', // نام شخص تغییر دهنده
+            ]);
+        }
+
+        // مرتب‌سازی بر اساس زمان
+        return $events->sortBy('created_at');
+    }
+
+
     public function replications(): HasMany
     {
         return $this->hasMany(Replication::class);
@@ -140,6 +272,8 @@ class Letter extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults();
+        return LogOptions::defaults()->logExcept(['updated_at','created_at'])->logAll() // فیلدهایی که می‌خوای تغییراتشون ثبت بشه
+        ->logOnlyDirty() // فقط وقتی مقدار تغییر کرد ذخیره بشه
+        ->dontSubmitEmptyLogs(); // لاگ خالی ثبت نشه;
     }
 }

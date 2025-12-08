@@ -6,11 +6,13 @@ use App\Events\NewReferral;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 //ارجاع
 class Referral extends Model
 {
-    use HasFactory;
+    use HasFactory,LogsActivity;
 
     protected $fillable = [
         'rule',
@@ -42,5 +44,11 @@ class Referral extends Model
         static::created(function ($model) {
             event(new NewReferral($model));
         });
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logExcept(['updated_at','created_at'])->logAll()->logOnlyDirty() // فقط وقتی مقدار تغییر کرد ذخیره بشه
+        ->dontSubmitEmptyLogs(); // لاگ خالی ثبت نشه;
     }
 }

@@ -75,7 +75,6 @@ class Answer extends Model
                 ->downloadable()
                 ->visibility('private')
                 ->imageEditor()
-                ->required()
                 ->getUploadedFileNameForStorageUsing( fn (TemporaryUploadedFile $file) => self::getFileNamePath($file,$ownerRecord))
             ,];
     }
