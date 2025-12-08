@@ -253,8 +253,8 @@ class BaleBotController extends Controller
                     return response('کار ارسال شد');
 
                 } elseif (str_starts_with($firstLine, '#مصوبه')){
-                    $this->sendMessage($chatId,'مصوبه');
                     $queryText = trim(str_replace('#مصوبه', '', $firstLine));
+                    $this->sendMessage($chatId,$queryText);
                     if (is_numeric($queryText)){
                         $minute = Minutes::query()->where('id', $queryText)->first();
                         if ($minute){
