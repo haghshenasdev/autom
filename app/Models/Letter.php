@@ -114,6 +114,7 @@ class Letter extends Model
             'by_user_id' => 'ارجاع کننده',
             'to_user_id' => 'ارجاع شده',
             'checked' => 'وضعیت بررسی',
+            'letter_id' => 'نامه',
         ];
 
         // نگاشت رویدادهای Activity به فارسی
@@ -169,15 +170,15 @@ class Letter extends Model
                     foreach ($new as $field => $value) {
                         $changes[$field] = [
                             'label' => $fieldLabels[$field] ?? $field,
-                            'old' => $old[$field] ?? null,
-                            'new' => $value,
+                            'old' => self::castFieldValue($field, $old[$field] ?? null),
+                            'new' => self::castFieldValue($field, $value),
                         ];
                     }
                 }
 
                 $events->push([
                     'type' => 'referral_activity',
-                    'title' => 'تغییر وضعیت ارجاع',
+                    'title' => 'تغییر وضعیت ارجاع' . ' به ' . ($referral->users->name ?? '---'),
                     'description' => $activity->description,
                     'created_at' => $activity->created_at,
                     'icon' => 'heroicon-o-adjustments-horizontal',
@@ -201,8 +202,8 @@ class Letter extends Model
                 foreach ($new as $field => $value) {
                     $changes[$field] = [
                         'label' => $fieldLabels[$field] ?? $field,
-                        'old' => $old[$field] ?? null,
-                        'new' => $value,
+                        'old' => self::castFieldValue($field, $old[$field] ?? null),
+                        'new' => self::castFieldValue($field, $value),
                     ];
                 }
             }
@@ -223,6 +224,28 @@ class Letter extends Model
         // مرتب‌سازی بر اساس زمان
         return $events->sortBy('created_at');
     }
+
+    protected static function castFieldValue(string $field, $value)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        switch ($field) {
+            case 'kind':
+                return self::getKindLabel($value);
+            case 'status':
+                return self::getStatusLabel($value);
+            case 'checked':
+                return $value == 1 ? 'بررسی شده' : 'بررسی نشده';
+            case 'to_user_id':
+            case 'by_user_id':
+                return User::query()->find($value)->name ?? $value;
+            default:
+                return $value;
+        }
+    }
+
 
 
     public function replications(): HasMany
