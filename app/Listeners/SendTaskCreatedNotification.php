@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\TaskCreated;
+use App\Filament\Resources\TaskResource;
 use App\Http\Controllers\BaleBotController;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -31,6 +32,7 @@ class SendTaskCreatedNotification
             $bale_bot = new BaleBotController();
             $message = "کار جدیدی توسط {$task->creator->name} برای شما ثبت شد: " . "\n";
             $message .= $bale_bot->CreateTaskMessage($task);
+            $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n";
             $bale_bot->sendNotifBale($task->Responsible_id, $message);
             // ارسال به پنل سامانه
             $user = User::query()->find($task->Responsible_id);
