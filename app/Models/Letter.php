@@ -133,7 +133,7 @@ class Letter extends Model
             'description' => isset($this->user->name) ? 'نامه توسط ' . $this->user->name  . ' ثبت شد .' : 'نامه ثبت شد .',
             'created_at' => $this->created_at,
             'icon' => 'heroicon-o-document-text',
-            'color' => 'blue',
+            'color' => 'gray',
         ]);
 
         // اضافه کردن پاسخ‌ها
@@ -144,7 +144,7 @@ class Letter extends Model
                 'description' => $answer->result ? 'نتیجه : ' . $answer->result . ($answer->summary ?   " -" . ' خلاصه : ' . $answer->summary : '') : '',
                 'created_at' => $answer->created_at,
                 'icon' => 'heroicon-o-chat-bubble-left-right',
-                'color' => 'green',
+                'color' => 'success',
             ]);
         }
 
@@ -156,7 +156,7 @@ class Letter extends Model
                 'description' => 'توسط ' . $referral->by_users->name . ' به ' . $referral->users->name . ' ارجاع شد ',
                 'created_at' => $referral->created_at,
                 'icon' => 'heroicon-o-arrow-path',
-                'color' => 'purple',
+                'color' => 'warning',
             ]);
 
             // لاگ‌های فعالیت ارجاع
@@ -182,7 +182,7 @@ class Letter extends Model
                     'description' => $activity->description,
                     'created_at' => $activity->created_at,
                     'icon' => 'heroicon-o-adjustments-horizontal',
-                    'color' => 'pink',
+                    'color' => 'warning',
                     'event' => $activity->event,
                     'changes' => $changes,
                     'user' => $activity->causer?->name ?? 'سیستم',
@@ -214,7 +214,7 @@ class Letter extends Model
                 'description' => $activity->description,
                 'created_at' => $activity->created_at,
                 'icon' => 'heroicon-o-clock',
-                'color' => 'orange',
+                'color' => 'info',
                 'event' => $activity->event,
                 'changes' => $changes,
                 'user' => $activity->causer?->name ?? 'سیستم', // نام شخص تغییر دهنده

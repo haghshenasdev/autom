@@ -26,7 +26,7 @@ class EditLetter extends EditRecord
                 ->modalContent(fn (Letter $record) => view('filament.components.timeline-modal', [
                     'events' => $record->timeline(),
                 ]))
-                ->modalWidth('xl'),
+                ->modalWidth('xl')->modalSubmitAction(false),
         ];
     }
 

@@ -47,6 +47,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Morilog\Jalali\Jalalian;
+use phpDocumentor\Reflection\Types\True_;
 
 class LetterResource extends Resource
 {
@@ -389,6 +390,14 @@ class LetterResource extends Resource
                     ->icon('heroicon-o-arrow-top-right-on-square'),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make()->visible(!\auth()->user()->can('restore_any_letter')),
+                Tables\Actions\Action::make('timeline')
+                    ->label('تایم‌لاین')
+                    ->icon('heroicon-o-clock')
+                    ->modalHeading('تایم‌لاین نامه')
+                    ->modalContent(fn (Letter $record) => view('filament.components.timeline-modal', [
+                        'events' => $record->timeline(),
+                    ]))
+                    ->modalWidth('xl')->modalSubmitAction(false),
             ])
             ->bulkActions([
                 ExportBulkAction::make()->label('دریافت فایل exel'),
