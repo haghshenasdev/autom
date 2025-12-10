@@ -67,7 +67,7 @@ class ReadChanel extends Controller
                         'started_at' => $time,
                         'completed' => 1,
                         'status' => 1,
-                        'Responsible_id' => 1,
+                        'created_by' => 1,
                         'city_id' => $cats['city'],
                     ]);
                     $task->project()->attach($cats['categories']);
