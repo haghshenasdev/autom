@@ -62,7 +62,13 @@ class TaskResource extends Resource
         $schema[] = Forms\Components\Select::make('minutes_id')->label('صورت جلسه')
             ->relationship('minutes', 'title')
             ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->title}")
-            ->searchable(['minutes.id', 'minutes.title'])->preload();
+            ->searchable(['minutes.id', 'minutes.title'])->preload()
+            ->live()
+            ->prefixAction(
+                Forms\Components\Actions\Action::make('Open')->label('نمایش')
+                    ->url(fn (Forms\Get $get): string => $get('minutes_id') ? MinutesResource::getUrl('edit',[$get('minutes_id')]) : '#')
+                    ->openUrlInNewTab()->icon('heroicon-o-arrow-top-right-on-square'),
+            );
         return $form
             ->schema($schema);
     }
