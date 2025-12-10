@@ -37,6 +37,7 @@ class UserSeeder extends Seeder
             ['name' => 'معاونت برنامه ریزی - رجبیان', 'email' => 'rajabian@example.com'],
             ['name' => 'معاونت تحلیل و آسیب شناسی و حقوقی - معاونت نظارت بر عملکرد - رضایی', 'email' => 'rezaie@example.com'],
             ['name' => 'معاونت تقنینی و پژوهشی - علی بذر افشان', 'email' => 'bazrafshan@example.com'],
+            ['name' => 'محمد مهدی حق شناس - فناوری اطلاعات', 'email' => 'm2@m.ir'],
         ];
 
         foreach ($users as $user) {
