@@ -28,9 +28,10 @@ class SendAddedToCartableNotification
     {
             $cartable = $event->cartable;
 
-            if (!$cartable) {
+            if ($cartable) {
                 $bale_bot = new BaleBotController();
-                $na = $cartable->letter->user->name ?? 'نامشخص';
+                $us = auth()->user();
+                $na = ($us) ? $us->name : ($cartable->letter->user->name ?? 'نامشخص');
                 $message = "یک نامه جدید توسط {$na} به کارتابل شما افزوده شد: " . "\n";
                 $message .= $bale_bot->createCartableMessage($cartable);
                 $bale_bot->sendNotifBale($cartable->user_id, $message .
