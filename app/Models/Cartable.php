@@ -5,10 +5,13 @@ namespace App\Models;
 use App\Events\AddedToCartable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
-class Cartable extends Model
+class Cartable extends Pivot
 {
     use HasFactory;
+
+    protected $table = 'cartables';
 
     protected $fillable = [
         'letter_id',

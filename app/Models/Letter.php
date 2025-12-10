@@ -60,7 +60,7 @@ class Letter extends Model
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class,'cartables');
+        return $this->belongsToMany(User::class,'cartables')->using(Cartable::class);
     }
 
     public function type(): BelongsTo
