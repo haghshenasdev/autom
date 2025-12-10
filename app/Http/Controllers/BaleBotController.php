@@ -240,6 +240,8 @@ class BaleBotController extends Controller
                         if ($isCompletion && !$task->completed) {
                             $task->completed = 1;
                             $task->completed_at = now();
+                            $description = trim(str_replace($firstLine, '', $text));
+                            if ($description != '') $task->description = $description;
                             $task->save();
                             $message .= "🔁 وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n\n";
                         }

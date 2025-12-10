@@ -241,6 +241,8 @@ class Letter extends Model
             case 'to_user_id':
             case 'by_user_id':
                 return User::query()->find($value)->name ?? $value;
+            case 'organ_id':
+                return Organ::query()->find($value)->name ?? $value;
             default:
                 return $value;
         }
