@@ -346,6 +346,22 @@ class BaleBotController extends Controller
                         $dataLetter = $ltp->mixedParse($text);
                         $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
+                    }elseif (isset($data['message']['reply_to_message']['document']['file_id'])) {
+                        $reply_msg = $data['message']['reply_to_message'];
+                        $doc = $reply_msg['document'];
+                        $record = $this->handleLetter_create($caption,$chatId,$user);
+
+                        $this->LetterFileAdd($record,$doc,$media_group_id,$bale_user);
+                    }
+                } elseif (str_starts_with($firstLine,'#صورتجلسه')) {
+                    if (isset($data['message']['reply_to_message']['document']['file_id'])) {
+                        $reply_msg = $data['message']['reply_to_message'];
+                        $doc = $reply_msg['document'];
+                        $record = $this->handleMinute_create($text, $chatId, $user);
+
+                        $this->MinuteFileAdd($record,$doc,$media_group_id,$bale_user);
+                    }else {
+                        $this->sendMessage($chatId,'لطفا این متن را در پاسخ یک فایل برام بفرست تا فایل صورتجلسه را در سامانه ثبت کنم');
                     }
                 } elseif (str_starts_with($firstLine, '/نامه')) {
                     if (!$user->can('view_letter')) {
@@ -509,68 +525,11 @@ EOT],
                 // ذخیره در مدل مناسب
                 $record = null;
                 if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
-                    if (!$user->can('create_minutes')) {
-                        $this->sendMessage($chatId, '❌ شما برای ایجاد صورت‌جلسه‌ دسترسی ندارید!');
-                        return response('عدم دسترسی');
-                    }
-                    $mp = new \App\Http\Controllers\ai\MinutesParser();
-                    $parsedData = $mp->parse($caption, $user->id);
-
-                    $mdata = [
-                        'title' => $parsedData['title'],
-                        'date' => $parsedData['title_date'] ?? $date,
-                        'text' => $caption,
-                        'typer_id' => $user->id,
-                        'task_id' => $parsedData['task_id'],
-                    ];
-                    $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه" . "\n");
-
-                    $record = Minutes::create($mdata);
-                    $record->organ()->attach($parsedData['organs']);
-                    $record->group()->attach(1);
-                    foreach ($parsedData['approves'] as $approve) {
-                        $cp = new \App\Http\Controllers\ai\CategoryPredictor();
-                        $keywords = $cp->extractKeywords($approve['text']);
-                        $task = Task::create([
-                            'name' => $approve['text'],
-                            'started_at' => $mdata['date'],
-                            'created_at' => $mdata['date'],
-                            'amount' => $approve['amount'],
-                            'ended_at' => $approve['due_at'] ?? null,
-                            'Responsible_id' => $approve['user']['id'] ?? $user->id,
-                            'created_by' => $user->id,
-                            'minutes_id' => $record->id,
-                            'city_id' => $cp->detectCity($keywords),
-                            'organ_id' => $cp->detectOrgan($keywords),
-                        ]);
-                        $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
-                        $task->project()->attach($approve['projects']);
-                    }
-
-                    $message = '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
-                    $message .= $this->createMinuteMessage($record, $user);
-                    $this->sendMessage($chatId, $message);
+                    $record = $this->handleMinute_create($caption,$chatId,$user);
 
                     if (isset($data['message']['document'])) {
                         $doc = $data['message']['document'];
-                        $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
-                        Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
-                        if ($media_group_id) {
-                            $state_data = explode('_', $bale_user->state);
-//                            $this->sendMessage(1497344206,json_encode($state_data));
-                            if ($state_data[0] == "$media_group_id") {
-                                $child = $record::withoutEvents(function () use ($record, $state_data) {
-                                    return $record->appendix_others()->create([
-                                        'title' => 'ضمیمه',
-                                        'file' => $state_data[2],
-                                    ]);
-                                });
-
-                                Storage::disk('private_appendix_other')
-                                    ->put($child->getFilePath(), $this->getFile($state_data[1]));
-                            }
-                        }
-                        $bale_user->update(['state' => '1']);
+                        $this->MinuteFileAdd($record,$doc,$media_group_id,$bale_user);
                     }
                     return response('صورت جلسه ایجاد شد.');
 
@@ -582,52 +541,12 @@ EOT],
                         $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
                     } else {
-                        if (!$user->can('create_letter')) {
-                            $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
-                            return response('عدم دسترسی');
-                        }
-
-
-                        $ltp = new LetterParser();
-                        $dataLetter = $ltp->parse($caption);
-
-                        $record = Letter::create([
-                            'subject' => $dataLetter['title'],
-                            'created_at' => $dataLetter['title_date'] ?? Carbon::now(),
-                            'description' => $dataLetter['description'] . "\n\n" . $caption,
-                            'summary' => $dataLetter['summary'],
-                            'mokatebe' => $dataLetter['mokatebe'],
-                            'daftar_id' => $dataLetter['daftar'],
-                            'kind' => $dataLetter['kind'],
-                            'user_id' => $user->id,
-                            'peiroow_letter_id' => $dataLetter['pirow'],
-                            'status' => $dataLetter['status'],
-                        ]);
-
-                        if ($dataLetter['kind'] == 1) {
-                            $record->organ_id = $dataLetter['organ_id'];
-                            $record->save();
-                        } else {
-                            $record->organs_owner()->attach($dataLetter['organ_id']);
-                        }
-
-                        $record->users()->attach($dataLetter['user_id']); //افزودن به کارپوشه
-                        $record->organs_owner()->attach($dataLetter['organ_owners']);
-                        $record->customers()->attach($dataLetter['customer_owners']);
-                        $record->projects()->attach($dataLetter['projects']);
-
-                        $message = '✉️ اطلاعاعت نامه ذخیره شده' . "\n\n";
-                        $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
-                        $message .= $this->CreateLetterMessage($record);
-                        $this->sendMessage($chatId, $message);
+                        $record = $this->handleLetter_create($caption,$chatId,$user);
 
                         if (isset($data['message']['document'])) {
                             $doc = $data['message']['document'];
-                            $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
-                            Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
-                            if ($media_group_id) {
-                                $bale_user->update(['state' => $media_group_id . "_letter_{$record->id}"]);
-                            }
+
+                            $this->LetterFileAdd($record,$doc,$media_group_id,$bale_user);
                         }
                     }
                 }
@@ -1305,5 +1224,129 @@ TEXT;
             return $task;
         }
         return null;
+    }
+
+    private function handleMinute_create($caption,$chatId,$user)
+    {
+        if (!$user->can('create_minutes')) {
+            $this->sendMessage($chatId, '❌ شما برای ایجاد صورت‌جلسه‌ دسترسی ندارید!');
+            return response('عدم دسترسی');
+        }
+        $mp = new \App\Http\Controllers\ai\MinutesParser();
+        $parsedData = $mp->parse($caption, $user->id);
+
+        $mdata = [
+            'title' => $parsedData['title'],
+            'date' => $parsedData['title_date'] ?? Carbon::now(),
+            'text' => $caption,
+            'typer_id' => $user->id,
+            'task_id' => $parsedData['task_id'],
+        ];
+        $this->sendMessage($chatId, "📝🔄 در حال پردازش و ذخیره سازی صورت جلسه" . "\n");
+
+        $record = Minutes::create($mdata);
+        $record->organ()->attach($parsedData['organs']);
+        $record->group()->attach(1);
+        foreach ($parsedData['approves'] as $approve) {
+            $cp = new \App\Http\Controllers\ai\CategoryPredictor();
+            $keywords = $cp->extractKeywords($approve['text']);
+            $task = Task::create([
+                'name' => $approve['text'],
+                'started_at' => $mdata['date'],
+                'created_at' => $mdata['date'],
+                'amount' => $approve['amount'],
+                'ended_at' => $approve['due_at'] ?? null,
+                'Responsible_id' => $approve['user']['id'] ?? $user->id,
+                'created_by' => $user->id,
+                'minutes_id' => $record->id,
+                'city_id' => $cp->detectCity($keywords),
+                'organ_id' => $cp->detectOrgan($keywords),
+            ]);
+            $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
+            $task->project()->attach($approve['projects']);
+        }
+
+        $message = '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
+        $message .= $this->createMinuteMessage($record, $user);
+        $this->sendMessage($chatId, $message);
+
+        return $record;
+    }
+
+    private function MinuteFileAdd($record,$doc,$media_group_id,$bale_user)
+    {
+        $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
+        Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
+        if ($media_group_id) {
+            $state_data = explode('_', $bale_user->state);
+//                            $this->sendMessage(1497344206,json_encode($state_data));
+            if ($state_data[0] == "$media_group_id") {
+                $child = $record::withoutEvents(function () use ($record, $state_data) {
+                    return $record->appendix_others()->create([
+                        'title' => 'ضمیمه',
+                        'file' => $state_data[2],
+                    ]);
+                });
+
+                Storage::disk('private_appendix_other')
+                    ->put($child->getFilePath(), $this->getFile($state_data[1]));
+            }
+        }
+        $bale_user->update(['state' => '1']);
+
+        return true;
+    }
+
+    private function handleLetter_create($caption,$chatId,$user)
+    {
+        if (!$user->can('create_letter')) {
+            $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
+            return response('عدم دسترسی');
+        }
+
+
+        $ltp = new LetterParser();
+        $dataLetter = $ltp->parse($caption);
+
+        $record = Letter::create([
+            'subject' => $dataLetter['title'],
+            'created_at' => $dataLetter['title_date'] ?? Carbon::now(),
+            'description' => $dataLetter['description'] . "\n\n" . $caption,
+            'summary' => $dataLetter['summary'],
+            'mokatebe' => $dataLetter['mokatebe'],
+            'daftar_id' => $dataLetter['daftar'],
+            'kind' => $dataLetter['kind'],
+            'user_id' => $user->id,
+            'peiroow_letter_id' => $dataLetter['pirow'],
+            'status' => $dataLetter['status'],
+        ]);
+
+        if ($dataLetter['kind'] == 1) {
+            $record->organ_id = $dataLetter['organ_id'];
+            $record->save();
+        } else {
+            $record->organs_owner()->attach($dataLetter['organ_id']);
+        }
+
+        $record->users()->attach($dataLetter['user_id']); //افزودن به کارپوشه
+        $record->organs_owner()->attach($dataLetter['organ_owners']);
+        $record->customers()->attach($dataLetter['customer_owners']);
+        $record->projects()->attach($dataLetter['projects']);
+
+        $message = '✉️ اطلاعاعت نامه ذخیره شده' . "\n\n";
+        $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
+        $message .= $this->CreateLetterMessage($record);
+        $this->sendMessage($chatId, $message);
+
+        return $record;
+    }
+
+    private function LetterFileAdd($record,$doc,$media_group_id,$bale_user)
+    {
+        $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
+        Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
+        if ($media_group_id) {
+            $bale_user->update(['state' => $media_group_id . "_letter_{$record->id}"]);
+        }
     }
 }
