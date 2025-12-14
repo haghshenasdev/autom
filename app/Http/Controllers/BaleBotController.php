@@ -417,47 +417,24 @@ class BaleBotController extends Controller
 
                     return response('نامه ارسال شد');
                 } elseif (str_starts_with($text, '#کار') or str_starts_with($text, '#جلسه')) {
-                    // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
-                    if (str_starts_with($text, '#کار')) $title = trim(substr($text, strlen('#کار')));
-                    $title = str_replace('#', '', $title);
 
-                    $catPreder = new CategoryPredictor();
-                    $cats = $catPreder->predictWithCityOrgan($title);
-                    $time = $catPreder->extractDateFromTitle($title) ?? Carbon::now();
-                    if ($cats) {
-                        $dataTask = [
-                            'name' => mb_substr($catPreder->cleanTitle($title), 0, 350),
-                            'description' => $text,
-                            'created_at' => $time,
-                            'completed_at' => $time,
-                            'started_at' => $time,
-                            'completed' => 1,
-                            'status' => 1,
-                            'Responsible_id' => $user->id,
-                            'created_by' => $user->id,
-                            'city_id' => $cats['city'],
-                            'organ_id' => $cats['organ'],
-                        ];
-                        $task = Task::create($dataTask);
-                        $task->project()->attach($cats['categories']);
-                        $task->group()->attach([32, ($user->id == 20) ? 1 : 2]);
+                    $task = $this->handleTasks_create($text,$user,$chatId);
 
-                        //پیام
-                        $dataTask['city_id'] = City::find($dataTask['city_id'])->name ?? 'نامشخص';
-                        $dataTask['started_at'] = Jalalian::fromDateTime($dataTask['started_at'])->format('Y/m/d');
-
-                        $message = " 📌 *عنوان:* {$dataTask['name']}\n";
-                        $message .= " 🆔 *شماره ثبت:* {$task->id}\n";
-                        $message .= " 🕒 *تاریخ:* {$dataTask['started_at']}\n";
-                        $message .= "✅ *وضعیت:* انجام شده\n";
-                        $message .= "📍 *شهر:* {$dataTask['city_id']}\n";
-                        $message .= "👤 *مسئول:* {$user->name}";
-                        $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
-
-                        $this->sendMessage($chatId, $message);
+                    if ($task){
+                        // ضمیمه کردن ریپلای
+                        if (isset($data['message']['reply_to_message']['document']['file_id'])){
+                            $reply_msg = $data['message']['reply_to_message'];
+                            $doc = $reply_msg['document'];
+                            $appendix = $task->appendix_others()->create([
+                                'title' => 'ضمیمه',
+                                'description' => $reply_msg['text'] ?? null,
+                                'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
+                            ]);
+                            Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
+                        }
                     }
 
-                    return response("Task ذخیره شد: " . $title);
+                    return response("Task ذخیره شد: ");
                 } elseif (str_starts_with($firstLine, '/راهنما')) {
                     $queryText = trim(str_replace('/راهنما', '', $firstLine));
                     $message = $this->HelpHandler($queryText);
@@ -482,12 +459,15 @@ class BaleBotController extends Controller
                     return response("آمار ارسال شد .");
                 } else if (isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private") {
                     $this->sendMessage($chatId, '🔁 درحال پردازش ...');
-                    $response = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-                    ])->post('https://api.gapgpt.app/v1/chat/completions', [
-                        'model' => 'gpt-4o',
-                        'messages' => [
-                            ['role' => 'user', 'content' => <<<EOT
+
+                    try {
+
+                        $response = Http::withHeaders([
+                            'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+                        ])->post('https://api.gapgpt.app/v1/chat/completions', [
+                            'model' => 'gpt-4o',
+                            'messages' => [
+                                ['role' => 'user', 'content' => <<<EOT
 برام جواب مناسب برای پیام کاربر را با توجه به اطلاعات زیر بفرست، بدون هیچ توضیح اضافی.
 این پیام را از طرف ربات کارنما که می تواند به کاربر کمک کند بتوانید به راحتی و سریع ترین حالت ممکن از سامانه کارنما استفاده کند و کار ها و صورت جلسه های خود را مدیریت کنید.
 
@@ -504,18 +484,22 @@ class BaleBotController extends Controller
 {$this->HelpHandler('کار')}
 ----------------
 EOT],
-                        ],
-                    ]);
+                            ],
+                        ]);
 
-                    $content = $response->json('choices.0.message.content');
+                        $content = $response->json('choices.0.message.content');
 
-                    $this->sendMessage($chatId, $content);
+                        $this->sendMessage($chatId, $content);
+                    } catch (Exception $exception){
+                        $this->sendMessage($chatId, 'متاسفانه ارتباط با هوش مصنوعی با مشکل مواجه شد . لطفا ساعاتی دیگر پیام دهید .');
+                        throw $exception;
+                    }
                 }
 
             } elseif ($caption != '') {
                 $caption = CalendarUtils::convertNumbers($caption, true); // تبدیل اعداد فارسی به انگلیسی
                 // تشخیص هشتگ‌ها
-                $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار'];
+                $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار', '#جلسه'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
 
 
@@ -587,7 +571,8 @@ EOT],
                     }
                     return response('صورت جلسه ایجاد شد.');
 
-                } elseif ($matched === '#نامه') {
+                }
+                elseif ($matched === '#نامه') {
                     if (str_contains($caption, '#متن')) {
                         $ltp = new LetterParser();
                         $dataLetter = $ltp->mixedParse($caption);
@@ -643,7 +628,21 @@ EOT],
                         }
                     }
                 }
+                elseif (in_array($matched, ['#کار', '#جلسه'])){
+                    $task = $this->handleTasks_create($caption,$user,$chatId);
 
+                    if ($task){
+                        // ضمیمه کردن فایل
+                        if (isset($data['message']['document']['file_id'])){
+                            $doc = $data['message']['document'];
+                            $appendix = $task->appendix_others()->create([
+                                'title' => 'ضمیمه',
+                                'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
+                            ]);
+                            Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
+                        }
+                    }
+                }
                 // ارسال پیام تأیید
                 if ($record) {
                     $this->sendMessage($chatId, "ثبت شد ✅ آیدی: {$record->id}");
@@ -1215,5 +1214,51 @@ TEXT;
 
         }
         return $message;
+    }
+
+    private function handleTasks_create($text,$user,$chatId)
+    {
+        // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
+        if (str_starts_with($text, '#کار')) $title = trim(substr($text, strlen('#کار')));
+        $title = trim(str_replace('#', '', $title));
+
+        $catPreder = new CategoryPredictor();
+        $cats = $catPreder->predictWithCityOrgan($title);
+        $time = $catPreder->extractDateFromTitle($title) ?? Carbon::now();
+        if ($cats) {
+            $dataTask = [
+                'name' => mb_substr($catPreder->cleanTitle($title), 0, 350),
+                'description' => $text,
+                'created_at' => $time,
+                'completed_at' => $time,
+                'started_at' => $time,
+                'completed' => 1,
+                'status' => 1,
+                'Responsible_id' => $user->id,
+                'created_by' => $user->id,
+                'city_id' => $cats['city'],
+                'organ_id' => $cats['organ'],
+            ];
+            $task = Task::create($dataTask);
+            $task->project()->attach($cats['categories']);
+            $task->group()->attach([32, ($user->id == 20) ? 1 : 2]);
+
+            //پیام
+            $dataTask['city_id'] = City::find($dataTask['city_id'])->name ?? 'نامشخص';
+            $dataTask['started_at'] = Jalalian::fromDateTime($dataTask['started_at'])->format('Y/m/d');
+
+            $message = " 📌 *عنوان:* {$dataTask['name']}\n";
+            $message .= " 🆔 *شماره ثبت:* {$task->id}\n";
+            $message .= " 🕒 *تاریخ:* {$dataTask['started_at']}\n";
+            $message .= "✅ *وضعیت:* انجام شده\n";
+            $message .= "📍 *شهر:* {$dataTask['city_id']}\n";
+            $message .= "👤 *مسئول:* {$user->name}";
+            $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
+
+            $this->sendMessage($chatId, $message);
+
+            return $task;
+        }
+        return null;
     }
 }
