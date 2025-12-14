@@ -7,6 +7,7 @@ use App\Filament\Resources\MinutesResource;
 use App\Filament\Resources\TaskResource;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\ai\LetterParser;
+use App\Models\AppendixOther;
 use App\Models\Cartable;
 use App\Models\City;
 use App\Models\Project;
@@ -425,11 +426,13 @@ class BaleBotController extends Controller
                         if (isset($data['message']['reply_to_message']['document']['file_id'])){
                             $reply_msg = $data['message']['reply_to_message'];
                             $doc = $reply_msg['document'];
-                            $appendix = $task->appendix_others()->create([
-                                'title' => 'ضمیمه',
-                                'description' => $reply_msg['text'] ?? null,
-                                'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
-                            ]);
+                            $appendix = AppendixOther::withoutEvents(function () use ($task,$doc,$reply_msg) {
+                                return $task->appendix_others()->create([
+                                    'title'       => 'ضمیمه',
+                                    'description' => $reply_msg['text'] ?? null,
+                                    'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
+                                ]);
+                            });
                             Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
                         }
                     }
