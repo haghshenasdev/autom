@@ -463,7 +463,7 @@ EOT],
         return null;
     }
 
-    public function detectOrgan(array $keywords): ?int
+    public function detectOrgan(array $keywords, int $minRequiredMatches = 2): ?int
     {
         $organs = Cache::remember('organ_records', 3600, function () {
             return Organ::select('id', 'name')->get();
@@ -485,7 +485,7 @@ EOT],
         }
 
         // اگر هیچ تطابقی نداشت، null برمی‌گردد
-        return $maxMatchCount > 0 ? $bestMatchId : null;
+        return $maxMatchCount >= $minRequiredMatches ? $bestMatchId : null;
     }
 
     public function extractKeywords(string $text): array
