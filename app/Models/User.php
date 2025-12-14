@@ -6,6 +6,7 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasAvatar;
 use Filament\Panel;
+use Glorand\Model\Settings\Traits\HasSettingsTable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,7 +21,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements HasAvatar,FilamentUser
 {
-    use HasApiTokens, HasFactory, Notifiable , HasRoles,LogsActivity,HasFilaChat;
+    use HasApiTokens, HasFactory, Notifiable , HasRoles,LogsActivity,HasFilaChat,HasSettingsTable;
 
     /**
      * The attributes that are mass assignable.
@@ -52,6 +53,16 @@ class User extends Authenticatable implements HasAvatar,FilamentUser
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+    ];
+
+    public $defaultSettings = [
+        'send_notif_bale_login' => true,
+        'send_notif_bale_added_cartable' => true,
+        'send_notif_panel_added_cartable' => true,
+        'send_notif_bale_referral' => true,
+        'send_notif_panel_referral' => true,
+        'send_notif_bale_task' => true,
+        'send_notif_panel_task' => true,
     ];
 
     public function letters(): BelongsToMany

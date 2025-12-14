@@ -1294,7 +1294,7 @@ TEXT;
         $record = Letter::create([
             'subject' => $dataLetter['title'],
             'created_at' => $dataLetter['title_date'] ?? Carbon::now(),
-            'description' => $dataLetter['description'] . "\n\n" . $caption,
+            'description' => $dataLetter['description'],
             'summary' => $dataLetter['summary'],
             'mokatebe' => $dataLetter['mokatebe'],
             'daftar_id' => $dataLetter['daftar'],
@@ -1316,7 +1316,7 @@ TEXT;
         $record->customers()->attach($dataLetter['customer_owners']);
         $record->projects()->attach(count($projects_id) != 0 ? array_unique($projects_id) : $dataLetter['projects']);
 
-        $message = '✉️ اطلاعاعت نامه ذخیره شده' . "\n\n";
+        $message = '✉️ اطلاعات نامه ذخیره شده' . "\n\n";
         $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
         $message .= $this->CreateLetterMessage($record);
         $this->sendMessage($chatId, $message);

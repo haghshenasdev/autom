@@ -33,6 +33,7 @@
         "mokhosh/filament-jalali": "^4.6",
         "phpsa/filament-password-reveal": "^2.0",
         "pxlrbt/filament-excel": "^2.1",
+        "quadrubo/filament-model-settings": "^1.5",
         "rmsramos/activitylog": "^2.0",
         "saade/filament-autograph": "^3.2",
         "saade/filament-fullcalendar": "3.0",

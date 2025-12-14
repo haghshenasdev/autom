@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "74a79a94c9745bf8876db7d6d7073d98",
+    "content-hash": "4619e2463e21007a2d20a0cfbfb24c21",
     "packages": [
         {
             "name": "alperenersoy/filament-export",
@@ -2943,6 +2943,76 @@
                 "source": "https://github.com/mikebronner/laravel-pivot-events"
             },
             "time": "2024-03-14T23:24:54+00:00"
+        },
+        {
+            "name": "glorand/laravel-model-settings",
+            "version": "8.0.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/glorand/laravel-model-settings.git",
+                "reference": "24ed93ad9b8e68f23535533f10effa6966afe6d8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/glorand/laravel-model-settings/zipball/24ed93ad9b8e68f23535533f10effa6966afe6d8",
+                "reference": "24ed93ad9b8e68f23535533f10effa6966afe6d8",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "illuminate/cache": "^10.0|^11.0|^12.0",
+                "illuminate/config": "^10.0|^11.0|^12.0",
+                "illuminate/console": "^10.0|^11.0|^12.0",
+                "illuminate/database": "^10.0|^11.0|^12.0",
+                "illuminate/filesystem": "^10.0|^11.0|^12.0",
+                "illuminate/support": "^10.0|^11.0|^12.0",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.14",
+                "josiasmontag/laravel-redis-mock": "^1.2",
+                "orchestra/testbench": "^8.0|^9.0|^10.0",
+                "phpunit/phpunit": "^10.5|^11.0"
+            },
+            "suggest": {
+                "predis/predis": "Required to use settings with Redis"
+            },
+            "type": "laravel-package",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Glorand\\Model\\Settings\\ModelSettingsServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Glorand\\Model\\Settings\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Lorand Gombos",
+                    "email": "gombos.lorand@gmail.com"
+                }
+            ],
+            "description": "Model Settings for your Laravel app",
+            "keywords": [
+                "Settings",
+                "glorand",
+                "laravel",
+                "laravel-model-settings",
+                "laravel-settings"
+            ],
+            "support": {
+                "issues": "https://github.com/glorand/laravel-model-settings/issues",
+                "source": "https://github.com/glorand/laravel-model-settings/tree/8.0.3"
+            },
+            "time": "2025-09-14T18:58:56+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -7520,6 +7590,86 @@
                 }
             ],
             "time": "2025-02-20T12:51:05+00:00"
+        },
+        {
+            "name": "quadrubo/filament-model-settings",
+            "version": "v1.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Quadrubo/filament-model-settings.git",
+                "reference": "767de9821e476435349291abe1f231085fd636f3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Quadrubo/filament-model-settings/zipball/767de9821e476435349291abe1f231085fd636f3",
+                "reference": "767de9821e476435349291abe1f231085fd636f3",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^3.0",
+                "glorand/laravel-model-settings": "^6.0|^7.0|^8.0",
+                "illuminate/contracts": "^10.0|^11.0|^12.0",
+                "php": "^8.1",
+                "spatie/laravel-package-tools": "^1.15.0"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.0",
+                "nunomaduro/collision": "^7.9|^8.0",
+                "nunomaduro/larastan": "^2.0.1|^3.0",
+                "orchestra/testbench": "^8.0|^9.0|^10.0",
+                "pestphp/pest": "^2.0|^3.0",
+                "pestphp/pest-plugin-arch": "^2.0|^3.0",
+                "pestphp/pest-plugin-laravel": "^2.0|^3.0",
+                "phpstan/extension-installer": "^1.1",
+                "phpstan/phpstan-deprecation-rules": "^1.0|^2.0",
+                "phpstan/phpstan-phpunit": "^1.0|^2.0",
+                "phpunit/phpunit": "^10.0.17|^11.0|^12.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "FilamentModelSettings": "Quadrubo\\FilamentModelSettings\\Facades\\FilamentModelSettings"
+                    },
+                    "providers": [
+                        "Quadrubo\\FilamentModelSettings\\FilamentModelSettingsServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Quadrubo\\FilamentModelSettings\\": "src/",
+                    "Quadrubo\\FilamentModelSettings\\Database\\Factories\\": "database/factories/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Quadrubo",
+                    "role": "Developer"
+                }
+            ],
+            "description": "This is my package filament-model-settings",
+            "homepage": "https://github.com/quadrubo/filament-model-settings",
+            "keywords": [
+                "Quadrubo",
+                "filament-model-settings",
+                "laravel"
+            ],
+            "support": {
+                "issues": "https://github.com/quadrubo/filament-model-settings/issues",
+                "source": "https://github.com/quadrubo/filament-model-settings"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/Quadrubo",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-04-17T14:06:33+00:00"
         },
         {
             "name": "ralouphie/getallheaders",
@@ -15214,6 +15364,6 @@
         "ext-fileinfo": "*",
         "ext-libxml": "*"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }
