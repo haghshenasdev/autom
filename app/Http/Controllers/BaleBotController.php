@@ -480,7 +480,7 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, '🔁 درحال پردازش ...');
 
                     try {
-
+                        $rh = route('bale_help');
                         $response = Http::withHeaders([
                             'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
                         ])->post('https://api.gapgpt.app/v1/chat/completions', [
@@ -494,14 +494,8 @@ class BaleBotController extends Controller
 {$text}
 
 اطلاعات :
-{$this->HelpHandler('')}
-----------------
-{$this->HelpHandler('صورتجلسه')}
-----------------
-{$this->HelpHandler('نامه')}
-----------------
-{$this->HelpHandler('کار')}
-----------------
+اطلاعات را از لینک زیر بخون
+{$rh}
 EOT],
                             ],
                         ]);
@@ -896,7 +890,7 @@ EOT],
         }
     }
 
-    private function HelpHandler(string $queryText): string
+    public function HelpHandler(string $queryText): string
     {
         $message = '';
         if ($queryText != ''){

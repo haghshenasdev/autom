@@ -18,6 +18,18 @@ Route::get('/', function () {
     return redirect('admin');
 });
 
+Route::get('/bale_bot_help', function () {
+    $bale_bot = new \App\Http\Controllers\BaleBotController();
+    return response(str_replace("\n",'<br>',"{$bale_bot->HelpHandler('')}
+----------------
+{$bale_bot->HelpHandler('صورتجلسه')}
+----------------
+{$bale_bot->HelpHandler('نامه')}
+----------------
+{$bale_bot->HelpHandler('کار')}
+----------------"));
+})->name('bale_help');
+
 Route::middleware('auth')->group(function () {
     Route::get('/private-dl/{path}', function ($path) {
         if (!Storage::disk('private')->exists($path)) {
