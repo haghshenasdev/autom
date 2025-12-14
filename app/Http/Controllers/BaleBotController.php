@@ -1155,35 +1155,14 @@ TEXT;
     private function handleTasks_create($text,$user,$chatId)
     {
         // استخراج دستور کار
-        $projects_id = [];
-        if (preg_match('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $text, $pm)) {
-            $content = trim($pm[1]);
+        $extractedProjects = $this->extractProjects($text);
+        $text = $extractedProjects['text'];
+        $projects_id = $extractedProjects['projects_id'];
 
-            // جدا کردن چند پروژه با کاما فارسی یا نقطه
-            $items = preg_split('/[،\.]+/u', $content);
-
-            foreach ($items as $item) {
-                $item = trim($item);
-                if (!$item) continue;
-
-                if (is_numeric($item)) {
-                    $project = Project::find($item);
-                    if ($project) {
-                        $projects_id[] = $project->id;
-                    }
-                } else {
-                    $project = Project::query()->where('name', 'like', '%' . $item . '%')->first();
-                    if ($project) {
-                        $projects_id[] = $project->id;
-                    }
-                }
-            }
-
-            // پاک کردن بخش پروژه/دستورکار از متن
-            $text = preg_replace('/(?:پروژه|دستور\s*کار)\s+.+/u', '', $text);
-        }
+        $lines = explode("\n", $text);
+        $firstLine = $lines[0] ?? '';
         // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
-        if (str_starts_with($text, '#کار')) $title = trim(substr($text, strlen('#کار')));
+        if (str_starts_with($firstLine, '#کار')) $title = trim(substr($firstLine, strlen('#کار')));
         $title = trim(str_replace('#', '', $title));
 
         $catPreder = new CategoryPredictor();
@@ -1304,6 +1283,10 @@ TEXT;
             return response('عدم دسترسی');
         }
 
+        // استخراج دستور کار
+        $extractedProjects = $this->extractProjects($caption);
+        $caption = $extractedProjects['text'];
+        $projects_id = $extractedProjects['projects_id'];
 
         $ltp = new LetterParser();
         $dataLetter = $ltp->parse($caption);
@@ -1331,7 +1314,7 @@ TEXT;
         $record->users()->attach($dataLetter['user_id']); //افزودن به کارپوشه
         $record->organs_owner()->attach($dataLetter['organ_owners']);
         $record->customers()->attach($dataLetter['customer_owners']);
-        $record->projects()->attach($dataLetter['projects']);
+        $record->projects()->attach(count($projects_id) != 0 ? array_unique($projects_id) : $dataLetter['projects']);
 
         $message = '✉️ اطلاعاعت نامه ذخیره شده' . "\n\n";
         $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
@@ -1348,5 +1331,40 @@ TEXT;
         if ($media_group_id) {
             $bale_user->update(['state' => $media_group_id . "_letter_{$record->id}"]);
         }
+    }
+
+    private function extractProjects($text)
+    {
+        $projects_id = [];
+        if (preg_match('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $text, $pm)) {
+            $content = trim($pm[1]);
+
+            // جدا کردن چند پروژه با کاما فارسی یا نقطه
+            $items = preg_split('/[،\.]+/u', $content);
+
+            foreach ($items as $item) {
+                $item = trim($item);
+                if (!$item) continue;
+
+                if (is_numeric($item)) {
+                    $project = Project::find($item);
+                    if ($project) {
+                        $projects_id[] = $project->id;
+                    }
+                } else {
+                    $project = Project::query()->where('name', 'like', '%' . $item . '%')->first();
+                    if ($project) {
+                        $projects_id[] = $project->id;
+                    }
+                }
+            }
+
+            // پاک کردن بخش پروژه/دستورکار از متن
+            $text = preg_replace('/(?:پروژه|دستور\s*کار)\s+.+/u', '', $text);
+        }
+        return [
+            'text' => $text,
+            'projects_id' => $projects_id,
+        ];
     }
 }
