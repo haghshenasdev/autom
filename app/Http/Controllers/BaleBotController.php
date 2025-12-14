@@ -429,7 +429,7 @@ class BaleBotController extends Controller
                             $appendix = AppendixOther::withoutEvents(function () use ($task,$doc,$reply_msg) {
                                 return $task->appendix_others()->create([
                                     'title'       => 'ضمیمه',
-                                    'description' => $reply_msg['text'] ?? null,
+                                    'description' => $reply_msg['caption'] ?? null,
                                     'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
                                 ]);
                             });
@@ -638,10 +638,12 @@ EOT],
                         // ضمیمه کردن فایل
                         if (isset($data['message']['document']['file_id'])){
                             $doc = $data['message']['document'];
-                            $appendix = $task->appendix_others()->create([
-                                'title' => 'ضمیمه',
-                                'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
-                            ]);
+                            $appendix = AppendixOther::withoutEvents(function () use ($task,$doc) {
+                                return $task->appendix_others()->create([
+                                    'title'       => 'ضمیمه',
+                                    'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
+                                ]);
+                            });
                             Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
                         }
                     }
