@@ -1253,8 +1253,8 @@ TEXT;
                         $projects_id[] = $project->id;
                     }
                 } else {
-                    $projects = Project::where('name', 'like', '%' . $item . '%')->get();
-                    foreach ($projects as $project) {
+                    $project = Project::query()->where('name', 'like', '%' . $item . '%')->first();
+                    if ($project) {
                         $projects_id[] = $project->id;
                     }
                 }
