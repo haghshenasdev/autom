@@ -349,7 +349,7 @@ class BaleBotController extends Controller
                     }elseif (isset($data['message']['reply_to_message']['document']['file_id'])) {
                         $reply_msg = $data['message']['reply_to_message'];
                         $doc = $reply_msg['document'];
-                        $record = $this->handleLetter_create($caption,$chatId,$user);
+                        $record = $this->handleLetter_create($text,$chatId,$user);
 
                         $this->LetterFileAdd($record,$doc,$media_group_id,$bale_user);
                     }
