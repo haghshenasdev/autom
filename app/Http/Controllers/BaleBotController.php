@@ -671,7 +671,7 @@ EOT],
         $message = "📝 عنوان: {$record->name}\n";
         $message .= "🆔 شماره ثبت: {$record->id}\n";
         $message .= "ℹ️ وضعیت انجام: " . ($record->completed ? '✅ انجام شده' : '❌ انجام نشده') . "\n";
-        if ($user and $user->can('restore_any_task')) $message .= "👤 مسئول: {$record->responsible->name}\n";
+        if ($user and $user->can('restore_any_task') and $record->responsible) $message .= "👤 مسئول: {$record->responsible->name}\n";
         $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($record->created_at)->format('Y/m/d') . "\n";
         if ($record->completed and $record->completed_at) $message .= "📅 تاریخ انجام: " . Jalalian::fromDateTime($record->completed_at)->format('Y/m/d') . "\n";
         if ($record->ended_at) $message .= "📅 تاریخ پایان: " . Jalalian::fromDateTime($record->ended_at)->format('Y/m/d') . "\n";
