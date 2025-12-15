@@ -603,6 +603,7 @@ EOT],
         $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($record->created_at)->format('Y/m/d') . "\n";
         if ($record->completed and $record->completed_at) $message .= "📅 تاریخ انجام: " . Jalalian::fromDateTime($record->completed_at)->format('Y/m/d') . "\n";
         if ($record->ended_at) $message .= "📅 تاریخ پایان: " . Jalalian::fromDateTime($record->ended_at)->format('Y/m/d') . "\n";
+        if ($record->city_id) $message .= "📍 شهر : " . $record->city->name . "\n";
         if ($record->project->count() != 0) {
             $message .= "🎚️ دستورکار : ";
             foreach ($record->project as $project) {
