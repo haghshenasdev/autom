@@ -265,7 +265,7 @@ class BaleBotController extends Controller
                             $mp = new \App\Http\Controllers\ai\MinutesParser(false);
                             $parsedData = $mp->parse($text, $user->id,Carbon::createFromTimestamp($minute->date));
                             if (count($parsedData['approves']) != 0) {
-                                $message = 'مصوبات زیر به صورجلسه "' . $minute->title . '" اضافه شد .' . "\n\n";
+                                $message = 'مصوبات زیر به صورتجلسه "' . $minute->title . '" اضافه شد .' . "\n\n";
 
                                 foreach ($parsedData['approves'] as $approve) {
                                     $cp = new \App\Http\Controllers\ai\CategoryPredictor();
