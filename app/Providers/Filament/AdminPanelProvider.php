@@ -8,6 +8,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\MenuItem;
 use Filament\Navigation\NavigationGroup;
 use Filament\Notifications\Livewire\Notifications;
 use Filament\Pages;
@@ -47,7 +48,12 @@ class AdminPanelProvider extends PanelProvider
             ->favicon(asset('karnama2.png'))
             ->sidebarCollapsibleOnDesktop()
             ->path('admin')
-            ->login()
+            ->login()->userMenuItems([
+                MenuItem::make()
+                    ->label('حالت موبایل ')
+                    ->url(url('/toggle-mobile-mode'))
+                    ->icon('heroicon-o-device-phone-mobile'),
+            ])
             ->colors([
                 'primary' => Color::Sky,
             ])->databaseNotifications()->databaseNotificationsPolling('30s')

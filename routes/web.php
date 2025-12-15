@@ -17,6 +17,14 @@ use Illuminate\Support\Facades\Storage;
 Route::get('/', function () {
     return redirect('admin');
 });
+Route::get('/toggle-mobile-mode', function () {
+
+    $current = request()->cookie('mobile_mode', 'off');
+    $new = $current === 'on' ? 'off' : 'on';
+
+    // کوکی را برای مدت طولانی (مثلاً یک سال) ذخیره می‌کنیم
+    return redirect()->back()->withCookie(cookie('mobile_mode', $new, 60 * 24 * 30));
+})->name('togglemobile');
 
 Route::middleware('auth')->group(function () {
     Route::get('/private-dl/{path}', function ($path) {
