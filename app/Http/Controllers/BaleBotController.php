@@ -43,6 +43,7 @@ class BaleBotController extends Controller
             $caption = $data['message']['caption'] ?? '';
             $date = $data['date'] ?? now()->toDateTime();
             $media_group_id = $data['message']['media_group_id'] ?? null;
+            $isPrivateChat = isset($data['message']['chat']['type']) && $data['message']['chat']['type'] == "private";
 //            $this->sendMessage($chatId, json_encode($data));
 
             if(is_null($userMessage)) return null;
@@ -290,6 +291,9 @@ class BaleBotController extends Controller
                                     $message .= "----------------------\n";
                                 }
 
+                                if (!$isPrivateChat){
+                                    $message = '📋 ['.count($parsedData['approves']).' مصوبه به صورتجلسه "'.$minute->title.'" اظافه شد .]('. MinutesResource::getUrl('edit',[$minute->id]).')';
+                                }
                                 $this->sendMessage($chatId, $message);
                                 return response('مصوبه ها ایجاد شدند');
                             }else{
@@ -349,7 +353,7 @@ class BaleBotController extends Controller
                     }elseif (isset($data['message']['reply_to_message']['document']['file_id'])) {
                         $reply_msg = $data['message']['reply_to_message'];
                         $doc = $reply_msg['document'];
-                        $record = $this->handleLetter_create($text,$chatId,$user);
+                        $record = $this->handleLetter_create($text,$chatId,$user,$isPrivateChat);
 
                         $this->LetterFileAdd($record,$doc,$media_group_id,$bale_user);
                     }
@@ -357,7 +361,7 @@ class BaleBotController extends Controller
                     if (isset($data['message']['reply_to_message']['document']['file_id'])) {
                         $reply_msg = $data['message']['reply_to_message'];
                         $doc = $reply_msg['document'];
-                        $record = $this->handleMinute_create($text, $chatId, $user);
+                        $record = $this->handleMinute_create($text, $chatId, $user,$isPrivateChat);
 
                         $this->MinuteFileAdd($record,$doc,$media_group_id,$bale_user);
                     }else {
@@ -435,7 +439,7 @@ class BaleBotController extends Controller
                     return response('نامه ارسال شد');
                 } elseif (str_starts_with($text, '#کار') or str_starts_with($text, '#جلسه')) {
 
-                    $task = $this->handleTasks_create($text,$user,$chatId);
+                    $task = $this->handleTasks_create($text,$user,$chatId,$isPrivateChat);
 
                     if ($task){
                         // ضمیمه کردن ریپلای
@@ -525,7 +529,7 @@ EOT],
                 // ذخیره در مدل مناسب
                 $record = null;
                 if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
-                    $record = $this->handleMinute_create($caption,$chatId,$user);
+                    $record = $this->handleMinute_create($caption,$chatId,$user,$isPrivateChat);
 
                     if (isset($data['message']['document'])) {
                         $doc = $data['message']['document'];
@@ -541,7 +545,7 @@ EOT],
                         $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
                     } else {
-                        $record = $this->handleLetter_create($caption,$chatId,$user);
+                        $record = $this->handleLetter_create($caption,$chatId,$user,$isPrivateChat);
 
                         if (isset($data['message']['document'])) {
                             $doc = $data['message']['document'];
@@ -551,7 +555,7 @@ EOT],
                     }
                 }
                 elseif (in_array($matched, ['#کار', '#جلسه'])){
-                    $task = $this->handleTasks_create($caption,$user,$chatId);
+                    $task = $this->handleTasks_create($caption,$user,$chatId,$isPrivateChat);
 
                     if ($task){
                         // ضمیمه کردن فایل
@@ -568,9 +572,9 @@ EOT],
                     }
                 }
                 // ارسال پیام تأیید
-                if ($record) {
-                    $this->sendMessage($chatId, "ثبت شد ✅ آیدی: {$record->id}");
-                }
+//                if ($record) {
+//                    $this->sendMessage($chatId, "ثبت شد ✅ آیدی: {$record->id}");
+//                }
                 return response('ok', 200);
             }
 
@@ -1152,7 +1156,7 @@ TEXT;
         return $message;
     }
 
-    private function handleTasks_create($text,$user,$chatId)
+    private function handleTasks_create($text,$user,$chatId,$isPrivateChat)
     {
         // استخراج دستور کار
         $extractedProjects = $this->extractProjects($text);
@@ -1190,14 +1194,18 @@ TEXT;
             $dataTask['city_id'] = City::find($dataTask['city_id'])->name ?? 'نامشخص';
             $dataTask['started_at'] = Jalalian::fromDateTime($dataTask['started_at'])->format('Y/m/d');
 
-            $message = " 📌 *عنوان:* {$dataTask['name']}\n";
-            $message .= " 🆔 *شماره ثبت:* {$task->id}\n";
-            $message .= " 🕒 *تاریخ:* {$dataTask['started_at']}\n";
-            $message .= "✅ *وضعیت:* انجام شده\n";
-            $message .= "📍 *شهر:* {$dataTask['city_id']}\n";
-            $message .= "👤 *مسئول:* {$user->name}";
-            $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
-
+            $message = '';
+            if ($isPrivateChat){
+                $message .= " 📌 *عنوان:* {$dataTask['name']}\n";
+                $message .= " 🆔 *شماره ثبت:* {$task->id}\n";
+                $message .= " 🕒 *تاریخ:* {$dataTask['started_at']}\n";
+                $message .= "✅ *وضعیت:* انجام شده\n";
+                $message .= "📍 *شهر:* {$dataTask['city_id']}\n";
+                $message .= "👤 *مسئول:* {$user->name}";
+                $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
+            }else{
+                $message .= '🕹️ [کار با شماره '.$task->id.' ثبت شد .]('. TaskResource::getUrl('edit',[$task->id]).')';
+            }
             $this->sendMessage($chatId, $message);
 
             return $task;
@@ -1205,7 +1213,7 @@ TEXT;
         return null;
     }
 
-    private function handleMinute_create($caption,$chatId,$user)
+    private function handleMinute_create($caption,$chatId,$user,$isPrivateChat)
     {
         if (!$user->can('create_minutes')) {
             $this->sendMessage($chatId, '❌ شما برای ایجاد صورت‌جلسه‌ دسترسی ندارید!');
@@ -1245,8 +1253,13 @@ TEXT;
             $task->project()->attach($approve['projects']);
         }
 
-        $message = '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
-        $message .= $this->createMinuteMessage($record, $user);
+        $message = '';
+        if ($isPrivateChat){
+            $message .= '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
+            $message .= $this->createMinuteMessage($record, $user);
+        }else{
+            $message .= '📝 [صورتجلسه با شماره '.$record->id.' ثبت شد .]('. MinutesResource::getUrl('edit',[$record->id]).')';
+        }
         $this->sendMessage($chatId, $message);
 
         return $record;
@@ -1276,7 +1289,7 @@ TEXT;
         return true;
     }
 
-    private function handleLetter_create($caption,$chatId,$user)
+    private function handleLetter_create($caption,$chatId,$user,$isPrivateChat)
     {
         if (!$user->can('create_letter')) {
             $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
@@ -1316,9 +1329,15 @@ TEXT;
         $record->customers()->attach($dataLetter['customer_owners']);
         $record->projects()->attach(count($projects_id) != 0 ? array_unique($projects_id) : $dataLetter['projects']);
 
-        $message = '✉️ اطلاعات نامه ذخیره شده' . "\n\n";
-        $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
-        $message .= $this->CreateLetterMessage($record);
+        $message = '';
+        if ($isPrivateChat){
+            $message .= '✉️ اطلاعات نامه ذخیره شد' . "\n\n";
+            $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
+            $message .= $this->CreateLetterMessage($record);
+        }else{
+            $message .= '✉️ [نامه با شماره '.$record->id.' ثبت شد .]('. LetterResource::getUrl('edit',[$record->id]).')';
+        }
+
         $this->sendMessage($chatId, $message);
 
         return $record;
