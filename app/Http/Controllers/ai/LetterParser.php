@@ -220,6 +220,7 @@ class LetterParser
         $organ_owner = array_unique($organ_owner);
         $customer_owner = array_unique($customer_owner);
         $projects_id = array_unique($projects_id);
+        $user = array_unique($user);
 
         return [
             'title' => $title,

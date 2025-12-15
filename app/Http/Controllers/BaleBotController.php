@@ -1196,13 +1196,9 @@ TEXT;
 
             $message = '';
             if ($isPrivateChat){
-                $message .= " 📌 *عنوان:* {$dataTask['name']}\n";
-                $message .= " 🆔 *شماره ثبت:* {$task->id}\n";
-                $message .= " 🕒 *تاریخ:* {$dataTask['started_at']}\n";
-                $message .= "✅ *وضعیت:* انجام شده\n";
-                $message .= "📍 *شهر:* {$dataTask['city_id']}\n";
-                $message .= "👤 *مسئول:* {$user->name}";
-                $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
+                $message .= '🕹️ کار با مشخصات زیر ثبت شد :' . "\n";
+                $message .= $this->CreateTaskMessage($task,$user);
+                $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')';
             }else{
                 $message .= '🕹️ [کار با شماره '.$task->id.' ثبت شد .]('. TaskResource::getUrl('edit',[$task->id]).')';
             }
