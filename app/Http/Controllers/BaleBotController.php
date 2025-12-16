@@ -274,7 +274,7 @@ class BaleBotController extends Controller
                     } elseif ($queryText !== '') {
                         $query->where('name', 'like', "%{$queryText}%");
                     } else {
-                        $query->orderByDesc('id')->limit(5);
+                        $query->orderByDesc('project.id')->limit(5);
                     }
 
                     if (!$user->can('restore_any_project')) {
