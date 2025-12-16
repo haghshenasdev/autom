@@ -296,7 +296,7 @@ class BaleBotController extends Controller
                         $message .= "----------------------\n";
                     }
 
-                    $this->sendMessage($chatId, $message);
+                    $this->sendMessage($chatId, mb_convert_encoding($message, 'UTF-8', 'UTF-8'));
                     return response('دستورکار ارسال شد');
 
                 }
