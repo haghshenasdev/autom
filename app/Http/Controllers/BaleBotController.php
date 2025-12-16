@@ -291,7 +291,6 @@ class BaleBotController extends Controller
                     $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "لیست آخرین دستورکارهای شما:\n\n";
 
                     foreach ($records as $record) {
-
                         $message .= $this->createProjectMessage($record, $user);
                         $message .= "\n" . '[بازکردن در سامانه](' . ProjectResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
                         $message .= "----------------------\n";
@@ -767,7 +766,7 @@ EOT],
         return $message;
     }
 
-    public function createProjectMessage(Model $record,$user): string
+    public function createProjectMessage(Model $record,$user,$description = false): string
     {
         $message = "";
 
@@ -778,7 +777,7 @@ EOT],
         $message .= "🎚️ عنوان: {$record->name}\n";
 
         // توضیحات
-        if (!empty($record->description)) {
+        if ($description and !empty($record->description)) {
             $message .= "📝 توضیحات: {$record->description}\n";
         }
 
