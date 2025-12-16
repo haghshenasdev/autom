@@ -28,26 +28,43 @@ class lastReferralTablewidget extends BaseWidget
 
     public function table(Table $table): Table
     {
+        $columns = [
+            Tables\Columns\TextColumn::make('letter.subject')->label('نامه'),
+            Tables\Columns\TextColumn::make('rule')->label('دستور'),
+
+            TextColumn::make('by_user_id')->label('توسط')
+                ->state(function (Model $record): string {
+                    return $record->by_users()->first('name')->name;
+                }),
+            Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
+            Tables\Columns\CheckboxColumn::make('checked')->label('بررسی'),
+
+        ];
+
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Tables\Columns\Layout\Split::make([
+                    Tables\Columns\ToggleColumn::make('checked')->tooltip('بررسی'),
+
+                    Tables\Columns\TextColumn::make('letter.subject')->prefix('نامه : '),
+                    Tables\Columns\TextColumn::make('rule')->prefix('دستور : '),
+                    TextColumn::make('by_user_id')->prefix('توسط : ')
+                        ->state(function (Model $record): string {
+                            return $record->by_users()->first('name')->name;
+                        }),
+                    Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
+                ])->from('md'),
+            ];
+        }
         return $table
             ->query(
                 Referral::query()->where('to_user_id', auth()->id())
             )
-            ->columns([
-                Tables\Columns\TextColumn::make('letter.subject')->label('نامه'),
-                Tables\Columns\TextColumn::make('rule')->label('دستور'),
-
-                TextColumn::make('by_user_id')->label('توسط')
-                    ->state(function (Model $record): string {
-                        return $record->by_users()->first('name')->name;
-                    }),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
-                Tables\Columns\CheckboxColumn::make('checked')->label('بررسی'),
-
-            ])->actions([
+            ->columns($columns)->actions([
 //                Action::make('Open')->label('نمایش')->iconButton()->icon('heroicon-o-eye')
 //                    ->url(fn (Referral $record): string => ReferralResource::getUrl('edit',[$record->id]))
 //                    ->openUrlInNewTab(),
-                Action::make('Open')->label('نامه مربوطه')->iconButton()->icon('heroicon-o-envelope')
+                Action::make('Open')->label('نامه مربوطه')->icon('heroicon-o-envelope')
                     ->url(fn (Referral $record): string => LetterResource::getUrl('edit',[$record->letter()->first()->id]))
                     ->openUrlInNewTab(),
             ])->emptyStateHeading('هیچ موردی یافت نشد');

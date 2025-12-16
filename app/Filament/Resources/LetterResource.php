@@ -7,6 +7,7 @@ use App\Filament\Resources\CustomerLetterResource\RelationManagers\CustomersRela
 use App\Filament\Resources\CustomerResource\RelationManagers\LettersRelationManager;
 use App\Filament\Resources\LetterResource\Pages;
 use App\Filament\Resources\LetterResource\RelationManagers;
+use App\Http\Controllers\BaleBotController;
 use App\Models\Customer;
 use App\Models\Letter;
 use App\Models\Organ;
@@ -297,40 +298,50 @@ class LetterResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $columns = [
+            TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
+            TextColumn::make('subject')->label('موضوع')
+                ->weight(FontWeight::Bold)
+                ->words(10)->searchable(),
+            TextColumn::make('customers.name')->label('صاحب - مراجعه کننده')
+                ->toggleable(isToggledHiddenByDefault: true)->sortable(),
+            TextColumn::make('organs_owner.name')->label('صاحب - ارگان')
+                ->toggleable(isToggledHiddenByDefault: true)->sortable(),
+            TextColumn::make('organ.name')->label('گیرنده نامه')
+                ->toggleable(isToggledHiddenByDefault: false)
+                ->sortable(),
+            TextColumn::make('daftar.name')->label('دفتر')
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->sortable(),
+            TextColumn::make('projects.name')->label('پروژه')
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->listWithLineBreaks()->sortable(),
+            Tables\Columns\TextColumn::make('status')
+                ->label('وضعیت')
+                ->badge()
+                ->color(fn (string $state): string => Letter::getStatusColor($state))
+                ->state(function (Model $record): string {
+                    return Letter::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
+            TextColumn::make('kind')->label('نوع ورودی')->sortable()
+                ->state(function (Model $record): string {
+                    return Letter::getKindLabel($record->kind);
+                })->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('type.name')->label('نوع')->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('user.name')->label('ثبت کننده')->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
+            Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $bale = new BaleBotController();
+            $columns = [
+                Split::make([
+                    TextColumn::make('data')
+                        ->state(fn (Model $record): string => str_replace("\n",'<br>',$bale->CreateLetterMessage($record)))->html()
+                ])
+            ];
+        }
         return $table->defaultSort('id','desc')
-            ->columns([
-                TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
-                TextColumn::make('subject')->label('موضوع')
-                    ->weight(FontWeight::Bold)
-                    ->words(10)->searchable(),
-                TextColumn::make('customers.name')->label('صاحب - مراجعه کننده')
-                    ->toggleable(isToggledHiddenByDefault: true)->sortable(),
-                TextColumn::make('organs_owner.name')->label('صاحب - ارگان')
-                    ->toggleable(isToggledHiddenByDefault: true)->sortable(),
-                TextColumn::make('organ.name')->label('گیرنده نامه')
-                    ->toggleable(isToggledHiddenByDefault: false)
-                    ->sortable(),
-                TextColumn::make('daftar.name')->label('دفتر')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->sortable(),
-                TextColumn::make('projects.name')->label('پروژه')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->listWithLineBreaks()->sortable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->label('وضعیت')
-                    ->badge()
-                    ->color(fn (string $state): string => Letter::getStatusColor($state))
-                    ->state(function (Model $record): string {
-                        return Letter::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
-                TextColumn::make('kind')->label('نوع ورودی')->sortable()
-                    ->state(function (Model $record): string {
-                        return Letter::getKindLabel($record->kind);
-                    })->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('type.name')->label('نوع')->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('user.name')->label('ثبت کننده')->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-        ])
+            ->columns($columns)
             ->filters([
                 SelectFilter::make('customers')
                     ->label('صاحب')
