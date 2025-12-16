@@ -296,7 +296,7 @@ class BaleBotController extends Controller
                         $message .= "----------------------\n";
                     }
 
-                    $this->sendMessage($chatId, mb_convert_encoding($message, 'UTF-8', 'UTF-8'));
+                    $this->sendMessage($chatId, $message);
                     return response('دستورکار ارسال شد');
 
                 }
@@ -834,7 +834,7 @@ EOT],
             $message .= "📈 پیشرفت: {$progress}/{$total} ({$percent}%)\n";
         }
 
-        return $message;
+        return mb_convert_encoding($message, 'UTF-8', 'UTF-8');
     }
 
     private function getMimeTypeFromExtension($filename): string
