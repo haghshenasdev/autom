@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -61,16 +62,22 @@ class UserResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $columns = [
+            TextColumn::make('id')->searchable(),
+            ImageColumn::make('avatar')->label('پروفایل')
+                ->getStateUsing(fn ($record) => Filament::getUserAvatarUrl($record))
+                ->circular(),
+            TextColumn::make('name')->label('نام')->searchable(),
+            TextColumn::make('email')->label('ایمیل')->searchable(),
+            TextColumn::make('roles.name')->label('دسترسی'),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
         return $table
-            ->columns([
-                TextColumn::make('id')->searchable(),
-                ImageColumn::make('avatar')->label('پروفایل')
-                    ->getStateUsing(fn ($record) => Filament::getUserAvatarUrl($record))
-                    ->circular(),
-                TextColumn::make('name')->label('نام')->searchable(),
-                TextColumn::make('email')->label('ایمیل')->searchable(),
-                TextColumn::make('roles.name')->label('دسترسی'),
-            ])
+            ->columns($columns)
             ->filters([
                 //
             ])

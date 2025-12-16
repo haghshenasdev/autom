@@ -134,7 +134,7 @@ class TaskResource extends Resource
                 ])
             ];
         }
-        return $table->defaultSort('id','desc')
+        return $table->defaultSort('tasks.id','desc')
             ->columns($columns)
             ->filters([
                 Filter::make('completed')

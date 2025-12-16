@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CartableResource\Pages;
 use App\Filament\Resources\CartableResource\RelationManagers;
+use App\Http\Controllers\BaleBotController;
 use App\Models\Cartable;
 use App\Models\Referral;
 use Filament\Forms;
@@ -13,6 +14,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
@@ -67,18 +69,30 @@ class CartableResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->defaultSort('id','desc')
-            ->columns([
-                TextColumn::make('id')->label('ثبت')->sortable(),
-                Tables\Columns\TextColumn::make('letter_id')->label('شماره نامه')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('letter.subject')->label('نامه')->searchable(),
-                Tables\Columns\TextColumn::make('letter.customers.name')->label('صاحب نامه - شخص'),
-                Tables\Columns\TextColumn::make('letter.organs_owner.name')->label('صاحب نامه - ارگان'),
-                Tables\Columns\TextColumn::make('letter.created_at')->jalaliDateTime()->label('تاریخ نامه'),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: false),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\CheckboxColumn::make('checked')->label('بررسی شده'),
-            ])
+        $columns = [
+            TextColumn::make('id')->label('ثبت')->sortable(),
+            Tables\Columns\TextColumn::make('letter_id')->label('شماره نامه')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make('letter.subject')->label('نامه')->searchable(),
+            Tables\Columns\TextColumn::make('letter.customers.name')->label('صاحب نامه - شخص'),
+            Tables\Columns\TextColumn::make('letter.organs_owner.name')->label('صاحب نامه - ارگان'),
+            Tables\Columns\TextColumn::make('letter.created_at')->jalaliDateTime()->label('تاریخ نامه'),
+            Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: false),
+            Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\CheckboxColumn::make('checked')->label('بررسی شده'),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $bale = new BaleBotController();
+            $columns = [
+                Split::make([
+                    TextColumn::make('data')
+                        ->searchable()->state(fn (Model $record): string => str_replace("\n",'<br>',$bale->createCartableMessage($record)))->html(),
+                    Tables\Columns\ToggleColumn::make('checked')->tooltip('بررسی شده'),
+                ])->from('md')
+            ];
+        }
+
+        return $table->defaultSort('cartables.id','desc')
+            ->columns($columns)
             ->filters([
                 Filter::make('checked')
                     ->label('بررسی شده'),

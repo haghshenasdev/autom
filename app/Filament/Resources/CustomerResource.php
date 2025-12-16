@@ -9,6 +9,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -68,14 +69,20 @@ class CustomerResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $columns = [
+            TextColumn::make('id'),
+            TextColumn::make('name')->label('نام')->searchable(),
+            TextColumn::make('code_melli')->label('کد ملی')->searchable(),
+            TextColumn::make('city.name')->label('شهر'),
+            TextColumn::make('phone')->label('شماره تماس')->searchable(),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
         return $table
-            ->columns([
-                TextColumn::make('id'),
-                TextColumn::make('name')->label('نام')->searchable(),
-                TextColumn::make('code_melli')->label('کد ملی')->searchable(),
-                TextColumn::make('city.name')->label('شهر'),
-                TextColumn::make('phone')->label('شماره تماس')->searchable(),
-            ])
+            ->columns($columns)
             ->filters([
                 SelectFilter::make('city_id')
                     ->label('شهر')

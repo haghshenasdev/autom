@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProjectResource\RelationManagers;
 
+use App\Filament\Resources\TaskResource;
 use App\Models\Task;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -34,6 +35,8 @@ class TasksRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
+        return TaskResource::table($table);
+
         return $table->defaultSort('tasks.id','desc')
             ->recordTitleAttribute('name')
             ->columns([

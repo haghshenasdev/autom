@@ -9,6 +9,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -37,16 +38,22 @@ class ContentGroupResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $columns = [
+            Tables\Columns\TextColumn::make('id')->label('شماره')
+                ->searchable(),
+            Tables\Columns\TextColumn::make('name')->label('نام')
+                ->searchable(),
+            Tables\Columns\TextColumn::make('parent.name')->label('گروه اصلی')
+                ->numeric()
+                ->sortable(),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
         return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('id')->label('شماره')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('name')->label('نام')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('parent.name')->label('گروه اصلی')
-                    ->numeric()
-                    ->sortable(),
-            ])
+            ->columns($columns)
             ->filters([
                 //
             ])

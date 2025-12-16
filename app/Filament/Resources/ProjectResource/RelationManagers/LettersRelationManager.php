@@ -40,6 +40,7 @@ class LettersRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
+        return LetterResource::table($table);
         return $table->defaultSort('letters.id','desc')
             ->recordTitleAttribute('subject')
             ->columns([

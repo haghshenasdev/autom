@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use AlperenErsoy\FilamentExport\Actions\FilamentExportHeaderAction;
 use App\Filament\Resources\MinutesResource\Pages;
 use App\Filament\Resources\MinutesResource\RelationManagers;
+use App\Http\Controllers\BaleBotController;
 use App\Models\Minutes;
 use App\Models\MinutesGroup;
 use App\Models\TaskGroup;
@@ -14,6 +15,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
@@ -57,35 +59,45 @@ class MinutesResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->defaultSort('id','desc')
-            ->columns([
-                TextColumn::make('id')->label('ثبت')
-                    ->searchable()->sortable(),
-                TextColumn::make('title')->label('عنوان')
-                    ->searchable(),
-                TextColumn::make('typer.name')->label('نویسنده')->toggleable(),
-                TextColumn::make('task_creator.name')->label('جلسه')->words(10)->toggleable(),
-                TextColumn::make('organ.name')->label('امضا کنندگان'),
-                TextColumn::make('tasks_count')
-                    ->counts('tasks')
-                    ->label('تعداد کارها')->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('approves_count')
-                    ->label('تعداد مصوبه')->sortable()
-                    ->counts('approves')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('date')->label(' تاریخ')->jalaliDateTime(),
-                ProgressBar::make('pb')->label('درصد کار انجام شده')
-                    ->getStateUsing(function ($record) {
-                        $total = $record->tasks()->count();
-                        $progress = $record->tasks()->where('completed',true)->count();
-                        return [
-                            'total' => $total,
-                            'progress' => $progress,
-                        ];
-                    })->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('group.name')->label('دسته بندی')->toggleable(isToggledHiddenByDefault: true),
-            ])
+        $columns = [
+            TextColumn::make('id')->label('ثبت')
+                ->searchable()->sortable(),
+            TextColumn::make('title')->label('عنوان')
+                ->searchable(),
+            TextColumn::make('typer.name')->label('نویسنده')->toggleable(),
+            TextColumn::make('task_creator.name')->label('جلسه')->words(10)->toggleable(),
+            TextColumn::make('organ.name')->label('امضا کنندگان'),
+            TextColumn::make('tasks_count')
+                ->counts('tasks')
+                ->label('تعداد کارها')->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('approves_count')
+                ->label('تعداد مصوبه')->sortable()
+                ->counts('approves')
+                ->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('date')->label(' تاریخ')->jalaliDateTime(),
+            ProgressBar::make('pb')->label('درصد کار انجام شده')
+                ->getStateUsing(function ($record) {
+                    $total = $record->tasks()->count();
+                    $progress = $record->tasks()->where('completed',true)->count();
+                    return [
+                        'total' => $total,
+                        'progress' => $progress,
+                    ];
+                })->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\TextColumn::make('group.name')->label('دسته بندی')->toggleable(isToggledHiddenByDefault: true),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $bale = new BaleBotController();
+            $columns = [
+                Split::make([
+                    TextColumn::make('data')
+                        ->searchable()->state(fn (Model $record): string => str_replace("\n",'<br>',$bale->createMinuteMessage($record,auth()->user(),false)))->html()
+                ])
+            ];
+        }
+        return $table->defaultSort('minutes.id','desc')
+            ->columns($columns)
             ->filters([
                 Filter::make('tree')
                     ->form([
@@ -118,8 +130,13 @@ class MinutesResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                MediaAction::make('media-url')
-                    ->media(fn($record) => env('APP_URL').'/appendix-other-dl/'.$record->getFilePath())
+                Tables\Actions\Action::make('باز کردن لینک')
+                    ->label('نمایش فایل')
+                    ->url(fn(Model $record) => env('APP_URL').'/appendix-other-show/'.$record->getFilePath(), shouldOpenInNewTab: true)
+                    ->visible(fn(Model $record): bool => $record->file !== null)
+                    ->color('primary')
+                    ->button()
+                    ->icon('heroicon-o-arrow-top-right-on-square'),
             ])->headerActions([
                 Action::make('print')
                     ->label('چاپ جدول')

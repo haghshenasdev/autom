@@ -9,6 +9,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -36,22 +37,28 @@ class TaskGroupResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $columns = [
+            Tables\Columns\TextColumn::make('name')->label('نام')
+                ->searchable(),
+            Tables\Columns\TextColumn::make('parent.name')->label('گروه اصلی')
+                ->numeric()
+                ->sortable(),
+            Tables\Columns\TextColumn::make('created_at')->label('تاریخ ایجاد')
+                ->dateTime()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\TextColumn::make('updated_at')->label('تاریخ ویرایش')
+                ->dateTime()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
         return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('name')->label('نام')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('parent.name')->label('گروه اصلی')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')->label('تاریخ ایجاد')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')->label('تاریخ ویرایش')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
+            ->columns($columns)
             ->filters([
                 //
             ])

@@ -9,6 +9,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,22 +38,28 @@ class MinutesGroupResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $columns = [
+            TextColumn::make('name')->label('نام')
+                ->searchable(),
+            TextColumn::make('parent.name')->label('گروه اصلی')
+                ->numeric()
+                ->sortable(),
+            TextColumn::make('created_at')->label('تاریخ ایجاد')
+                ->dateTime()->jalaliDateTime()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('updated_at')->label('تاریخ ویرایش')
+                ->dateTime()->jalaliDateTime()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
         return $table
-            ->columns([
-                TextColumn::make('name')->label('نام')
-                    ->searchable(),
-                TextColumn::make('parent.name')->label('گروه اصلی')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('created_at')->label('تاریخ ایجاد')
-                    ->dateTime()->jalaliDateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')->label('تاریخ ویرایش')
-                    ->dateTime()->jalaliDateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
+            ->columns($columns)
             ->filters([
                 //
             ])

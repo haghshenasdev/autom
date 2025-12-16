@@ -13,6 +13,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,20 +43,26 @@ class ContentResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('id')
-                    ->searchable()
-                    ->label('شماره ثبت'),
-                Tables\Columns\TextColumn::make('title')
-                    ->searchable()
-                    ->label('عنوان'),
+        $columns = [
+            Tables\Columns\TextColumn::make('id')
+                ->searchable()
+                ->label('شماره ثبت'),
+            Tables\Columns\TextColumn::make('title')
+                ->searchable()
+                ->label('عنوان'),
 
-                Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
-                Tables\Columns\TextColumn::make('user.name')->toggleable(isToggledHiddenByDefault: true)
-                    ->searchable()
-                    ->label('ایجاد کننده'),
-            ])
+            Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
+            Tables\Columns\TextColumn::make('user.name')->toggleable(isToggledHiddenByDefault: true)
+                ->searchable()
+                ->label('ایجاد کننده'),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
+        return $table
+            ->columns($columns)
             ->filters([
                 Filter::make('tree')->label('دسته بندی')
                     ->form([

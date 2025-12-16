@@ -9,6 +9,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -55,13 +56,19 @@ class ReplicationResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $columns = [
+            TextColumn::make('id'),
+            TextColumn::make('titleholder.name')->label('گیرنده'),
+            TextColumn::make('letter.id')->label('شماره نامه'),
+            TextColumn::make('letter.subject')->label('موضوع نامه'),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
         return $table
-            ->columns([
-                TextColumn::make('id'),
-                TextColumn::make('titleholder.name')->label('گیرنده'),
-                TextColumn::make('letter.id')->label('شماره نامه'),
-                TextColumn::make('letter.subject')->label('موضوع نامه'),
-            ])
+            ->columns($columns)
             ->filters([
                 //
             ])

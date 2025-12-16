@@ -9,6 +9,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -51,11 +52,17 @@ class TypeResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $columns = [
+            TextColumn::make('id'),
+            TextColumn::make('name')->label('عنوان'),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
         return $table
-            ->columns([
-                TextColumn::make('id'),
-                TextColumn::make('name')->label('عنوان'),
-            ])
+            ->columns($columns)
             ->filters([
                 //
             ])

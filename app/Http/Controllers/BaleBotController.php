@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Filament\Resources\LetterResource;
 use App\Filament\Resources\MinutesResource;
+use App\Filament\Resources\ProjectResource;
 use App\Filament\Resources\TaskResource;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\ai\LetterParser;
@@ -192,7 +193,8 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response('ارجاع ارسال شد');
 
-                } elseif (str_starts_with($firstLine, '/کار')) {
+                }
+                elseif (str_starts_with($firstLine, '/کار')) {
                     if (!$user->can('view_task')) {
                         $this->sendMessage($chatId, '❌ شما به کارها دسترسی ندارید!');
                         return response('عدم دسترسی');
@@ -256,7 +258,50 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response('کار ارسال شد');
 
-                } elseif (str_starts_with($firstLine, '#مصوبه')){
+                }
+                elseif (str_starts_with($firstLine, '/دستورکار') or str_starts_with($firstLine, '/دستور کار')) {
+                    if (!$user->can('view_project')) {
+                        $this->sendMessage($chatId, '❌ شما به دستورکار ها دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+
+                    $queryText = trim(str_replace(['/دستورکار','/دستور کار'], '', $firstLine));
+
+                    $query = Project::query();
+
+                    if (is_numeric($queryText)) {
+                        $query->where('id', $queryText);
+                    } elseif ($queryText !== '') {
+                        $query->where('name', 'like', "%{$queryText}%");
+                    } else {
+                        $query->orderByDesc('id')->limit(5);
+                    }
+
+                    if (!$user->can('restore_any_project')) {
+                        $query->where('user_id', $user->id);
+                    }
+
+                    $records = $query->get();
+
+                    if ($records->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ دستورکاری مطابق با جستجوی شما یافت نشد.');
+                        return response('دستورکار خالی');
+                    }
+
+                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین دستورکارهای شما:\n\n";
+
+                    foreach ($records as $record) {
+
+                        $message .= $this->createProjectMessage($record, $user);
+                        $message .= "\n" . '[بازکردن در سامانه](' . ProjectResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
+                        $message .= "----------------------\n";
+                    }
+
+                    $this->sendMessage($chatId, $message);
+                    return response('دستورکار ارسال شد');
+
+                }
+                elseif (str_starts_with($firstLine, '#مصوبه')){
                     $queryText = trim(str_replace('#مصوبه', '', $firstLine));
 
                     if (is_numeric($queryText)){
@@ -337,6 +382,7 @@ class BaleBotController extends Controller
 
                     $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین صورت‌جلسه‌های شما:\n\n";
                     foreach ($minutes as $minute) {
+                        $message .= '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$minute->id]).')' . "\n\n";
                         $message .= $this->createMinuteMessage($minute, $user, $queryText !== '');
                         $message .= "----------------------\n";
                     }
@@ -693,8 +739,7 @@ EOT],
 
     public function createMinuteMessage(Model $record,$user,$withTasks = true): string
     {
-        $message = '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$record->id]).')' . "\n\n";
-        $message .= "📝 عنوان: {$record->title}\n";
+        $message = "📝 عنوان: {$record->title}\n";
         $message .= "🆔 شماره ثبت: {$record->id}\n";
         $message .= "ℹ️ تعداد کار ها: {$record->tasks->count()}/{$record->tasks->where('completed', 1)->count()}\n";
         if ($user->can('restore_any_minutes') and $record->typer) $message .= "👤 نویسنده: {$record->typer->name}\n";
@@ -717,6 +762,77 @@ EOT],
             foreach ($record->tasks as $task) {
                 $message .= "  " . ($task->completed ? '✅' : '❌') . " " . $task->id . " - " . $task->name ."\n";
             }
+        }
+
+        return $message;
+    }
+
+    public function createProjectMessage(Model $record,$user): string
+    {
+        $message = "";
+
+        // شناسه ثبت
+        $message .= "🆔 ثبت: {$record->id}\n";
+
+        // عنوان
+        $message .= "🎚️ عنوان: {$record->name}\n";
+
+        // توضیحات
+        if (!empty($record->description)) {
+            $message .= "📝 توضیحات: {$record->description}\n";
+        }
+
+        // مسئول
+        if ($user->can('restore_any_project') and !empty($record->user?->name)) {
+            $message .= "👤 مسئول: {$record->user->name}\n";
+        }
+
+        // شهر
+        if (!empty($record->city?->name)) {
+            $message .= "🏙️ شهر: {$record->city->name}\n";
+        }
+
+        // دستگاه اجرایی
+        if (!empty($record->organ?->name)) {
+            $message .= "🏢 دستگاه اجرایی: {$record->organ->name}\n";
+        }
+
+        // وضعیت
+        if (!empty($record->status)) {
+            $message .= "📊 وضعیت: " . Project::getStatusLabel($record->status) . "\n";
+        }
+
+        // اعتبار
+        if (!empty($record->amount)) {
+            $formattedAmount = number_format($record->amount);
+            $message .= "💰 اعتبار: {$formattedAmount} ریال\n";
+        }
+
+        // تاریخ ایجاد
+        if (!empty($record->created_at)) {
+            $message .= "📅 ایجاد: ".Jalalian::fromDateTime($record->created_at)->format('Y/m/d')."\n";
+        }
+
+        // دسته بندی
+        if ($record->group->count() != 0) {
+            $message .= "📚 دسته بندی: ";
+            foreach ($record->group as $group) {
+                $message .= $group->name . "، ";
+            }
+            $message = rtrim($message, "، ") . "\n";
+        }
+
+        // تعداد کارها
+        if (!empty($record->tasks_count)) {
+            $message .= "🧾 تعداد کارها: {$record->tasks_count}\n";
+        }
+
+        // پیشرفت
+        $total = $record->required_amount != null ? $record->required_amount : $record->tasks()->count();
+        $progress = $record->tasks()->where('completed', true)->count();
+        if ($total > 0) {
+            $percent = round(($progress / $total) * 100);
+            $message .= "📈 پیشرفت: {$progress}/{$total} ({$percent}%)\n";
         }
 
         return $message;
@@ -799,7 +915,8 @@ EOT],
             'keyboard' => [
                 [
                     '/راهنما',
-                    '/آمار'
+                    '/آمار',
+                    '/دستورکار',
                 ],
                 [
                     '/نامه',
@@ -1253,6 +1370,7 @@ TEXT;
         $message = '';
         if ($isPrivateChat){
             $message .= '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
+            $message .= '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$record->id]).')' . "\n\n";
             $message .= $this->createMinuteMessage($record, $user);
         }else{
             $message .= '📝 [صورتجلسه با شماره '.$record->id.' ثبت شد .]('. MinutesResource::getUrl('edit',[$record->id]).')';

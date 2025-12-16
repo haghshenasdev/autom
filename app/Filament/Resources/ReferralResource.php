@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ReferralResource\Pages;
 use App\Filament\Resources\ReferralResource\RelationManagers;
+use App\Http\Controllers\BaleBotController;
 use App\Models\Referral;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
@@ -12,6 +13,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
@@ -84,19 +86,30 @@ class ReferralResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->defaultSort('id','desc')
-            ->columns([
-                TextColumn::make('id')->label('شماره')->sortable(),
-                Tables\Columns\TextColumn::make('rule')->label('دستور')->searchable(),
-                Tables\Columns\TextColumn::make('result')->label('نتیجه')->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('by_users.name')->label('توسط'),
-                Tables\Columns\TextColumn::make('users.name')->label('به')->visible(Auth::user()->can('restore_any_referral')),
-                Tables\Columns\TextColumn::make('letter_id')->label('شماره نامه')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('letter.subject')->label('موضوع نامه'),
-                Tables\Columns\CheckboxColumn::make('checked')->label('بررسی شده'),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-            ])
+        $columns = [
+            TextColumn::make('id')->label('شماره')->sortable(),
+            Tables\Columns\TextColumn::make('rule')->label('دستور')->searchable(),
+            Tables\Columns\TextColumn::make('result')->label('نتیجه')->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('by_users.name')->label('توسط'),
+            Tables\Columns\TextColumn::make('users.name')->label('به')->visible(Auth::user()->can('restore_any_referral')),
+            Tables\Columns\TextColumn::make('letter_id')->label('شماره نامه')->sortable()->searchable(),
+            Tables\Columns\TextColumn::make('letter.subject')->label('موضوع نامه'),
+            Tables\Columns\CheckboxColumn::make('checked')->label('بررسی شده'),
+            Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $bale = new BaleBotController();
+            $columns = [
+                Split::make([
+                    TextColumn::make('data')
+                        ->searchable()->state(fn (Model $record): string => str_replace("\n",'<br>',$bale->CreateReferralMessage($record)))->html(),
+                    Tables\Columns\ToggleColumn::make('checked')->tooltip('بررسی شده'),
+                ])->from('md')
+            ];
+        }
+        return $table->defaultSort('referrals.id','desc')
+            ->columns($columns)
             ->filters([
                 Filter::make('checked')
                     ->label('بررسی شده'),

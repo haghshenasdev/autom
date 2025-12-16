@@ -13,6 +13,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -57,26 +58,32 @@ class ApproveResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table->defaultSort('id','desc')
-            ->columns([
-                TextColumn::make('id')->label('ثبت')
-                    ->searchable()->sortable(),
-                TextColumn::make('title')->label('عنوان')
-                    ->searchable(),
-                TextColumn::make('minute.title')->label('صورت جلسه'),
-                TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('organ.name')->label('اداره')->listWithLineBreaks()->toggleable(),
-                TextColumn::make('amount')->label('اعتبار')->toggleable()->sortable()->numeric()->suffix('ریال'),
-                TextColumn::make('status')
-                    ->label('وضعیت')
-                    ->badge()
-                    ->color(fn (string $state): string => Approve::getStatusColor($state))
-                    ->state(function (Model $record): string {
+        $columns = [
+            TextColumn::make('id')->label('ثبت')
+                ->searchable()->sortable(),
+            TextColumn::make('title')->label('عنوان')
+                ->searchable(),
+            TextColumn::make('minute.title')->label('صورت جلسه'),
+            TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks()->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('organ.name')->label('اداره')->listWithLineBreaks()->toggleable(),
+            TextColumn::make('amount')->label('اعتبار')->toggleable()->sortable()->numeric()->suffix('ریال'),
+            TextColumn::make('status')
+                ->label('وضعیت')
+                ->badge()
+                ->color(fn (string $state): string => Approve::getStatusColor($state))
+                ->state(function (Model $record): string {
                     return Approve::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
-                TextColumn::make('city.name')->label('شهر')->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->sortable()->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->sortable()->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-            ])
+            TextColumn::make('city.name')->label('شهر')->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->sortable()->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->sortable()->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
+        ];
+        if (request()->cookie('mobile_mode') === 'on'){
+            $columns = [
+                Split::make($columns)->from('md')
+            ];
+        }
+        return $table->defaultSort('approves.id','desc')
+            ->columns($columns)
             ->filters([
                 SelectFilter::make('minute_id')
                     ->label('صورت جلسه')->multiple()->preload()

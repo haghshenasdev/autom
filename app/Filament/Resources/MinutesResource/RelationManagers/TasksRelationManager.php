@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MinutesResource\RelationManagers;
 
+use App\Filament\Resources\TaskResource;
 use App\Models\Task;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -35,28 +36,29 @@ class TasksRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table
-            ->recordTitleAttribute('name')
-            ->columns([
-                Tables\Columns\TextColumn::make('name')->label('عنوان'),
-                Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول'),
-                Tables\Columns\CheckboxColumn::make('completed')->label('وضعیت انجام'),
-                Tables\Columns\TextColumn::make('completed_at')->label('تاریخ انجام')->jalaliDateTime(),
-            ])
-            ->filters([
-                //
-            ])
-            ->headerActions([
-                Tables\Actions\CreateAction::make(),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+        return TaskResource::table($table);
+//        return $table
+//            ->recordTitleAttribute('name')
+//            ->columns([
+//                Tables\Columns\TextColumn::make('name')->label('عنوان'),
+//                Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول'),
+//                Tables\Columns\CheckboxColumn::make('completed')->label('وضعیت انجام'),
+//                Tables\Columns\TextColumn::make('completed_at')->label('تاریخ انجام')->jalaliDateTime(),
+//            ])
+//            ->filters([
+//                //
+//            ])
+//            ->headerActions([
+//                Tables\Actions\CreateAction::make(),
+//            ])
+//            ->actions([
+//                Tables\Actions\EditAction::make(),
+//                Tables\Actions\DeleteAction::make(),
+//            ])
+//            ->bulkActions([
+//                Tables\Actions\BulkActionGroup::make([
+//                    Tables\Actions\DeleteBulkAction::make(),
+//                ]),
+//            ]);
     }
 }

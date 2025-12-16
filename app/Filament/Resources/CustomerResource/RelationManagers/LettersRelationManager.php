@@ -40,36 +40,38 @@ class LettersRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table
-            ->recordTitleAttribute('subject')
-            ->columns([
-                TextColumn::make('id')->label('ثبت')->searchable(),
-                TextColumn::make('subject')->label('موضوع')->searchable(),
-                TextColumn::make('status')->label('وضعیت')->state(function (Model $record): string {
-                    return Letter::getStatusLabel($record->status);
-                }),
-                TextColumn::make('type.name')->label('نوع'),
-                TextColumn::make('user.name')->label('ثبت کننده'),
-                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
-                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime(),
-            ])
-            ->filters([
-                //
-            ])
-            ->headerActions([
-            ])
-            ->actions([
-                Action::make('Open')->label('نمایش نامه')
-                    ->url(fn (Letter $record): string => LetterResource::getUrl('edit',[$record->id]))
-                    ->openUrlInNewTab(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ])
-            ->emptyStateActions([
-            ]);
+        return LetterResource::table($table);
+
+//        return $table
+//            ->recordTitleAttribute('subject')
+//            ->columns([
+//                TextColumn::make('id')->label('ثبت')->searchable(),
+//                TextColumn::make('subject')->label('موضوع')->searchable(),
+//                TextColumn::make('status')->label('وضعیت')->state(function (Model $record): string {
+//                    return Letter::getStatusLabel($record->status);
+//                }),
+//                TextColumn::make('type.name')->label('نوع'),
+//                TextColumn::make('user.name')->label('ثبت کننده'),
+//                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
+//                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime(),
+//            ])
+//            ->filters([
+//                //
+//            ])
+//            ->headerActions([
+//            ])
+//            ->actions([
+//                Action::make('Open')->label('نمایش نامه')
+//                    ->url(fn (Letter $record): string => LetterResource::getUrl('edit',[$record->id]))
+//                    ->openUrlInNewTab(),
+//                Tables\Actions\DeleteAction::make(),
+//            ])
+//            ->bulkActions([
+//                Tables\Actions\BulkActionGroup::make([
+//                    Tables\Actions\DeleteBulkAction::make(),
+//                ]),
+//            ])
+//            ->emptyStateActions([
+//            ]);
     }
 }

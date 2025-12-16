@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProjectGroupResource\RelationManagers;
 
+use App\Filament\Resources\ProjectResource;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -26,6 +27,7 @@ class ProjectsRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
+        return ProjectResource::table($table);
         return $table
             ->recordTitleAttribute('name')
             ->columns([

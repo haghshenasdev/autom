@@ -102,7 +102,8 @@ class User extends Authenticatable implements HasAvatar,FilamentUser
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults();
+        return LogOptions::defaults()->logExcept(['updated_at','created_at'])->logAll()->logOnlyDirty() // فقط وقتی مقدار تغییر کرد ذخیره بشه
+        ->dontSubmitEmptyLogs();
     }
 
     public function canAccessPanel(Panel $panel): bool

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\LetterResource\RelationManagers;
 
+use App\Filament\Resources\ReferralResource;
 use Filament\Actions\CreateAction;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -51,6 +52,8 @@ class ReferralsRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
+        return ReferralResource::table($table);
+
         return $table
             ->recordTitleAttribute('rule')
             ->columns([

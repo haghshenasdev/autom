@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ContentGroupResource\RelationManagers;
 
+use App\Filament\Resources\ContentResource;
 use App\Models\Content;
 use Filament\Forms;
 use Filament\Forms\Components\RichEditor;
@@ -35,35 +36,37 @@ class ContentsRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table
-            ->recordTitleAttribute('title')
-            ->columns([
-                Tables\Columns\TextColumn::make('title')
-                    ->limit(20)
-                    ->state(function (Content $record) {
-                        if ($record->title === null) {
-                            return strip_tags(html_entity_decode(trim($record->body)));
-                        }
-                        return $record->title;
-                    })
-                    ->label('عنوان'),
+        return ContentResource::table($table);
 
-                Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
-            ])
-            ->filters([
-                //
-            ])
-            ->headerActions([
-                Tables\Actions\CreateAction::make(),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+//        return $table
+//            ->recordTitleAttribute('title')
+//            ->columns([
+//                Tables\Columns\TextColumn::make('title')
+//                    ->limit(20)
+//                    ->state(function (Content $record) {
+//                        if ($record->title === null) {
+//                            return strip_tags(html_entity_decode(trim($record->body)));
+//                        }
+//                        return $record->title;
+//                    })
+//                    ->label('عنوان'),
+//
+//                Tables\Columns\TextColumn::make('group.name')->label('دسته بندی'),
+//            ])
+//            ->filters([
+//                //
+//            ])
+//            ->headerActions([
+//                Tables\Actions\CreateAction::make(),
+//            ])
+//            ->actions([
+//                Tables\Actions\EditAction::make(),
+//                Tables\Actions\DeleteAction::make(),
+//            ])
+//            ->bulkActions([
+//                Tables\Actions\BulkActionGroup::make([
+//                    Tables\Actions\DeleteBulkAction::make(),
+//                ]),
+//            ]);
     }
 }

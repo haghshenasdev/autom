@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CityResource\RelationManagers;
 
+use App\Filament\Resources\CustomerResource;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -60,32 +61,33 @@ class CustomersRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table
-            ->recordTitleAttribute('name')
-            ->columns([
-                TextColumn::make('id'),
-                TextColumn::make('name')->label('نام'),
-                TextColumn::make('code_melli')->label('کد ملی'),
-                TextColumn::make('city.name')->label('شهر'),
-                TextColumn::make('phone')->label('شماره تماس'),
-            ])
-            ->filters([
-                //
-            ])
-            ->headerActions([
-                Tables\Actions\CreateAction::make(),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ])
-            ->emptyStateActions([
-                Tables\Actions\CreateAction::make(),
-            ]);
+        return CustomerResource::table($table);
+//        return $table
+//            ->recordTitleAttribute('name')
+//            ->columns([
+//                TextColumn::make('id'),
+//                TextColumn::make('name')->label('نام'),
+//                TextColumn::make('code_melli')->label('کد ملی'),
+//                TextColumn::make('city.name')->label('شهر'),
+//                TextColumn::make('phone')->label('شماره تماس'),
+//            ])
+//            ->filters([
+//                //
+//            ])
+//            ->headerActions([
+//                Tables\Actions\CreateAction::make(),
+//            ])
+//            ->actions([
+//                Tables\Actions\EditAction::make(),
+//                Tables\Actions\DeleteAction::make(),
+//            ])
+//            ->bulkActions([
+//                Tables\Actions\BulkActionGroup::make([
+//                    Tables\Actions\DeleteBulkAction::make(),
+//                ]),
+//            ])
+//            ->emptyStateActions([
+//                Tables\Actions\CreateAction::make(),
+//            ]);
     }
 }
