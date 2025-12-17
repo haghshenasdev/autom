@@ -1016,7 +1016,7 @@ EOT],
 
 
             // دکمه حذف پیام
-            $buttons[] = ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'];
+            $buttons[][] = ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'];
 
             if (!empty($buttons)) {
                 $keyboard['inline_keyboard'][] = $buttons;
