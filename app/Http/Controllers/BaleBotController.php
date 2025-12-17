@@ -976,12 +976,21 @@ EOT],
         $messageId = $data['message']['message_id'];
         $callbackData = $data['data'];
 
+        // مدیریت حذف پیام
+        if ($callbackData === 'delete_message') {
+            Http::post("https://tapi.bale.ai/bot{$token}/deleteMessage", [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+            ]);
+            return;
+        }
+
         if (str_starts_with($callbackData, 'letter_page_')) {
             $page = (int) str_replace('letter_page_', '', $callbackData);
             $perPage = 5;
 
             $query = Letter::query()->orderByDesc('id');
-            $totalPages = ceil($query->count() / $perPage);
+            $totalPages = ceil(Letter::query()->count() / $perPage);
             $letters = $query->forPage($page, $perPage)->get();
 
             $message = "🗂 لیست نامه‌های شما - صفحه {$page} از {$query->count()}:\n\n";
@@ -998,15 +1007,19 @@ EOT],
             $keyboard = ['inline_keyboard' => []];
             $buttons = [];
 
-            if ($page > 1) {
-                $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
-            }
             if ($page < $totalPages) {
                 $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
             }
+            if ($page > 1) {
+                $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
+            }
+
             if (!empty($buttons)) {
                 $keyboard['inline_keyboard'][] = $buttons;
             }
+
+            // دکمه حذف پیام
+            $keyboard['inline_keyboard'][] = ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'];
 
             Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
                 'chat_id' => $chatId,
