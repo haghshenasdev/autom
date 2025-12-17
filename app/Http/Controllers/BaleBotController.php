@@ -990,7 +990,7 @@ EOT],
             $perPage = 5;
 
             $query = Letter::query()->orderByDesc('id');
-            $totalPages = ceil(Letter::query()->count() / $perPage);
+            $totalPages = ceil(Letter::count() / $perPage);
             $letters = $query->forPage($page, $perPage)->get();
 
             $message = "🗂 لیست نامه‌های شما - صفحه {$page} از {$query->count()}:\n\n";
