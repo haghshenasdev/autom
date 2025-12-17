@@ -1010,7 +1010,8 @@ EOT],
         foreach ($items as $item) {
             if ($type === 'نامه') {
                 $message .= $this->CreateLetterMessage($item);
-                $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$item->id]) . ")\n";
+                $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$item->id]) . ")";
+                $message .= ($item->file ? ' - '.'[نمایش فایل](' . env('APP_URL').'/private-show/'.$item->getFilePath() . ")" : '')."\n";
             } else {
                 $message .= $this->CreateTaskMessage($item, $user);
                 $message .= '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$item->id]) . ")\n";
