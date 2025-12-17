@@ -1023,11 +1023,11 @@ EOT],
         // ساخت کیبورد
         $keyboard = ['inline_keyboard' => []];
         $buttons = [];
-        if ($page > 1) {
-            $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "{$type}_page_" . ($page - 1) . "|{$queryText}"];
-        }
         if ($page < $totalPages) {
             $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "{$type}_page_" . ($page + 1) . "|{$queryText}"];
+        }
+        if ($page > 1) {
+            $buttons[] = ['text' => 'قبلی ⬅️', 'callback_data' => "{$type}_page_" . ($page - 1) . "|{$queryText}"];
         }
         if (!empty($buttons)) {
             $keyboard['inline_keyboard'][] = $buttons;
