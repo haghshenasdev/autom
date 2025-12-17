@@ -990,10 +990,10 @@ EOT],
             $perPage = 5;
 
             $query = Letter::query()->orderByDesc('id');
-            $totalPages = ceil(Letter::count() / $perPage);
+            $totalPages = ceil($query->count() / $perPage);
             $letters = $query->forPage($page, $perPage)->get();
 
-            $paginate_message = " صفحه {$page} از {$totalPages}:\n\n";
+            $paginate_message = " صفحه {$page} از {$totalPages} :";
             $message = "🗂 لیست نامه‌های شما -".$paginate_message."\n\n";
             foreach ($letters as $letter) {
                 $message .= "📝 عنوان: {$letter->subject}\n";
