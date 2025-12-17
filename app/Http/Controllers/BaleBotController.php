@@ -975,7 +975,7 @@ EOT],
                     $queryTextPersent = str_replace(' ', '%', $queryText);
                     $query->where('subject', 'like', "%{$queryTextPersent}%");
                 }
-                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'نامه', null);
+                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'نامه', null,$messageId);
             }
 
             if ($prefix === 'کار') {
@@ -985,13 +985,13 @@ EOT],
                 } elseif ($queryText !== '') {
                     $query->where('name', 'like', "%{$queryText}%");
                 }
-                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'کار', null);
+                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'کار', null,$messageId);
             }
         }
     }
 
 
-    private function paginateAndSend($chatId, $query, $queryText, $page, $perPage, $type, $user)
+    private function paginateAndSend($chatId, $query, $queryText, $page, $perPage, $type, $user,$messageId = null)
     {
         $totalCount = $query->count();
         $totalPages = ceil($totalCount / $perPage);
@@ -1034,7 +1034,18 @@ EOT],
         }
         $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
 
-        $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+        if (is_null($messageId)){
+            $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+        }else{
+            $token = env('BALE_BOT_TOKEN');
+            // ویرایش همان پیام قبلی
+            Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => $message,
+                'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
     }
 
 
