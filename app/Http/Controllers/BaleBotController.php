@@ -110,14 +110,14 @@ class BaleBotController extends Controller
                             $query->where('subject', 'like', "%{$queryText}%");
                         });
                     } else {
-                        $query->orderByDesc('id')->limit(5);
+                        $query->orderByDesc('id');
                     }
 
                     if (!$isFilter) {
                         $query->where('cartables.checked', '=', null);
                     }
 
-                    $letters = $query->get();
+                    $letters = $query->limit(5)->get();
 
                     if ($letters->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ نامه ای در کارپوشه مطابق با جستجوی شما یافت نشد.');
@@ -167,10 +167,10 @@ class BaleBotController extends Controller
                             $query->where('subject', 'like', "%{$queryText}%");
                         });
                     } else {
-                        $query->orderByDesc('id')->limit(5);
+                        $query->orderByDesc('id');
                     }
 
-                    $letters = $query->get();
+                    $letters = $query->limit(5)->get();
 
                     if ($letters->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ ارجاعی مطابق با جستجوی شما یافت نشد.');
@@ -214,7 +214,7 @@ class BaleBotController extends Controller
                     } elseif ($queryText !== '') {
                         $query->where('name', 'like', "%{$queryText}%");
                     } else {
-                        $query->orderByDesc('id')->limit(5);
+                        $query->orderByDesc('id');
                     }
 
                     if ($secondLine != '' and str_starts_with($secondLine , 'صورتجلسه')) {
@@ -231,7 +231,7 @@ class BaleBotController extends Controller
                         $query->where('Responsible_id', $user->id);
                     }
 
-                    $tasks = $query->get();
+                    $tasks = $query->limit(5)->get();
 
                     if ($tasks->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ کاری مطابق با جستجوی شما یافت نشد.');
@@ -274,14 +274,14 @@ class BaleBotController extends Controller
                     } elseif ($queryText !== '') {
                         $query->where('name', 'like', "%{$queryText}%");
                     } else {
-                        $query->orderByDesc('id')->limit(5);
+                        $query->orderByDesc('id');
                     }
 
                     if (!$user->can('restore_any_project')) {
                         $query->where('user_id', $user->id);
                     }
 
-                    $records = $query->get();
+                    $records = $query->limit(5)->get();
 
                     if ($records->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ دستورکاری مطابق با جستجوی شما یافت نشد.');
@@ -365,14 +365,14 @@ class BaleBotController extends Controller
                     } elseif ($queryText !== '') {
                         $query->where('title', 'like', "%{$queryText}%");
                     } else {
-                        $query->orderByDesc('id')->limit(5);
+                        $query->orderByDesc('id');
                     }
 
                     if (!$user->can('restore_any_minutes')) {
                         $query->where('typer_id', $user->id);
                     }
 
-                    $minutes = $query->get();
+                    $minutes = $query->limit(5)->get();
 
                     if ($minutes->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ صورت‌جلسه‌ای مطابق با جستجوی شما یافت نشد.');
