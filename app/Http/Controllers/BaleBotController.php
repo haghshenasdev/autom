@@ -1014,12 +1014,14 @@ EOT],
                 $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
             }
 
+
+            // دکمه حذف پیام
+            $buttons[] = ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'];
+
             if (!empty($buttons)) {
                 $keyboard['inline_keyboard'][] = $buttons;
             }
 
-            // دکمه حذف پیام
-            $keyboard['inline_keyboard'][] = ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'];
 
             Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
                 'chat_id' => $chatId,
