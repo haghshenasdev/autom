@@ -1011,15 +1011,15 @@ EOT],
                 $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
             }
             if ($page > 1) {
-                $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
+                $buttons[] = ['text' => 'قبلی ⬅️', 'callback_data' => "letter_page_" . ($page - 1)];
             }
 
-
+            $buttons2[] = $buttons;
             // دکمه حذف پیام
-            $buttons[][] = ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'];
+            $buttons2[] = ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'];
 
             if (!empty($buttons)) {
-                $keyboard['inline_keyboard'][] = $buttons;
+                $keyboard['inline_keyboard'][] = $buttons2;
             }
 
 
