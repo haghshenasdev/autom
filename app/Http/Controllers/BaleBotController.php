@@ -993,7 +993,8 @@ EOT],
             $totalPages = ceil(Letter::count() / $perPage);
             $letters = $query->forPage($page, $perPage)->get();
 
-            $message = "🗂 لیست نامه‌های شما - صفحه {$page} از {$query->count()}:\n\n";
+            $paginate_message = " صفحه {$page} از {$totalPages}:\n\n";
+            $message = "🗂 لیست نامه‌های شما -".$paginate_message."\n\n";
             foreach ($letters as $letter) {
                 $message .= "📝 عنوان: {$letter->subject}\n";
                 $message .= "🆔 شماره ثبت: {$letter->id}\n";
@@ -1003,6 +1004,7 @@ EOT],
                 $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->id]).')' . "\n";
                 $message .= "----------------------\n";
             }
+            $message .= "\n" . $paginate_message;
 
             $keyboard = ['inline_keyboard' => []];
             $buttons1 = [];
