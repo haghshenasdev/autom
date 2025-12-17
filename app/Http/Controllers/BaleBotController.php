@@ -425,9 +425,9 @@ class BaleBotController extends Controller
                         $query->where('id', $queryText);
                     } elseif ($queryText !== '') {
                         $queryTextPersent = str_replace(' ', '%', $queryText);
-                        $query->where('subject', 'like', "%{$queryTextPersent}%")->limit(5);
+                        $query->where('subject', 'like', "%{$queryTextPersent}%");
                     } else {
-                        $query->orderByDesc('id')->limit(5);
+                        $query->orderByDesc('id');
                     }
 
                     if (!$user->can('restore_any_letter')) {
@@ -437,11 +437,7 @@ class BaleBotController extends Controller
                             $query->where('user_id', $user->id);
                         });
                     }
-
-                    $page = 1;
-                    $perPage = 5;
-                    $totalPages = ceil($query->count() / $perPage);
-                    $letters = $query->forPage($page, $perPage)->get();
+                    $letters = $query->get();
 
                     if ($letters->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ نامه‌ای مطابق با جستجوی شما یافت نشد.');
@@ -454,33 +450,7 @@ class BaleBotController extends Controller
                         $path = $letters[0]->getFilePath();
                         $this->sendDocumentFromContent($chatId, Storage::disk('private')->get($path), basename($path), $this->getMimeTypeFromExtension($path), $message);
                     } else {
-                        $paginate_message = " صفحه {$page} از {$totalPages}";
-                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - ".$paginate_message.' :'."\n\n" : "🗂 لیست نامه‌های شما -".$paginate_message.' :'."\n\n";
-
-                        foreach ($letters as $letter) {
-                            $message .= "📝 عنوان: {$letter->subject}\n";
-                            $message .= "🆔 شماره ثبت: {$letter->id}\n";
-                            if ($letter->created_at) {
-                                $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
-                            }
-                            $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letter->id]) . ')' . "\n";
-                            $message .= "----------------------\n";
-                        }
-                        $message .= "\n" . $paginate_message;
-
-                        $keyboard = ['inline_keyboard' => []];
-                        $buttons = [];
-
-                        if ($page > 1) {
-                            $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "letter_page_" . ($page - 1)];
-                        }
-                        if ($page < $totalPages) {
-                            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
-                        }
-                        if (!empty($buttons)) {
-                            $keyboard['inline_keyboard'][] = $buttons;
-                        }
-                        $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+                        $this->paginateAndSend($chatId, $query, $queryText, 1, 5, 'نامه', $user);
                     }
 
                     return response('نامه ارسال شد');
@@ -1035,6 +1005,53 @@ EOT],
             ]);
         }
     }
+
+    private function paginateAndSend($chatId, $query, $queryText, $page, $perPage, $type, $user)
+    {
+        $totalCount = $query->count();
+        $totalPages = ceil($totalCount / $perPage);
+        $items = $query->forPage($page, $perPage)->get();
+
+        if ($items->isEmpty()) {
+            $this->sendMessage($chatId, "📭 هیچ {$type}ی مطابق با جستجوی شما یافت نشد.");
+            return;
+        }
+
+        $paginateMessage = " صفحه {$page} از {$totalPages}";
+        $message = $queryText
+            ? "🔍 نتیجه جستجو برای «{$queryText}» - {$paginateMessage}:\n\n"
+            : "🗂 لیست {$type}های شما - {$paginateMessage}:\n\n";
+
+        foreach ($items as $item) {
+            if ($type === 'نامه') {
+                $message .= $this->CreateLetterMessage($item);
+                $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$item->id]) . ")\n";
+            } else {
+                $message .= $this->CreateTaskMessage($item, $user);
+                $message .= '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$item->id]) . ")\n";
+            }
+            $message .= "----------------------\n";
+        }
+
+        $message .= "\n" . $paginateMessage;
+
+        // ساخت کیبورد
+        $keyboard = ['inline_keyboard' => []];
+        $buttons = [];
+        if ($page > 1) {
+            $buttons[] = ['text' => '⬅️ قبلی', 'callback_data' => "{$type}_page_" . ($page - 1) . "|{$queryText}"];
+        }
+        if ($page < $totalPages) {
+            $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "{$type}_page_" . ($page + 1) . "|{$queryText}"];
+        }
+        if (!empty($buttons)) {
+            $keyboard['inline_keyboard'][] = $buttons;
+        }
+        $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
+
+        $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+    }
+
 
     public function HelpHandler(string $queryText): string
     {
