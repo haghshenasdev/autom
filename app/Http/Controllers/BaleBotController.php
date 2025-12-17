@@ -440,8 +440,8 @@ class BaleBotController extends Controller
 
                     $page = 1;
                     $perPage = 5;
-                    $letters = $query->forPage($page, $perPage)->get();
                     $totalPages = ceil($query->count() / $perPage);
+                    $letters = $query->forPage($page, $perPage)->get();
 
                     if ($letters->isEmpty()) {
                         $this->sendMessage($chatId, '📭 هیچ نامه‌ای مطابق با جستجوی شما یافت نشد.');
@@ -454,7 +454,8 @@ class BaleBotController extends Controller
                         $path = $letters[0]->getFilePath();
                         $this->sendDocumentFromContent($chatId, Storage::disk('private')->get($path), basename($path), $this->getMimeTypeFromExtension($path), $message);
                     } else {
-                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - صفحه {$page}:\n\n" : "🗂 لیست نامه‌های شما - صفحه {$page} از {$query->count()}:\n\n";
+                        $paginate_message = " صفحه {$page} از {$totalPages}";
+                        $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}» - ".$paginate_message.' :'."\n\n" : "🗂 لیست نامه‌های شما -".$paginate_message.' :'."\n\n";
 
                         foreach ($letters as $letter) {
                             $message .= "📝 عنوان: {$letter->subject}\n";
@@ -465,6 +466,7 @@ class BaleBotController extends Controller
                             $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letter->id]) . ')' . "\n";
                             $message .= "----------------------\n";
                         }
+                        $message .= "\n" . $paginate_message;
 
                         $keyboard = ['inline_keyboard' => []];
                         $buttons = [];
