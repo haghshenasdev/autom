@@ -1019,7 +1019,7 @@ EOT],
             $buttons = [$buttons1,$buttons2];
 
             if (!empty($buttons)) {
-                $keyboard['inline_keyboard'][] = $buttons;
+                $keyboard['inline_keyboard'] = $buttons;
             }
 
 
