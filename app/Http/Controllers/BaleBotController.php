@@ -1005,21 +1005,21 @@ EOT],
             }
 
             $keyboard = ['inline_keyboard' => []];
-            $buttons = [];
+            $buttons1 = [];
 
             if ($page < $totalPages) {
-                $buttons[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
+                $buttons1[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
             }
             if ($page > 1) {
-                $buttons[] = ['text' => 'قبلی ⬅️', 'callback_data' => "letter_page_" . ($page - 1)];
+                $buttons1[] = ['text' => 'قبلی ⬅️', 'callback_data' => "letter_page_" . ($page - 1)];
             }
 
-            $buttons2[] = $buttons;
             // دکمه حذف پیام
-            $buttons2[] = ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'];
+            $buttons2 = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
+            $buttons = [$buttons1,$buttons2];
 
             if (!empty($buttons)) {
-                $keyboard['inline_keyboard'][] = $buttons2;
+                $keyboard['inline_keyboard'][] = $buttons;
             }
 
 
