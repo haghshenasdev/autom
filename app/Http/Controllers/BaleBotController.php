@@ -957,54 +957,39 @@ EOT],
             return;
         }
 
-        if (str_starts_with($callbackData, 'letter_page_')) {
-            $page = (int) str_replace('letter_page_', '', $callbackData);
-            $perPage = 5;
+        // مدیریت صفحه‌بندی نامه یا کار
+        if (str_contains($callbackData, '_page_')) {
+            // مثال: letter_page_2|جستجو یا task_page_3|کلمه
+            [$prefix, $rest] = explode('_page_', $callbackData, 2);
+            [$page, $queryText] = explode('|', $rest . '|'); // اگر queryText خالی بود، رشته دوم خالی می‌ماند
 
-            $query = Letter::query()->orderByDesc('id');
-            $totalPages = ceil($query->count() / $perPage);
-            $letters = $query->forPage($page, $perPage)->get();
+            $page = (int) $page;
+            $queryText = trim($queryText);
 
-            $paginate_message = " صفحه {$page} از {$totalPages}";
-            $message = "🗂 لیست نامه‌های شما -".$paginate_message.' :'."\n\n";
-            foreach ($letters as $letter) {
-                $message .= "📝 عنوان: {$letter->subject}\n";
-                $message .= "🆔 شماره ثبت: {$letter->id}\n";
-                if ($letter->created_at) {
-                    $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($letter->created_at)->format('Y/m/d') . "\n";
+            if ($prefix === 'نامه') {
+                $query = Letter::query()->orderByDesc('id');
+                // اگر queryText وجود دارد، فیلتر اعمال کن
+                if (is_numeric($queryText)) {
+                    $query->where('id', $queryText);
+                } elseif ($queryText !== '') {
+                    $queryTextPersent = str_replace(' ', '%', $queryText);
+                    $query->where('subject', 'like', "%{$queryTextPersent}%");
                 }
-                $message .= '[بازکردن در سامانه]('.LetterResource::getUrl('edit',[$letter->id]).')' . "\n";
-                $message .= "----------------------\n";
-            }
-            $message .= "\n" . $paginate_message;
-
-            $keyboard = ['inline_keyboard' => []];
-            $buttons1 = [];
-
-            if ($page < $totalPages) {
-                $buttons1[] = ['text' => '➡️ بعدی', 'callback_data' => "letter_page_" . ($page + 1)];
-            }
-            if ($page > 1) {
-                $buttons1[] = ['text' => 'قبلی ⬅️', 'callback_data' => "letter_page_" . ($page - 1)];
+                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'نامه', null);
             }
 
-            // دکمه حذف پیام
-            $buttons2 = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
-            $buttons = [$buttons1,$buttons2];
-
-            if (!empty($buttons)) {
-                $keyboard['inline_keyboard'] = $buttons;
+            if ($prefix === 'کار') {
+                $query = Task::query()->orderByDesc('id');
+                if (is_numeric($queryText)) {
+                    $query->where('id', $queryText);
+                } elseif ($queryText !== '') {
+                    $query->where('name', 'like', "%{$queryText}%");
+                }
+                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'کار', null);
             }
-
-
-            Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
-                'chat_id' => $chatId,
-                'message_id' => $messageId,
-                'text' => $message,
-                'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
-            ]);
         }
     }
+
 
     private function paginateAndSend($chatId, $query, $queryText, $page, $perPage, $type, $user)
     {
