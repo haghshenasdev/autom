@@ -33,8 +33,8 @@ class MinutesParser
 //        $organsName = [];
 
         foreach ($lines as $line) {
-            if (str_starts_with($line, '-') || str_starts_with($line, '_')) {
-                $rawLine = ltrim($line, "-_ ");
+            if (str_starts_with($line, '-') || str_starts_with($line, '_') || str_starts_with($line, 'ـ')) {
+                $rawLine = ltrim($line, "-_ـ ");
 
                 $approve = [];
 
