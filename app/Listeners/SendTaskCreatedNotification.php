@@ -30,7 +30,8 @@ class SendTaskCreatedNotification
         if ($task->Responsible_id and $task->Responsible_id  != $task->created_by)
         {
             $bale_bot = new BaleBotController();
-            $message = "کار جدیدی توسط {$task->creator->name} برای شما ثبت شد: " . "\n";
+            $creator_name = $task->creator->name ?? 'نا مشخص';
+            $message = "کار جدیدی توسط {$creator_name} برای شما ثبت شد: " . "\n";
             $message .= $bale_bot->CreateTaskMessage($task);
             $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n";
             $bale_bot->sendNotifBale($task->Responsible_id, $message);
