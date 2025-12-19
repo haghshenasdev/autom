@@ -11,6 +11,7 @@ use App\Http\Controllers\ai\LetterParser;
 use App\Models\AppendixOther;
 use App\Models\Cartable;
 use App\Models\City;
+use App\Models\Organ;
 use App\Models\Project;
 use App\Models\Referral;
 use Exception;
@@ -298,6 +299,44 @@ class BaleBotController extends Controller
 
                     $this->sendMessage($chatId, $message);
                     return response('دستورکار ارسال شد');
+
+                }
+                elseif (str_starts_with($firstLine, '/ارگان')) {
+
+                    $queryText = trim(str_replace('/ارگان', '', $firstLine));
+
+                    $query = Organ::query();
+
+                    if (is_numeric($queryText)) {
+                        $query->where('id', $queryText);
+                    } elseif ($queryText !== '') {
+                        $query->where('name', 'like', "%{$queryText}%");
+                    } else {
+                        $query->orderByDesc('id');
+                    }
+
+                    if (!$user->can('restore_any_project')) {
+                        $query->where('user_id', $user->id);
+                    }
+
+                    $records = $query->limit(5)->get();
+
+                    if ($records->isEmpty()) {
+                        $this->sendMessage($chatId, '📭 هیچ ارگانی مطابق با جستجوی شما یافت نشد.');
+                        return response('ارگان خالی');
+                    }
+
+                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "لیست آخرین ارگان ها :\n\n";
+
+                    foreach ($records as $record) {
+                        $message .= 'ثبت : ' . $record->id ."\n";
+                        $message .= 'نام : ' . $record->name ."\n";
+                        if ($record->organ_type_id) $message .= 'نوع : ' . $record->type->name ."\n";
+                        $message .= "----------------------\n";
+                    }
+
+                    $this->sendMessage($chatId, $message);
+                    return response('ارگان ارسال شد');
 
                 }
                 elseif (str_starts_with($firstLine, '#مصوبه')){
@@ -1339,7 +1378,8 @@ TEXT;
 لیست نامه های بررسی نشده در کارپوشه شما را ارسال می کند . اگر بعد از دستور #همه استفاده شود نامه های بررسی شده هم ارسال می شوند . بعد از دستور میتوان شماره نامه یا عنوان نامه را برای جستجو در نامه ها استفاده کرد.
 /دستورکار
 نمایش لیست ۵ تا از دستورکار های مربوط به شما . بعد از دستور میتوان شماره دستور کار یا کلماتی برای جستجو وارد کرد .
-
+/ارگان
+نمایش ارگان های تعریف شده در سیستم.
 
 ⚠️ توجه !
 ربات به فاصله ها (اسپیس یا فضای خالی) بین کلمات و دستورات حساس می باشد.  به عنوان مثال ( # صورت جلسه ) یا (/ کار ) اشتباه است و شکل صحیح آن ( #صورتجلسه ) یا (/کار) می باشد .
