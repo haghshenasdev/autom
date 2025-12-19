@@ -8,6 +8,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Organ;
 use Exception;
+use Illuminate\Support\Facades\Cache;
 use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
 use Carbon\Carbon;
@@ -30,6 +31,7 @@ class MinutesParser
         $approves = [];
         $organs = [];
         $taskId = null;
+        $globalProjects = [];
 //        $organsName = [];
 
         foreach ($lines as $line) {
@@ -60,34 +62,7 @@ class MinutesParser
                 $approve['amount'] = $amount;
 
                 // --- استخراج پروژه‌ها / دستورکارها ---
-                $projects_id = [];
-                if (preg_match('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $rawLine, $pm)) {
-                    $content = trim($pm[1]);
-
-                    // جدا کردن چند پروژه با کاما فارسی یا نقطه
-                    $items = preg_split('/[،\.]+/u', $content);
-
-                    foreach ($items as $item) {
-                        $item = trim($item);
-                        if (!$item) continue;
-
-                        if (is_numeric($item)) {
-                            $project = Project::find($item);
-                            if ($project) {
-                                $projects_id[] = $project->id;
-                            }
-                        } else {
-                            $project = Project::query()->where('name', 'like', '%' . $item . '%')->first();
-                            if ($project) {
-                                $projects_id[] = $project->id;
-                            }
-                        }
-                    }
-
-                    // پاک کردن بخش پروژه/دستورکار از متن
-                    $rawLine = preg_replace('/(?:پروژه|دستور\s*کار)\s+.+/u', '', $rawLine);
-                }
-                $approve['projects'] = array_unique($projects_id);
+                [$approve['projects'],$rawLine] = $this->extractProjects($rawLine);
 
                 // حذف @ها از متن
                 $cleanLine = preg_replace('/@\s*([^\s]+)/u', '', $rawLine);
@@ -137,21 +112,19 @@ class MinutesParser
                 }
             }
             else{
+                // --- استخراج پروژه‌ها / دستورکارها ---
+                [$globalProjects,$line] = $this->extractProjects($line);
+
                 // استخراج @های مستقل برای organs
                 preg_match_all('/@\s*([^@]+)/u', $line, $organMatchesLine);
                 if (!empty($organMatchesLine[1])) {
                     foreach ($organMatchesLine[1] as $mention) {
-                        $name = str_replace(['_', '-'], '%', $mention);
+                        $name = str_replace(['_', '-'], ' ', $mention);
                         $name = str_replace('@', '', $name);
                         $name = trim($name);
+                        $organKeywords = explode(" ", $name);
 
-                        $organ = Organ::where('name', 'like', "%$name%")
-                            ->orWhere('id', $mention)
-                            ->first();
-
-                        if ($organ) {
-                            $organs[] = $organ->id;
-                        }
+                        $organs[] = $this->detectOrgan($organKeywords);
                     }
                 }
 
@@ -170,6 +143,7 @@ class MinutesParser
             'approves' => $approves,
             'organs' => $organs,
             'task_id' => $taskId,
+            'global_projects' => $globalProjects,
         ];
     }
 
@@ -194,10 +168,11 @@ class MinutesParser
         return null;
     }
 
-    protected function extractRelativeDate(string $text,Carbon $now): ?Carbon
+    protected function extractRelativeDate(string $text, Carbon $now): ?Carbon
     {
         $now = clone $now;
-        // نگاشت اعداد فارسی متنی و عددی به عدد
+
+        // نگاشت پایه اعداد فارسی متنی
         $numberMap = [
             'یک' => 1, '۱' => 1,
             'دو' => 2, '۲' => 2,
@@ -209,12 +184,47 @@ class MinutesParser
             'هشت' => 8, '۸' => 8,
             'نه' => 9, '۹' => 9,
             'ده' => 10, '۱۰' => 10,
+            'یازده' => 11, 'دوازده' => 12,
+            'سیزده' => 13, 'چهارده' => 14,
+            'پانزده' => 15, 'شانزده' => 16,
+            'هفده' => 17, 'هجده' => 18,
+            'نوزده' => 19, 'بیست' => 20,
+            'سی' => 30, 'چهل' => 40,
+            'پنجاه' => 50, 'شصت' => 60,
+            'هفتاد' => 70, 'هشتاد' => 80,
+            'نود' => 90, 'صد' => 100,
         ];
 
-        // استخراج عدد و واحد زمانی با پشتیبانی از اعداد فارسی و متنی
-        if (preg_match('/تا\s*(\d+|[۰-۹]+|یک|دو|سه|چهار|پنج|شش|هفت|هشت|نه|ده)\s*(روز|هفته|ماه|سال)/u', $text, $matches)) {
-            $rawNumber = $matches[1];
-            $unit = $matches[2];
+        // تابع کمکی برای تبدیل متن به عدد
+        $convertTextToNumber = function(string $raw) use ($numberMap): ?int {
+            $raw = trim($raw);
+
+            // اگر مستقیم در نگاشت بود
+            if (isset($numberMap[$raw])) {
+                return $numberMap[$raw];
+            }
+
+            // اگر ترکیبی مثل "بیست و یک"
+            if (strpos($raw, 'و') !== false) {
+                $parts = array_map('trim', explode('و', $raw));
+                $sum = 0;
+                foreach ($parts as $p) {
+                    if (isset($numberMap[$p])) {
+                        $sum += $numberMap[$p];
+                    } else {
+                        return null;
+                    }
+                }
+                return $sum;
+            }
+
+            return null;
+        };
+
+        // regex با کلیدواژه‌های مختلف
+        if (preg_match('/(تا|مدت|لغایت)\s*(\d+|[۰-۹]+|[آ-ی\s]+)\s*(روز|هفته|ماه|سال)/u', $text, $matches)) {
+            $rawNumber = trim($matches[2]);
+            $unit = $matches[3];
 
             // تبدیل اعداد فارسی به انگلیسی
             $persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
@@ -224,17 +234,17 @@ class MinutesParser
             // تبدیل به عدد صحیح
             $number = is_numeric($normalizedNumber)
                 ? (int)$normalizedNumber
-                : ($numberMap[$rawNumber] ?? null);
+                : $convertTextToNumber($rawNumber);
 
             if ($number === null) {
                 return null;
             }
 
             return match ($unit) {
-                'روز' => $now->addDays($number),
-                'هفته' => $now->addDays(7 * $number),
-                'ماه' => $now->addMonths($number),
-                'سال' => $now->addYears($number),
+                'روز'   => $now->addDays($number),
+                'هفته'  => $now->addDays(7 * $number),
+                'ماه'   => $now->addMonths($number),
+                'سال'   => $now->addYears($number),
                 default => null,
             };
         }
@@ -263,5 +273,68 @@ class MinutesParser
             }
         }
         return null;
+    }
+
+    /**
+     * @param array|string|null $rawLine
+     * @param $pm
+     * @param array $projects_id
+     * @return array
+     */
+    public function extractProjects(string $rawLine): array
+    {
+        $projects_id = [];
+        if (preg_match('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $rawLine, $pm)) {
+            $content = trim($pm[1]);
+
+            // جدا کردن چند پروژه با کاما فارسی یا نقطه
+            $items = preg_split('/[،\.]+/u', $content);
+
+            foreach ($items as $item) {
+                $item = trim($item);
+                if (!$item) continue;
+
+                if (is_numeric($item)) {
+                    $project = Project::find($item);
+                    if ($project) {
+                        $projects_id[] = $project->id;
+                    }
+                } else {
+                    $project = Project::query()->where('name', 'like', '%' . $item . '%')->first();
+                    if ($project) {
+                        $projects_id[] = $project->id;
+                    }
+                }
+            }
+
+            // پاک کردن بخش پروژه/دستورکار از متن
+            $rawLine = preg_replace('/(?:پروژه|دستور\s*کار)\s+.+/u', '', $rawLine);
+        }
+        return [array_unique($projects_id),$rawLine];
+    }
+
+    public function detectOrgan(array $keywords, int $minRequiredMatches = 2): ?int
+    {
+        $organs = Cache::remember('organ_records', 3600, function () {
+            return Organ::select('id', 'name')->get();
+        });
+
+        $keywordSet = array_map('mb_strtolower', $keywords);
+
+        $bestMatchId = null;
+        $maxMatchCount = 0;
+
+        foreach ($organs as $organ) {
+            $organWords = preg_split('/\s+/', mb_strtolower($organ->name));
+            $matchCount = count(array_intersect($organWords, $keywordSet));
+
+            if ($matchCount > $maxMatchCount) {
+                $maxMatchCount = $matchCount;
+                $bestMatchId = $organ->id;
+            }
+        }
+
+        // اگر هیچ تطابقی نداشت، null برمی‌گردد
+        return $maxMatchCount >= $minRequiredMatches ? $bestMatchId : null;
     }
 }
