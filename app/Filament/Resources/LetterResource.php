@@ -162,7 +162,7 @@ class LetterResource extends Resource
                             ->multiple()
                             ->searchable(['name','id'])
                             ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
-                            ->label('صاحب - ارگان'),
+                            ->label('صاحب - ارگان')->lazy(),
                         Select::make('customers')
                             ->label('صاحب - شخص')
                             ->suffixActions([
@@ -250,13 +250,13 @@ class LetterResource extends Resource
                     ->preload()
                     ->createOptionForm(Organ::formSchema()),
                 Forms\Components\Select::make('projects')
-                    ->label('پروژه')->multiple()
+                    ->label('پروژه')->multiple()->lazy()
                     ->relationship('projects', 'name')
                     ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
                     ->searchable(['projects.id', 'projects.name'])
                     ->preload(),
                 FileUpload::make('file')
-                    ->label('فایل')
+                    ->label('فایل')->lazy()
                     ->disk('private')
                     ->downloadable()
                     ->getUploadedFileNameForStorageUsing(static fn (TemporaryUploadedFile $file,?Model $record) => "{$record->id}/{$record->id}." . explode('/',$file->getMimeType())[1])
@@ -275,7 +275,7 @@ class LetterResource extends Resource
                     Forms\Components\Select::make('cartables')
                         ->label('گیرنده درخواست (افزودن به کارپوشه)')
                         ->relationship('users', 'name')->multiple()
-                        ->searchable()
+                        ->searchable()->lazy()
                         ->allowHtml()
                         ->getOptionLabelFromRecordUsing(function ($record): string {
                             return view('filament.components.select-user-result')
@@ -298,49 +298,76 @@ class LetterResource extends Resource
 
     public static function table(Table $table): Table
     {
-        $columns = [
-            TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
-            TextColumn::make('subject')->label('موضوع')
-                ->weight(FontWeight::Bold)
-                ->words(10)->searchable(),
-            TextColumn::make('customers.name')->label('صاحب - مراجعه کننده')
-                ->toggleable(isToggledHiddenByDefault: true)->sortable(),
-            TextColumn::make('organs_owner.name')->label('صاحب - ارگان')
-                ->toggleable(isToggledHiddenByDefault: true)->sortable(),
-            TextColumn::make('organ.name')->label('گیرنده نامه')
-                ->toggleable(isToggledHiddenByDefault: false)
-                ->sortable(),
-            TextColumn::make('daftar.name')->label('دفتر')
-                ->toggleable(isToggledHiddenByDefault: true)
-                ->sortable(),
-            TextColumn::make('projects.name')->label('پروژه')
-                ->toggleable(isToggledHiddenByDefault: true)
-                ->listWithLineBreaks()->sortable(),
-            Tables\Columns\TextColumn::make('status')
-                ->label('وضعیت')
-                ->badge()
-                ->color(fn (string $state): string => Letter::getStatusColor($state))
-                ->state(function (Model $record): string {
-                    return Letter::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
-            TextColumn::make('kind')->label('نوع ورودی')->sortable()
-                ->state(function (Model $record): string {
-                    return Letter::getKindLabel($record->kind);
-                })->toggleable(isToggledHiddenByDefault: true),
-            TextColumn::make('type.name')->label('نوع')->toggleable(isToggledHiddenByDefault: true),
-            TextColumn::make('user.name')->label('ثبت کننده')->toggleable(isToggledHiddenByDefault: true),
-            Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
-            Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
-        ];
+        $columns = [];
         if (request()->cookie('mobile_mode') === 'on'){
-            $bale = new BaleBotController();
             $columns = [
                 Split::make([
-                    TextColumn::make('data')
-                        ->state(fn (Model $record): string => str_replace("\n",'<br>',$bale->CreateLetterMessage($record)))->html()
-                ])
+                    TextColumn::make('id')->label('ثبت')->prefix('🆔 ثبت : ')->searchable()->sortable(),
+                    TextColumn::make('subject')->prefix('❇️ موضوع : ')
+                        ->weight(FontWeight::Bold)->searchable(),
+                    TextColumn::make('organ.name')->prefix('📨 گیرنده نامه : ')->label('گیرنده')
+                        ->sortable(),
+                    TextColumn::make('daftar.name')->prefix('🏢 دفتر : ')
+                        ->toggleable(isToggledHiddenByDefault: true)
+                        ->sortable(),
+                    TextColumn::make('projects.name')->prefix('🎚️ دستورکار : ')
+                        ->toggleable(isToggledHiddenByDefault: true)
+                        ->listWithLineBreaks()->sortable(),
+                    Tables\Columns\TextColumn::make('status')
+                        ->label('وضعیت')->prefix('📊 وضعیت: ')
+                        ->badge()
+                        ->color(fn (string $state): string => Letter::getStatusColor($state))
+                        ->state(function (Model $record): string {
+                            return Letter::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
+                    TextColumn::make('kind')->label('نوع ورودی')->prefix('📫 صادره یا وارده : ')->sortable()
+                        ->state(function (Model $record): string {
+                            return Letter::getKindLabel($record->kind);
+                        })->toggleable(isToggledHiddenByDefault: true),
+                    TextColumn::make('user.name')->prefix('👤 کاربر ثبت کننده : ')->toggleable(isToggledHiddenByDefault: true),
+                    Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->prefix('📅 تاریخ ایجاد : ')->sortable()->jalaliDateTime(),
+                    Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->prefix('📅 تاریخ ویرایش : ')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
+                    TextColumn::make('customers.name')->prefix('صاحب - مراجعه کننده : ')
+                        ->toggleable(isToggledHiddenByDefault: true)->sortable(),
+                    TextColumn::make('organs_owner.name')->prefix('صاحب - ارگان : ')
+                        ->toggleable(isToggledHiddenByDefault: true)->sortable(),
+                ])->from('md')
+            ];
+        }else{
+            $columns = [
+                TextColumn::make('id')->label('ثبت')->searchable()->sortable(),
+                TextColumn::make('subject')->label('موضوع')
+                    ->weight(FontWeight::Bold)
+                    ->words(10)->searchable(),
+                TextColumn::make('customers.name')->label('صاحب - مراجعه کننده')
+                    ->toggleable(isToggledHiddenByDefault: true)->sortable(),
+                TextColumn::make('organs_owner.name')->label('صاحب - ارگان')
+                    ->toggleable(isToggledHiddenByDefault: true)->sortable(),
+                TextColumn::make('organ.name')->label('گیرنده نامه')
+                    ->toggleable(isToggledHiddenByDefault: false)
+                    ->sortable(),
+                TextColumn::make('daftar.name')->label('دفتر')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->sortable(),
+                TextColumn::make('projects.name')->label('پروژه')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->listWithLineBreaks()->sortable(),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('وضعیت')
+                    ->badge()
+                    ->color(fn (string $state): string => Letter::getStatusColor($state))
+                    ->state(function (Model $record): string {
+                        return Letter::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
+                TextColumn::make('kind')->label('نوع ورودی')->sortable()
+                    ->state(function (Model $record): string {
+                        return Letter::getKindLabel($record->kind);
+                    })->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('type.name')->label('نوع')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('user.name')->label('ثبت کننده')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('created_at')->label(' تاریخ ایجاد')->jalaliDateTime(),
+                Tables\Columns\TextColumn::make('updated_at')->label(' تاریخ آخرین ویرایش')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
             ];
         }
-        return $table->defaultSort('id','desc')
+        return $table->defaultSort('letters.id','desc')
             ->columns($columns)
             ->filters([
                 SelectFilter::make('customers')
@@ -390,7 +417,7 @@ class LetterResource extends Resource
                             );
                     })
                 ,
-            ])->filtersFormColumns(3)
+            ], layout: FiltersLayout::AboveContentCollapsible)
             ->actions([
                 Tables\Actions\Action::make('باز کردن لینک')
                     ->label('نمایش فایل')

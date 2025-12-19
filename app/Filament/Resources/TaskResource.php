@@ -17,6 +17,7 @@ use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -77,63 +78,110 @@ class TaskResource extends Resource
 
     public static function table(Table $table): Table
     {
-        $columns = [
-            Tables\Columns\TextColumn::make('id')->label('ثبت')
-                ->searchable()->sortable(),
-            Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
-            Tables\Columns\TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks(),
-            Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
-                ->toggleable(isToggledHiddenByDefault: true),
-            Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
-                ->sortable()->visible(auth()->user()->can('restore_any_task'))->visible(auth()->user()->can('restore_any_task')),
-            Tables\Columns\IconColumn::make('completed')->label('وضعیت انجام')
-                ->boolean(),
-            Tables\Columns\TextColumn::make('completed_at')->label('تاریخ انجام')
-                ->jalaliDateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
-            Tables\Columns\TextColumn::make('task_group.name')->label('دسته بندی'),
-            Tables\Columns\TextColumn::make('city.name')->label('شهر')->toggleable(isToggledHiddenByDefault: true),
-            Tables\Columns\TextColumn::make('started_at')->label('شروع')
-                ->jalaliDateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
-            Tables\Columns\TextColumn::make('ended_at')->label('پایان')
-                ->jalaliDateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
-            Tables\Columns\TextColumn::make('status')
-                ->label('وضعیت')
-                ->badge()
-                ->color(fn (string $state): string => Task::getStatusColor($state))
-                ->state(function (Model $record): string {
-                    return Task::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
-            Tables\Columns\TextColumn::make('created_at')->label('تاریخ ایجاد')
-                ->jalaliDateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
-            Tables\Columns\TextColumn::make('updated_at')->label('بروز رسانی')
-                ->jalaliDateTime()
-                ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true),
-            TextColumn::make('amount')->label('اعتبار')->toggleable(isToggledHiddenByDefault: true)->sortable()->numeric()->suffix('ریال'),
-            ProgressBar::make('progress')->label('پیشرفت')
-                ->getStateUsing(function ($record) {
-                    return [
-                        'total' => 100,
-                        'progress' => $record->progress,
-                    ];
-                })->toggleable(isToggledHiddenByDefault: true)->sortable(),
-        ];
+        $columns = [];
         if (request()->cookie('mobile_mode') === 'on'){
             $bale = new BaleBotController();
             $columns = [
                 Split::make([
-                    TextColumn::make('data')
-                        ->searchable()->state(fn (Task $record): string => str_replace("\n",'<br>',$bale->CreateTaskMessage($record,auth()->user())))->html()
-                ])
+                    Tables\Columns\TextColumn::make('id')->label('ثبت')
+                        ->searchable()->sortable(),
+                    Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
+                    Tables\Columns\TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks(),
+                    Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
+                        ->toggleable(isToggledHiddenByDefault: true),
+                    Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
+                        ->sortable()->visible(auth()->user()->can('restore_any_task'))->visible(auth()->user()->can('restore_any_task')),
+                    Tables\Columns\IconColumn::make('completed')->label('وضعیت انجام')
+                        ->boolean(),
+                    Tables\Columns\TextColumn::make('completed_at')->label('تاریخ انجام')
+                        ->jalaliDateTime()
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+                    Tables\Columns\TextColumn::make('task_group.name')->label('دسته بندی'),
+                    Tables\Columns\TextColumn::make('city.name')->label('شهر')->toggleable(isToggledHiddenByDefault: true),
+                    Tables\Columns\TextColumn::make('started_at')->label('شروع')
+                        ->jalaliDateTime()
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+                    Tables\Columns\TextColumn::make('ended_at')->label('پایان')
+                        ->jalaliDateTime()
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+                    Tables\Columns\TextColumn::make('status')
+                        ->label('وضعیت')
+                        ->badge()
+                        ->color(fn (string $state): string => Task::getStatusColor($state))
+                        ->state(function (Model $record): string {
+                            return Task::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
+                    Tables\Columns\TextColumn::make('created_at')->label('تاریخ ایجاد')
+                        ->jalaliDateTime()
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+                    Tables\Columns\TextColumn::make('updated_at')->label('بروز رسانی')
+                        ->jalaliDateTime()
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+                    TextColumn::make('amount')->label('اعتبار')->toggleable(isToggledHiddenByDefault: true)->sortable()->numeric()->suffix('ریال'),
+                    ProgressBar::make('progress')->label('پیشرفت')
+                        ->getStateUsing(function ($record) {
+                            return [
+                                'total' => 100,
+                                'progress' => $record->progress,
+                            ];
+                        })->toggleable(isToggledHiddenByDefault: true)->sortable(),
+                ])->from('md')
+            ];
+        }else{
+            $columns = [
+                Tables\Columns\TextColumn::make('id')->label('ثبت')
+                    ->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
+                Tables\Columns\TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks(),
+                Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
+                    ->sortable()->visible(auth()->user()->can('restore_any_task'))->visible(auth()->user()->can('restore_any_task')),
+                Tables\Columns\IconColumn::make('completed')->label('وضعیت انجام')
+                    ->boolean(),
+                Tables\Columns\TextColumn::make('completed_at')->label('تاریخ انجام')
+                    ->jalaliDateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('task_group.name')->label('دسته بندی'),
+                Tables\Columns\TextColumn::make('city.name')->label('شهر')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('started_at')->label('شروع')
+                    ->jalaliDateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('ended_at')->label('پایان')
+                    ->jalaliDateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('وضعیت')
+                    ->badge()
+                    ->color(fn (string $state): string => Task::getStatusColor($state))
+                    ->state(function (Model $record): string {
+                        return Task::getStatusLabel($record->status);})->sortable()->toggleable(isToggledHiddenByDefault: false),
+                Tables\Columns\TextColumn::make('created_at')->label('تاریخ ایجاد')
+                    ->jalaliDateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')->label('بروز رسانی')
+                    ->jalaliDateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('amount')->label('اعتبار')->toggleable(isToggledHiddenByDefault: true)->sortable()->numeric()->suffix('ریال'),
+                ProgressBar::make('progress')->label('پیشرفت')
+                    ->getStateUsing(function ($record) {
+                        return [
+                            'total' => 100,
+                            'progress' => $record->progress,
+                        ];
+                    })->toggleable(isToggledHiddenByDefault: true)->sortable(),
             ];
         }
+
         return $table->defaultSort('tasks.id','desc')
             ->columns($columns)
             ->filters([
@@ -176,7 +224,7 @@ class TaskResource extends Resource
                 Tables\Filters\SelectFilter::make('Responsible_id')->label('مسئول')
                     ->relationship('responsible', 'name')
                     ->searchable()->preload()->visible(auth()->user()->can('restore_any_task')),
-            ])
+            ], layout: FiltersLayout::AboveContentCollapsible)
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
