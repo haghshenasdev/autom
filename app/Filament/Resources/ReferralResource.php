@@ -79,6 +79,7 @@ class ReferralResource extends Resource
                     ->label('به')
                     ->visible($user->can('restore_any_referral'))
                     ->relationship('users', 'name')
+                    ->disabled(fn (?Model $record) => $record && $record->by_user_id != $user->id)
                     ->searchable()
                     ->required()
                     ->preload(),
