@@ -38,7 +38,10 @@ class SendTasksReminderJob implements ShouldQueue
         foreach ($users as $user) {
             // تسک‌های کاربر که completed = false و ended_at <= امروز
             $tasks = Task::where('Responsible_id', $user->id)
-                ->where('completed', false)
+                ->where(function ($q) {
+                    $q->whereNull('completed')
+                        ->orWhere('completed', 0);
+                })
                 ->where(function ($query) use ($today, $threeDaysLater) {
                     $query->whereDate('ended_at', '<=', $today) // گذشته
                     ->orWhereBetween('ended_at', [$today, $threeDaysLater]); // تا 3 روز آینده
