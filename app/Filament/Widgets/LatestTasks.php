@@ -29,9 +29,9 @@ class LatestTasks extends BaseWidget
         $columns = [
             Tables\Columns\TextColumn::make('name')->label('عنوان'),
             Tables\Columns\IconColumn::make('completed')->label('وضعیت انجام')
-                ->boolean(),
-            Tables\Columns\TextColumn::make('ended_at_diff')
-                ->label('زمان اتمام')
+                ->boolean()->sortable(),
+            Tables\Columns\TextColumn::make('ended_at')
+                ->label('زمان اتمام')->sortable()
                 ->state(function (Model $record): string {
                     if (is_null($record->ended_at)) return 'نامشخص';
                     $diff = Carbon::now()->diffInDays(Carbon::parse($record->ended_at), false);
@@ -56,8 +56,8 @@ class LatestTasks extends BaseWidget
                         return 'info'; // آبی
                     }
                 }),
-            Tables\Columns\TextColumn::make('started_at_diff')
-                ->label('زمان شروع')
+            Tables\Columns\TextColumn::make('started_at')
+                ->label('زمان شروع')->sortable()
                 ->state(function (Model $record): string {
                     if (is_null($record->started_at)) return 'نامشخص';
                     $diff = Carbon::parse($record->started_at)->diffInDays(Carbon::now(), false);
@@ -91,7 +91,7 @@ class LatestTasks extends BaseWidget
                 Tables\Columns\Layout\Split::make([
                     Tables\Columns\TextColumn::make('name')->label('عنوان')->state(fn (Model $record): string => ($record->completed ? '✅' : '❌') . ' ' . $record->name),
 
-                    Tables\Columns\TextColumn::make('ended_at_diff')
+                    Tables\Columns\TextColumn::make('ended_at')->sortable()->label('زمان اتمام')
                         ->description('زمان اتمام', position: 'above')
                         ->state(function (Model $record): string {
                             if (is_null($record->ended_at)) return 'نامشخص';
@@ -118,7 +118,7 @@ class LatestTasks extends BaseWidget
                             }
                         }),
 
-                    Tables\Columns\TextColumn::make('started_at_diff')
+                    Tables\Columns\TextColumn::make('started_at')->sortable()->label('زمان شروع')
                         ->description('زمان شروع', position: 'above')
                         ->state(function (Model $record): string {
                             if (is_null($record->started_at)) return 'نامشخص';
