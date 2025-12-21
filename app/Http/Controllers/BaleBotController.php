@@ -15,6 +15,7 @@ use App\Models\Organ;
 use App\Models\Project;
 use App\Models\Referral;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -198,50 +199,34 @@ class BaleBotController extends Controller
 
                 }
                 elseif (str_starts_with($firstLine, '/کار')) {
-                    if (!$user->can('view_task')) {
-                        $this->sendMessage($chatId, '❌ شما به کارها دسترسی ندارید!');
-                        return response('عدم دسترسی');
-                    }
 
-                    $queryText = trim(str_replace('/کار', '', $firstLine));
-                    $completionKeywords = ['#انجام', '#شد', '#انجام_شد'];
-                    $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($text) {
-                        return mb_strpos($text, $kw) !== false;
-                    });
-                    if ($isCompletion) $queryText = trim(str_replace($completionKeywords, '', $queryText));
-
-                    $query = Task::query();
-
-                    if (is_numeric($queryText)) {
-                        $query->where('id', $queryText);
-                    } elseif ($queryText !== '') {
-                        $query->where('name', 'like', "%{$queryText}%");
-                    } else {
-                        $query->orderByDesc('id');
-                    }
-
-                    if ($secondLine != '' and str_starts_with($secondLine , 'صورتجلسه')) {
-                        $queryMinText = trim(str_replace('صورتجلسه','',$secondLine));
-                        if (is_numeric($queryText)) {
-                            $query->where('minutes_id', $queryMinText);
-                        } else {
-                            $minute = Minutes::query()->where('title', 'like', "%{$queryMinText}%")->first();
-                            if ($minute) $query->where('minutes_id', $minute->id);
+                    $handle_res = $this->handleEntry($chatId,$user,'کار','view_task',
+                        $firstLine,
+                        Task::query(),
+                        'restore_any_task',
+                        anyQuery: function ($query) use ($user) {
+                            $query->where('Responsible_id', $user->id);
+                        },
+                        searchField: 'name',
+                        useIsCompletion: true,
+                        filterQuery: function ($query) use ($user,$secondLine) {
+                            if ($secondLine != '' and str_starts_with($secondLine , 'صورتجلسه')) {
+                                $queryMinText = trim(str_replace('صورتجلسه','',$secondLine));
+                                if (is_numeric($queryMinText)) {
+                                    $query->where('minutes_id', $queryMinText);
+                                } else {
+                                    $minute = Minutes::query()->where('title', 'like', "%{$queryMinText}%")->first();
+                                    if ($minute) $query->where('minutes_id', $minute->id);
+                                }
+                            }
                         }
+                    );
+                    // اگر خروجی response بود → همون رو برگردون
+                    if ($handle_res instanceof \Illuminate\Http\Response) {
+                        return $handle_res;
                     }
+                    [$query, $queryText,$tasks,$isCompletion] = $handle_res;
 
-                    if (!$user->can('restore_any_task')) {
-                        $query->where('Responsible_id', $user->id);
-                    }
-
-                    $tasks = $query->limit(5)->get();
-
-                    if ($tasks->isEmpty()) {
-                        $this->sendMessage($chatId, '📭 هیچ کاری مطابق با جستجوی شما یافت نشد.');
-                        return response('کار خالی');
-                    }
-
-                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین کارهای شما:\n\n";
 
                     if (count($tasks) == 1) {
                         foreach ($tasks as $task) {
@@ -462,36 +447,25 @@ class BaleBotController extends Controller
                     }
                 }
                 elseif (str_starts_with($firstLine, '/نامه')) {
-                    if (!$user->can('view_letter')) {
-                        $this->sendMessage($chatId, '❌ شما به نامه‌ها دسترسی ندارید!');
-                        return response('عدم دسترسی');
+                    $handle_res = $this->handleEntry($chatId,$user,'نامه','view_letter',
+                        $firstLine,
+                        Letter::query(),
+                        'restore_any_letter',
+                        anyQuery: function ($query) use ($user) {
+                            $query->orWhere('user_id', $user->id)->orWhereHas('referrals', function ($quer) use ($user) {
+                                $quer->where('to_user_id', $user->id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
+                            })->orWhereHas('users', function ($query) use ($user) {
+                                $query->where('user_id', $user->id);
+                            });
+                        },
+                        searchField: 'subject'
+                    );
+                    // اگر خروجی response بود → همون رو برگردون
+                    if ($handle_res instanceof \Illuminate\Http\Response) {
+                        return $handle_res;
                     }
 
-                    $queryText = trim(str_replace('/نامه', '', $firstLine));
-                    $query = Letter::query();
-
-                    if (is_numeric($queryText)) {
-                        $query->where('id', $queryText);
-                    } elseif ($queryText !== '') {
-                        $queryTextPersent = str_replace(' ', '%', $queryText);
-                        $query->where('subject', 'like', "%{$queryTextPersent}%");
-                    } else {
-                        $query->orderByDesc('id');
-                    }
-
-                    if (!$user->can('restore_any_letter')) {
-                        $query->orWhere('user_id', $user->id)->orWhereHas('referrals', function ($quer) use ($user) {
-                            $quer->where('to_user_id', $user->id); // نامه‌هایی که Referral.to_user_id برابر با آیدی کاربر لاگین شده است
-                        })->orWhereHas('users', function ($query) use ($user) {
-                            $query->where('user_id', $user->id);
-                        });
-                    }
-                    $letters = $query->get();
-
-                    if ($letters->isEmpty()) {
-                        $this->sendMessage($chatId, '📭 هیچ نامه‌ای مطابق با جستجوی شما یافت نشد.');
-                        return response('نامه خالی');
-                    }
+                    [$query, $queryText,$letters] = $handle_res;
 
                     if (count($letters) == 1) {
                         $message = '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letters[0]->id]) . ')' . "\n\n";
@@ -627,6 +601,54 @@ class BaleBotController extends Controller
         }
 
         return response('ok', 200);
+    }
+
+    private function handleEntry($chatId, $user, string $title, string $can, $firstLine, Builder $query, string $anyCan, \Closure $anyQuery, string $searchField, $useIsCompletion = false,\Closure $filterQuery = null)
+    {
+        if (!$user->can($can)) {
+            $this->sendMessage($chatId, "❌ شما به {$title} ها دسترسی ندارید!");
+            return response('عدم دسترسی');
+        }
+
+        $queryText = trim(str_replace("/{$title}", '', $firstLine));
+        $isCompletion = null;
+        if ($useIsCompletion){
+            $completionKeywords = ['#انجام', '#شد', '#انجام_شد'];
+            $isCompletion = collect($completionKeywords)->contains(function ($kw) use ($firstLine) {
+                return mb_strpos($firstLine, $kw) !== false;
+            });
+            if ($isCompletion) $queryText = trim(str_replace($completionKeywords, '', $queryText));
+        }
+
+        if (is_numeric($queryText)) {
+            $query->where('id', $queryText);
+        } elseif ($queryText !== '') {
+            $query->where($searchField, 'like', "%{$queryText}%");
+        } else {
+            $query->orderByDesc('id');
+        }
+
+        if (!$user->can($anyCan)) {
+            $anyQuery($query);
+        }
+
+        if ($filterQuery){
+            $filterQuery($query);
+        }
+
+        $records = $query->get();
+
+        if ($records->isEmpty()) {
+            $this->sendMessage($chatId, "📭 هیچ موردی مطابق با جستجوی شما یافت نشد.");
+            return response('خالی');
+        }
+        $result = [
+            'query' => $query,
+            'queryText' => $queryText,
+            'records' => $records
+        ];
+        if ($useIsCompletion) $result['isCompletion'] = $isCompletion;
+        return $result;
     }
 
     public function CreateTaskMessage(Model $record, $user = null): string
