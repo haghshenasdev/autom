@@ -222,8 +222,8 @@ class BaleBotController extends Controller
                         }
                     );
                     // اگر خروجی response بود → همون رو برگردون
-                    if ($handle_res instanceof \Illuminate\Http\Response) {
-                        return $handle_res;
+                    if (is_string($handle_res)) {
+                        return response($handle_res);
                     }
                     [$query, $queryText,$tasks,$isCompletion] = $handle_res;
 
@@ -461,8 +461,8 @@ class BaleBotController extends Controller
                         searchField: 'subject'
                     );
                     // اگر خروجی response بود → همون رو برگردون
-                    if ($handle_res instanceof \Illuminate\Http\Response) {
-                        return $handle_res;
+                    if (is_string($handle_res)) {
+                        return response($handle_res);
                     }
 
                     [$query, $queryText,$letters] = $handle_res;
@@ -607,7 +607,7 @@ class BaleBotController extends Controller
     {
         if (!$user->can($can)) {
             $this->sendMessage($chatId, "❌ شما به {$title} ها دسترسی ندارید!");
-            return response('عدم دسترسی');
+            return 'عدم دسترسی';
         }
 
         $queryText = trim(str_replace("/{$title}", '', $firstLine));
@@ -640,7 +640,7 @@ class BaleBotController extends Controller
 
         if ($records->isEmpty()) {
             $this->sendMessage($chatId, "📭 هیچ موردی مطابق با جستجوی شما یافت نشد.");
-            return response('خالی');
+            return 'خالی';
         }
         $result = [
             'query' => $query,
