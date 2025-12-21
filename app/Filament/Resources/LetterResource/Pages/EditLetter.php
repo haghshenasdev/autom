@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\LetterResource\Pages;
 
 use App\Filament\Resources\LetterResource;
+use App\Models\Cartable;
 use App\Models\Letter;
 use Filament\Actions;
 use Filament\Actions\Action;
@@ -41,6 +42,18 @@ class EditLetter extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
+        // فعال کردن تیک بررسی شده در کارتابل
+        if ($this->record->users->isNotEmpty()) {
+            // پیدا کردن رکورد مربوط به کاربر در Cartable
+            $cartable = Cartable::query()
+                ->where('user_id', auth()->id())
+                ->where('letter_id', $this->record->id)
+                ->first();
+
+            if ($cartable && !$cartable->checked) {
+                $cartable->update(['checked' => true]);
+            }
+        }
 
         $data['file'] = $this->record->getFilePath();
 

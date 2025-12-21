@@ -17,6 +17,7 @@ use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Hugomyb\FilamentMediaAction\Tables\Actions\MediaAction;
@@ -127,7 +128,7 @@ class MinutesResource extends Resource
                 Tables\Filters\SelectFilter::make('organ_id')->label('امضا کننده')
                     ->relationship('organ', 'name')->multiple()->preload()
                     ->searchable(),
-            ])
+            ], layout: FiltersLayout::AboveContentCollapsible)
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('باز کردن لینک')

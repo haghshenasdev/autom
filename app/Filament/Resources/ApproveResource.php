@@ -15,6 +15,7 @@ use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -99,7 +100,7 @@ class ApproveResource extends Resource
                     ->relationship('organ','name'),
                 SelectFilter::make('status')
                     ->options(Approve::getStatusListDefine())->label('وضعیت')
-            ])->filtersFormColumns(2)
+            ], layout: FiltersLayout::AboveContentCollapsible)
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Action::make('Open')->label('نمایش صورت جلسه مربوطه')->iconButton()->icon('heroicon-o-document-text')

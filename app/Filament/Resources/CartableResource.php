@@ -16,6 +16,7 @@ use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -118,7 +119,7 @@ class CartableResource extends Resource
                             );
                     })
                 ,
-            ])
+            ], layout: FiltersLayout::AboveContentCollapsible)
             ->actions([
                 Action::make('Open')->label('نمایش نامه')
                     ->url(fn (Cartable $record): string => LetterResource::getUrl(\auth()->user()->can('update_letter') ? 'edit' : 'view',[$record->letter_id]))
