@@ -141,10 +141,12 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response('کارپوشه ارسال شد');
 
-                } elseif (str_starts_with($firstLine, '/start')) {
+                }
+                elseif (str_starts_with($firstLine, '/start')) {
                     $this->sendMessageWithReplyKeyboard($chatId, "🌺 سلام {$user->name} ، به ربات کارنما خوش آمدید !" . "\n" . "من میتونم به شما کمک کنم بتوانید به راحتی و سریع ترین حالت ممکن از سامانه کارنما استفاده کنید و کار ها و صورت جلسه های خود را مدیریت کنید." . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
                     return response('احراز شده');
-                } elseif (str_starts_with($firstLine, '/ارجاع')) {
+                }
+                elseif (str_starts_with($firstLine, '/ارجاع')) {
                     if (!$user->can('view_referral')) {
                         $this->sendMessage($chatId, '❌ شما به ارجاع ها دسترسی ندارید!');
                         return response('عدم دسترسی');
@@ -241,22 +243,26 @@ class BaleBotController extends Controller
 
                     $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین کارهای شما:\n\n";
 
-                    foreach ($tasks as $task) {
-                        if ($isCompletion && !$task->completed) {
-                            $task->completed = 1;
-                            $task->completed_at = now();
-                            $description = trim(str_replace($firstLine, '', $text));
-                            if ($description != '') $task->description = $description;
-                            $task->save();
-                            $message .= "🔁 وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n\n";
+                    if (count($tasks) == 1) {
+                        foreach ($tasks as $task) {
+                            if ($isCompletion && !$task->completed) {
+                                $task->completed = 1;
+                                $task->completed_at = now();
+                                $description = trim(str_replace($firstLine, '', $text));
+                                if ($description != '') $task->description = $description;
+                                $task->save();
+                                $message .= "🔁 وضعیت کار «{$task->name}» به انجام‌شده تغییر یافت.\n\n";
+                            }
+
+                            $message .= $this->CreateTaskMessage($task, $user);
+                            $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
+                            $message .= "----------------------\n";
                         }
 
-                        $message .= $this->CreateTaskMessage($task, $user);
-                        $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
-                        $message .= "----------------------\n";
+                        $this->sendMessage($chatId, $message);
+                    }else{
+                        $this->paginateAndSend($chatId, $query, $queryText, 1, 5, 'کار', $user);
                     }
-
-                    $this->sendMessage($chatId, $message);
                     return response('کار ارسال شد');
 
                 }
@@ -390,7 +396,8 @@ class BaleBotController extends Controller
                         $this->sendMessage($chatId,'لطفا بعد از #مصوبه شماره ثبت صورتجلسه مورد نظر را یاداشت کنید .');
                     }
 
-                } elseif (str_starts_with($firstLine, '/صورتجلسه')) {
+                }
+                elseif (str_starts_with($firstLine, '/صورتجلسه')) {
                     if (!$user->can('view_minutes')) {
                         $this->sendMessage($chatId, '❌ شما به صورت‌جلسه‌ها دسترسی ندارید!');
                         return response('عدم دسترسی');
@@ -428,7 +435,8 @@ class BaleBotController extends Controller
                     $this->sendMessage($chatId, $message);
                     return response('صورت‌جلسه ارسال شد');
 
-                } elseif (str_starts_with($firstLine, '#نامه')) {
+                }
+                elseif (str_starts_with($firstLine, '#نامه')) {
                     if (str_contains($text, '#متن')) {
                         $ltp = new LetterParser();
                         $dataLetter = $ltp->mixedParse($text);
@@ -441,7 +449,8 @@ class BaleBotController extends Controller
 
                         $this->LetterFileAdd($record,$doc,$media_group_id,$bale_user);
                     }
-                } elseif (str_starts_with($firstLine,'#صورتجلسه')) {
+                }
+                elseif (str_starts_with($firstLine,'#صورتجلسه')) {
                     if (isset($data['message']['reply_to_message']['document']['file_id'])) {
                         $reply_msg = $data['message']['reply_to_message'];
                         $doc = $reply_msg['document'];
@@ -451,7 +460,8 @@ class BaleBotController extends Controller
                     }else {
                         $this->sendMessage($chatId,'لطفا این متن را در پاسخ یک فایل برام بفرست تا فایل صورتجلسه را در سامانه ثبت کنم');
                     }
-                } elseif (str_starts_with($firstLine, '/نامه')) {
+                }
+                elseif (str_starts_with($firstLine, '/نامه')) {
                     if (!$user->can('view_letter')) {
                         $this->sendMessage($chatId, '❌ شما به نامه‌ها دسترسی ندارید!');
                         return response('عدم دسترسی');
@@ -493,7 +503,8 @@ class BaleBotController extends Controller
                     }
 
                     return response('نامه ارسال شد');
-                } elseif (str_starts_with($text, '#کار') or str_starts_with($text, '#جلسه')) {
+                }
+                elseif (str_starts_with($text, '#کار') or str_starts_with($text, '#جلسه')) {
 
                     $task = $this->handleTasks_create($text,$user,$chatId,$isPrivateChat);
 
@@ -514,13 +525,15 @@ class BaleBotController extends Controller
                     }
 
                     return response("Task ذخیره شد: ");
-                } elseif (str_starts_with($firstLine, '/راهنما')) {
+                }
+                elseif (str_starts_with($firstLine, '/راهنما')) {
                     $queryText = trim(str_replace('/راهنما', '', $firstLine));
                     $message = $this->HelpHandler($queryText);
 
                     $this->sendMessage($chatId, $message);
                     return response("راهنما ارسال شد .");
-                } elseif (str_starts_with($firstLine, '/آمار')) {
+                }
+                elseif (str_starts_with($firstLine, '/آمار')) {
                     $message = "📈 آمار \n\n";
                     $message .= "📄 نامه های شما : " . Letter::query()->whereHas('users', function ($query) use ($user) {
                             $query->where('user_id', $user->id);
@@ -536,7 +549,8 @@ class BaleBotController extends Controller
 
                     $this->sendMessage($chatId, $message);
                     return response("آمار ارسال شد .");
-                } else if ($isPrivateChat) {
+                }
+                else if ($isPrivateChat) {
                     $this->HandleAiChat($chatId, $text);
                 }
 

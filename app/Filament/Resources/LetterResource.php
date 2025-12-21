@@ -102,9 +102,9 @@ class LetterResource extends Resource
                     ->closeOnDateSelection()
                     ->default(Date::now())->jalali()->label('تاریخ'),
                 Forms\Components\Textarea::make('description')
-                    ->label('توضیحات'),
+                    ->label('توضیحات')->nullable()->default(null),
                 Forms\Components\Textarea::make('summary')
-                    ->label('خلاصه (هامش)'),
+                    ->label('خلاصه (هامش)')->nullable()->default(null),
                 Forms\Components\Select::make('status')
                     ->options(Letter::getStatusListDefine())->label('وضعیت')
                     ->hiddenOn('create')
