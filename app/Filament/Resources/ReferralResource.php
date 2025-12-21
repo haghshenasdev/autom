@@ -53,7 +53,6 @@ class ReferralResource extends Resource
 
         return $form
             ->schema([
-                Forms\Components\Toggle::make('checked')->label('بررسی شده'),
                 Forms\Components\Select::make('letter_id')
                     ->label('نامه')
                     ->relationship('letter', 'id')
@@ -64,9 +63,6 @@ class ReferralResource extends Resource
                     ->preload(),
                 Forms\Components\Textarea::make('rule')
                     ->label('دستور')->disabled(fn (?Model $record) => $record && $record->by_user_id != $user->id), //فعال بودن دستور فق برای صاحبش
-                Forms\Components\Textarea::make('result')
-                    ->label('نتیجه')
-                    ->maxLength(500),
                 Forms\Components\Select::make('by_user_id')
                     ->label('توسط')
                     ->default($user->id)
@@ -83,6 +79,10 @@ class ReferralResource extends Resource
                     ->searchable()
                     ->required()
                     ->preload(),
+                Forms\Components\Toggle::make('checked')->label('بررسی شده'),
+                Forms\Components\Textarea::make('result')
+                    ->label('نتیجه')
+                    ->maxLength(500),
             ]);
     }
 
