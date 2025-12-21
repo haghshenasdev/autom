@@ -624,9 +624,8 @@ class BaleBotController extends Controller
             $query->where('id', $queryText);
         } elseif ($queryText !== '') {
             $query->where($searchField, 'like', "%{$queryText}%");
-        } else {
-            $query->orderByDesc('id');
         }
+        $query->orderByDesc('id');
 
         if (!$user->can($anyCan)) {
             $anyQuery($query);
