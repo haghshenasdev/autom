@@ -643,11 +643,11 @@ class BaleBotController extends Controller
             return 'خالی';
         }
         $result = [
-            'query' => $query,
-            'queryText' => $queryText,
-            'records' => $records
+            $query,
+            $queryText,
+            $records
         ];
-        if ($useIsCompletion) $result['isCompletion'] = $isCompletion;
+        if ($useIsCompletion) $result[] = $isCompletion;
         return $result;
     }
 
