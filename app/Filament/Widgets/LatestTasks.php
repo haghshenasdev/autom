@@ -152,7 +152,10 @@ class LatestTasks extends BaseWidget
         $today = \Carbon\Carbon::today();
         return $table
             ->query(
-                Task::query()->whereNot('completed',1)->orderByRaw("CASE
+                Task::query()->where(function ($q) {
+                    $q->whereNull('completed')
+                        ->orWhere('completed', 0);
+                })->where('Responsible_id',auth()->id())->orderByRaw("CASE
                 WHEN ended_at IS NULL THEN 3
             WHEN DATE(ended_at) = ? THEN 0
             WHEN DATE(ended_at) < ? THEN 2
