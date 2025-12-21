@@ -160,7 +160,7 @@ Route::get('/uaherituayhsrtuiaury/eeita',[\App\Http\Controllers\ReadChanel::clas
 
 
 Route::get('so',function (){
-    Artisan::call('tasks:reminder');
+//    Artisan::call('tasks:reminder');
 //$tst = null;
 //    $englishDigits = ['0','1','2','3','4','5','6','7','8','9'];
 //    $persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
