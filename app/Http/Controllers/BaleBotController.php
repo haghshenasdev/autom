@@ -383,41 +383,31 @@ class BaleBotController extends Controller
 
                 }
                 elseif (str_starts_with($firstLine, '/صورتجلسه')) {
-                    if (!$user->can('view_minutes')) {
-                        $this->sendMessage($chatId, '❌ شما به صورت‌جلسه‌ها دسترسی ندارید!');
-                        return response('عدم دسترسی');
+                    $handle_res = $this->handleEntry($chatId,$user,'صورتجلسه','view_minutes',
+                        $firstLine,
+                        Minutes::query(),
+                        'restore_any_minutes',
+                        anyQuery: function ($query) use ($user) {
+                            $query->where('typer_id', $user->id);
+                        },
+                        searchField: 'title'
+                    );
+                    // اگر خروجی response بود → همون رو برگردون
+                    if (is_string($handle_res)) {
+                        return response($handle_res);
                     }
 
-                    $queryText = trim(str_replace('/صورتجلسه', '', $firstLine));
-                    $query = Minutes::query();
+                    [$query, $queryText,$minutes] = $handle_res;
 
-                    if (is_numeric($queryText)) {
-                        $query->where('id', $queryText);
-                    } elseif ($queryText !== '') {
-                        $query->where('title', 'like', "%{$queryText}%");
+                    if (count($minutes) == 1) {
+                        $message = '[بازکردن در سامانه](' . MinutesResource::getUrl('edit', [$minutes[0]->id]) . ')' . "\n\n";
+                        $message .= $this->createMinuteMessage($minutes[0],$user);
+                        $path = $minutes[0]->getFilePath();
+                        $this->sendDocumentFromContent($chatId, Storage::disk('private_appendix_other')->get($path), basename($path), $this->getMimeTypeFromExtension($path), $message);
                     } else {
-                        $query->orderByDesc('id');
+                        $this->paginateAndSend($chatId, $query, $queryText, 1, 5, 'صورتجلسه', $user);
                     }
 
-                    if (!$user->can('restore_any_minutes')) {
-                        $query->where('typer_id', $user->id);
-                    }
-
-                    $minutes = $query->limit(5)->get();
-
-                    if ($minutes->isEmpty()) {
-                        $this->sendMessage($chatId, '📭 هیچ صورت‌جلسه‌ای مطابق با جستجوی شما یافت نشد.');
-                        return response('صورت‌جلسه خالی');
-                    }
-
-                    $message = $queryText ? "🔍 نتیجه جستجو برای «{$queryText}»:\n\n" : "🗂 لیست آخرین صورت‌جلسه‌های شما:\n\n";
-                    foreach ($minutes as $minute) {
-                        $message .= '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$minute->id]).')' . "\n\n";
-                        $message .= $this->createMinuteMessage($minute, $user, $queryText !== '');
-                        $message .= "----------------------\n";
-                    }
-
-                    $this->sendMessage($chatId, $message);
                     return response('صورت‌جلسه ارسال شد');
 
                 }
@@ -603,7 +593,7 @@ class BaleBotController extends Controller
         return response('ok', 200);
     }
 
-    private function handleEntry($chatId, $user, string $title, string $can, $firstLine, Builder $query, string $anyCan, \Closure $anyQuery, string $searchField, $useIsCompletion = false,\Closure $filterQuery = null)
+    private function handleEntry($chatId, $user, string $title, string $can, $firstLine, Builder $query, string $anyCan, \Closure $anyQuery, string $searchField, $useIsCompletion = false,\Closure $filterQuery = null): array|string
     {
         if (!$user->can($can)) {
             $this->sendMessage($chatId, "❌ شما به {$title} ها دسترسی ندارید!");
@@ -1126,9 +1116,12 @@ EOT],
             if ($type === 'نامه') {
                 $message .= $this->CreateLetterMessage($item);
                 $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$item->id]) . ")\n";
-            } else {
+            } elseif($type === 'کار') {
                 $message .= $this->CreateTaskMessage($item, $user);
                 $message .= '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$item->id]) . ")\n";
+            }elseif($type === 'صورتجلسه') {
+                $message .= $this->createMinuteMessage($item, $user, false);
+                $message .= '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$item->id]).')' . "\n";
             }
             $message .= "----------------------\n";
         }
