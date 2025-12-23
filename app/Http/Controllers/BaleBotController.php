@@ -1555,7 +1555,7 @@ TEXT;
 {$caption}
 
 EOT);
-            $ai_message = "\n" . "🤖 #پیشنهاد_اصلاح : \n". $content;
+            $ai_message =  "🤖 #پیشنهاد_اصلاح : \n\n". $content;
             $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
             $this->sendMessageWithKeyboard($chatId,$ai_message,$keyboard);
 
