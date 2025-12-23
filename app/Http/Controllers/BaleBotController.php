@@ -1555,8 +1555,10 @@ TEXT;
 {$caption}
 
 EOT);
+            $ai_message = "\n" . "🤖 پیشنهاد اصلاح : \n". $content;
+            $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
+            $this->sendMessageWithKeyboard($chatId,$ai_message,$keyboard);
 
-            $message .= "\n\n" . "🤖 پیشنهاد اصلاح : \n". $content;
 
 
             throw $exception;
