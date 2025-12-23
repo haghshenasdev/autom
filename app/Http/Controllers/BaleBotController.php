@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Http;
 use App\Models\Minutes;
@@ -51,22 +52,11 @@ class BaleBotController extends Controller
 
             if(is_null($userMessage)) return null;
             // احراز هویت کاربر
-            $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
-            if ($bale_user == null) {
-                $bale_user_auth = BaleUser::query()->where('bale_username', $text)->first();
-                if ($bale_user_auth != null) {
-                    $bale_user_auth->update([
-                        'state' => '1',
-                        'bale_username' => $userMessage['username'] ?? null,
-                        'bale_id' => $userMessage['id'],
-                    ]);
-                    $this->sendMessageWithReplyKeyboard($chatId, "✅ شما با موفقیت احراز هویت شدید !" . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
-                    return response('احراز شده');
-                }
-                if (isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private") $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
-                return response('احراز نشده');
+            $auth_res = $this->authBale($userMessage,$chatId,$text);
+            if (is_string($auth_res)){
+                return response($auth_res);
             }
-            $user = \App\Models\User::query()->find($bale_user->user_id);
+            [$user,$bale_user] = $auth_res;
 
 
             if ($media_group_id) {
@@ -1056,6 +1046,13 @@ EOT],
         $messageId = $data['message']['message_id'];
         $callbackData = $data['data'];
 
+        // احراز هویت
+        $auth_res = $this->authBale($data['message'],$chatId);
+        if (is_string($auth_res)){
+            return ;
+        }
+        [$user,$bale_user] = $auth_res;
+
         // مدیریت حذف پیام
         if ($callbackData === 'delete_message') {
             $this->deleteMessage($chatId, $messageId);
@@ -1080,7 +1077,7 @@ EOT],
                     $queryTextPersent = str_replace(' ', '%', $queryText);
                     $query->where('subject', 'like', "%{$queryTextPersent}%");
                 }
-                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'نامه', null,$messageId);
+                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'نامه', $user,$messageId);
             }
 
             if ($prefix === 'کار') {
@@ -1090,7 +1087,17 @@ EOT],
                 } elseif ($queryText !== '') {
                     $query->where('name', 'like', "%{$queryText}%");
                 }
-                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'کار', null,$messageId);
+                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'کار', $user,$messageId);
+            }
+
+            if ($prefix === 'صورتجلسه') {
+                $query = Minutes::query()->orderByDesc('id');
+                if (is_numeric($queryText)) {
+                    $query->where('id', $queryText);
+                } elseif ($queryText !== '') {
+                    $query->where('title', 'like', "%{$queryText}%");
+                }
+                $this->paginateAndSend($chatId, $query, $queryText, $page, 5, 'صورتجلسه', $user,$messageId);
             }
         }
     }
@@ -1641,5 +1648,28 @@ TEXT;
             'text' => $text,
             'projects_id' => $projects_id,
         ];
+    }
+
+    private function authBale(array $userMessage,$chatId,string $text = null) : array|string
+    {
+        $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
+        if ($text and $bale_user == null) {
+            // بررسی کد اهراز هویت
+            $bale_user_auth = BaleUser::query()->where('bale_username', $text)->first();
+            if ($bale_user_auth != null) {
+                $bale_user_auth->update([
+                    'state' => '1',
+                    'bale_username' => $userMessage['username'] ?? null,
+                    'bale_id' => $userMessage['id'],
+                ]);
+                $this->sendMessageWithReplyKeyboard($chatId, "✅ شما با موفقیت احراز هویت شدید !" . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
+                return 'احراز شده';
+            }
+            if (isset($data['message']['chat']['type']) and $data['message']['chat']['type'] == "private") $this->sendMessage($chatId, "❌ شما احراز هویت نشده اید . \n  کد را از سامانه دریافت کن و برای من بفرست .");
+            return 'احراز نشده';
+        }
+        $user = \App\Models\User::query()->find($bale_user->user_id);
+        Auth::login($user);
+        return [$user,$bale_user];
     }
 }
