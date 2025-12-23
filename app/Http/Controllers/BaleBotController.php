@@ -1483,52 +1483,58 @@ TEXT;
             $this->sendMessage($chatId, '❌ شما برای ایجاد صورت‌جلسه‌ دسترسی ندارید!');
             return response('عدم دسترسی');
         }
+
         $pmID = $this->sendMessage($chatId, "📝🔄 در حال پردازش صورت جلسه" . "\n");
-
-        $mp = new \App\Http\Controllers\ai\MinutesParser();
-        $parsedData = $mp->parse($caption, $user->id);
-
-        $mdata = [
-            'title' => $parsedData['title'],
-            'date' => $parsedData['title_date'] ?? Carbon::now(),
-            'text' => $caption,
-            'typer_id' => $user->id,
-            'task_id' => $parsedData['task_id'],
-        ];
-
-        $record = Minutes::create($mdata);
-        $record->organ()->attach($parsedData['organs']);
-        $record->group()->attach(1);
-        foreach ($parsedData['approves'] as $approve) {
-            $cp = new \App\Http\Controllers\ai\CategoryPredictor();
-            $keywords = $cp->extractKeywords($approve['text']);
-            $task = Task::create([
-                'name' => $approve['text'],
-                'started_at' => $mdata['date'],
-                'created_at' => $mdata['date'],
-                'amount' => $approve['amount'],
-                'ended_at' => $approve['due_at'] ?? null,
-                'Responsible_id' => $approve['user']['id'] ?? $user->id,
-                'created_by' => $user->id,
-                'minutes_id' => $record->id,
-                'city_id' => $cp->detectCity($keywords),
-                'organ_id' => $cp->detectOrgan($keywords),
-            ]);
-            $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
-            $task->project()->attach($approve['projects'] ?: $approve['global_projects']);
-        }
-
         $message = '';
-        if ($isPrivateChat){
-            $message .= '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
-            $message .= '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$record->id]).')' . "\n\n";
-            $message .= $this->createMinuteMessage($record, $user);
-        }else{
-            $message .= '📝 [صورتجلسه با شماره '.$record->id.' ثبت شد .]('. MinutesResource::getUrl('edit',[$record->id]).')';
-        }
 
-        $this->deleteMessage($chatId,$pmID); //حذف پیام پردازش
-        $this->sendMessage($chatId, $message);
+        try {
+            $mp = new \App\Http\Controllers\ai\MinutesParser();
+            $parsedData = $mp->parse($caption, $user->id);
+
+            $mdata = [
+                'title' => $parsedData['title'],
+                'date' => $parsedData['title_date'] ?? Carbon::now(),
+                'text' => $caption,
+                'typer_id' => $user->id,
+                'task_id' => $parsedData['task_id'],
+            ];
+
+            $record = Minutes::create($mdata);
+            $record->organ()->attach($parsedData['organs']);
+            $record->group()->attach(1);
+            foreach ($parsedData['approves'] as $approve) {
+                $cp = new \App\Http\Controllers\ai\CategoryPredictor();
+                $keywords = $cp->extractKeywords($approve['text']);
+                $task = Task::create([
+                    'name' => $approve['text'],
+                    'started_at' => $mdata['date'],
+                    'created_at' => $mdata['date'],
+                    'amount' => $approve['amount'],
+                    'ended_at' => $approve['due_at'] ?? null,
+                    'Responsible_id' => $approve['user']['id'] ?? $user->id,
+                    'created_by' => $user->id,
+                    'minutes_id' => $record->id,
+                    'city_id' => $cp->detectCity($keywords),
+                    'organ_id' => $cp->detectOrgan($keywords),
+                ]);
+                $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
+                $task->project()->attach($approve['projects'] ?: $approve['global_projects']);
+            }
+
+            if ($isPrivateChat){
+                $message .= '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
+                $message .= '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$record->id]).')' . "\n\n";
+                $message .= $this->createMinuteMessage($record, $user);
+            }else{
+                $message .= '📝 [صورتجلسه با شماره '.$record->id.' ثبت شد .]('. MinutesResource::getUrl('edit',[$record->id]).')';
+            }
+        }catch (Exception $exception){
+            $message = '❌ ثبت صورت جلسه با مشکل مواجه شد .';
+            throw $exception;
+        } finally {
+            $this->deleteMessage($chatId,$pmID); //حذف پیام پردازش
+            $this->sendMessage($chatId, $message);
+        }
 
         return $record;
     }
