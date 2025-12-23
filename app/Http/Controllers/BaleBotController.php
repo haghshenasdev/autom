@@ -1670,6 +1670,8 @@ TEXT;
         }
         $user = \App\Models\User::query()->find($bale_user->user_id);
         Auth::guard('bot')->login($user);
+        config(['activitylog.default_auth_driver' => 'bot']);
+
         return [$user,$bale_user];
     }
 }
