@@ -42,6 +42,11 @@ class Task extends Model
         'created_at',
     ];
 
+    // اگر completed نال بود، 0 برگردان
+     public function getCompletedAttribute($value) {
+         return $value ?? 0;
+     }
+
 
     // ارتباط با مدل Project
     public function project()
