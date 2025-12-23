@@ -32,7 +32,10 @@ class UsersActivityChart extends ChartWidget
                 $query->where('completed', true);
             },
             'task_responsible as tasks_incompleted_count' => function ($query) {
-                $query->where('completed', false);
+                $query->where(function ($q) {
+                    $q->whereNull('completed')
+                        ->orWhere('completed', 0);
+                });
             },
         ])->where('id', '!=', 1)->get();
 
