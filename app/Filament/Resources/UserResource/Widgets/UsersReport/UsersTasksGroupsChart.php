@@ -87,6 +87,7 @@ class UsersTasksGroupsChart extends ChartWidget
     {
         return 'bar';
     }
+    protected function getOptions(): array { return [ 'indexAxis' => 'y' ]; }
     public function getColumnSpan(): int | string | array
     {
         return 'full'; // پر کردن عرض صفحه

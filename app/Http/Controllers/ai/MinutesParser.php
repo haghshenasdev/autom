@@ -222,7 +222,7 @@ class MinutesParser
         };
 
         // regex با کلیدواژه‌های مختلف
-        if (preg_match('/(تا|مدت|لغایت)\s*(\d+|[۰-۹]+|[آ-ی\s]+)\s*(روز|هفته|ماه|سال)/u', $text, $matches)) {
+        if (preg_match('/(تا|مدت|ظرف|لغایت)\s*(\d+|[۰-۹]+|[آ-ی\s]+)\s*(روز|هفته|ماه|سال)/u', $text, $matches)) {
             $rawNumber = trim($matches[2]);
             $unit = $matches[3];
 
