@@ -10,7 +10,9 @@ class SendBaleLoginNotification
     public function handle(Login $event): void
     {
         // فقط وقتی از طریق guard وب لاگین شده
-        if ($event->guard !== 'web') { return; }
+        if ($event->guard == 'bot') {
+            return;
+        }
 
         $user = $event->user;
 

@@ -1669,7 +1669,7 @@ TEXT;
             return 'احراز نشده';
         }
         $user = \App\Models\User::query()->find($bale_user->user_id);
-        Auth::login($user);
+        Auth::guard('bot')->login($user);
         return [$user,$bale_user];
     }
 }
