@@ -902,12 +902,7 @@ class BaleBotController extends Controller
                 $references .= "\n----------------\n";
             }
 
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-            ])->post('https://api.gapgpt.app/v1/chat/completions', [
-                'model' => 'gpt-4o',
-                'messages' => [
-                    ['role' => 'user', 'content' => <<<EOT
+            $content = $this->AiChat(<<<EOT
 برام جواب مناسب برای پیام کاربر را با توجه به اطلاعات زیر بفرست، بدون هیچ توضیح اضافی.
 این پیام را از طرف ربات کارنما که می تواند به کاربر کمک کند بتوانید به راحتی و سریع ترین حالت ممکن از سامانه کارنما استفاده کند و کار ها و صورت جلسه های خود را مدیریت کنید.
 
@@ -917,11 +912,7 @@ class BaleBotController extends Controller
 اطلاعات :
 {$references}
 
-EOT],
-                ],
-            ]);
-
-            $content = $response->json('choices.0.message.content');
+EOT);
 
             $this->sendMessage($chatId, $content);
         } catch (Exception $exception) {
@@ -931,6 +922,21 @@ EOT],
             $this->deleteMessage($chatId,$processMessageID);
         }
     }
+
+    public function AiChat($comMessage)
+    {
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+        ])->post('https://api.gapgpt.app/v1/chat/completions', [
+            'model' => 'gpt-4o',
+            'messages' => [
+                ['role' => 'user', 'content' => $comMessage],
+            ],
+        ]);
+
+        return $response->json('choices.0.message.content');
+    }
+
 
     /**
      * @param mixed $token
@@ -1530,6 +1536,25 @@ TEXT;
             }
         }catch (Exception $exception){
             $message = '❌ ثبت صورت جلسه با مشکل مواجه شد .';
+
+            $content = $this->AiChat(<<<EOT
+با توجه اطلاعات زیر و خطای سیستم بررسی کن آیا ساختار پیام ارسال شده درست است یا خیر ، اگر درست نیست ساختار اصلاح شده را بفرست اگر ساختار مشکلی ندارد فقط بگو درست است ، بدون هیچ توضیح اضافی.
+نباید هیچ چیزی از خطای سیستم در پیامت باشه
+
+پیام ارسال شده:
+{$caption}
+
+اطلاعات :
+{$this->HelpHandler('صورتجلسه')}
+
+خطا سیستم :
+{$exception->getMessage()}
+EOT);
+
+            if (!str_contains($content,'درست است')){
+                $message .= "\n" . "🤖 پیشنهاد اصلاح : \n". $content;
+            }
+
             throw $exception;
         } finally {
             $this->deleteMessage($chatId,$pmID); //حذف پیام پردازش
