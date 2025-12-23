@@ -1047,7 +1047,7 @@ EOT],
         $callbackData = $data['data'];
 
         // احراز هویت
-        $auth_res = $this->authBale($data['message']['from'],$chatId);
+        $auth_res = $this->authBale($data['from'],$chatId);
         if (is_string($auth_res)){
             return ;
         }
@@ -1653,7 +1653,7 @@ TEXT;
     private function authBale(array $userMessage,$chatId,string $text = null) : array|string
     {
         $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
-        if ($text and $bale_user == null) {
+        if ($bale_user == null and $text) {
             // بررسی کد اهراز هویت
             $bale_user_auth = BaleUser::query()->where('bale_username', $text)->first();
             if ($bale_user_auth != null) {
