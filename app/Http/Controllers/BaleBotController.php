@@ -1551,9 +1551,8 @@ TEXT;
 {$exception->getMessage()}
 EOT);
 
-            if (!str_contains($content,'درست است')){
-                $message .= "\n" . "🤖 پیشنهاد اصلاح : \n". $content;
-            }
+            $message .= "\n" . "🤖 پیشنهاد اصلاح : \n". $content;
+
 
             throw $exception;
         } finally {
