@@ -1047,7 +1047,7 @@ EOT],
         $callbackData = $data['data'];
 
         // احراز هویت
-        $auth_res = $this->authBale($data['message'],$chatId);
+        $auth_res = $this->authBale($data['message']['from'],$chatId);
         if (is_string($auth_res)){
             return ;
         }
