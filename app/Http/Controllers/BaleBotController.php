@@ -934,7 +934,12 @@ EOT);
             ],
         ]);
 
-        return $response->json('choices.0.message.content');
+        $content = $response->json('choices.0.message.content');
+
+        //حذف حالت سورس کد
+        $content = str_replace("```",'',$content);
+
+        return $content;
     }
 
 
@@ -1551,7 +1556,7 @@ TEXT;
 
 EOT);
 
-            $message .= "\n" . "🤖 پیشنهاد اصلاح : \n". $content;
+            $message .= "\n\n" . "🤖 پیشنهاد اصلاح : \n". $content;
 
 
             throw $exception;
