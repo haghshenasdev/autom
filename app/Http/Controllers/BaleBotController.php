@@ -1518,7 +1518,7 @@ TEXT;
                     'organ_id' => $cp->detectOrgan($keywords),
                 ]);
                 $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
-                $task->project()->attach($approve['projects'] ?: $approve['global_projects']);
+                $task->project()->attach($approve['projects'] ?: $parsedData['global_projects']);
             }
 
             if ($isPrivateChat){
