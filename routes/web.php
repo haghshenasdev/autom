@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\AiKeywordClassifier;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -160,6 +161,8 @@ Route::get('/uaherituayhsrtuiaury/eeita',[\App\Http\Controllers\ReadChanel::clas
 
 
 Route::get('so',function (){
+    $ai = new AiKeywordClassifier();
+    dd($ai->classify('طرح با منتخبین شور اسلامی'));
 //    Artisan::call('tasks:reminder');
 //$tst = null;
 //    $englishDigits = ['0','1','2','3','4','5','6','7','8','9'];

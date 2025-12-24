@@ -24,6 +24,11 @@ class TaskGroup extends Model
         return $this->belongsTo(TaskGroup::class);
     }
 
+    public function ai_words_data()
+    {
+        return $this->morphMany(AiWordsData::class, 'ai_words_data');
+    }
+
     public static function formSchema()
     {
         return [

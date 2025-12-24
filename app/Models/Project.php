@@ -60,6 +60,11 @@ class Project extends Model
         return $this->belongsToMany(ProjectGroup::class);
     }
 
+    public function ai_words_data()
+    {
+        return $this->morphMany(AiWordsData::class, 'ai_words_data');
+    }
+
     protected static function boot()
     {
         parent::boot();
