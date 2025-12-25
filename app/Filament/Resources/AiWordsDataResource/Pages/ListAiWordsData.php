@@ -29,7 +29,7 @@ class ListAiWordsData extends ListRecords
                 ])
                 ->action(function (array $data) {
                     $classifier = app(AiKeywordClassifier::class);
-                    $results = $classifier->classify($data['title'], 0.5);
+                    $results = $classifier->classify($data['title'], 0.1);
 
                     $list = collect($results)->map(fn($r) =>
                     "مدل: {$r['model_type']} - شناسه: {$r['model_id']} - درصد: {$r['percent']}%"
