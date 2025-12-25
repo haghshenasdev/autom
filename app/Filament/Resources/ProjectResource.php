@@ -258,6 +258,36 @@ class ProjectResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
                 ExportBulkAction::make()->label('دریافت خروجی'),
+                Tables\Actions\BulkAction::make('bulkRelearn')
+                    ->label('یادگیری زیر مجموعه ها AI')->configure()
+                    ->icon('heroicon-o-arrow-path')->visible(auth()->user()->can('create_ai::words::data'))
+                    ->action(function ($records) {
+                        $totalWords = 0;
+
+                        foreach ($records as $record) {
+                            $parentModel = $record;
+
+                            if ($parentModel) {
+                                $count = app(\App\Services\AiKeywordClassifier::class)
+                                    ->learn(
+                                        $parentModel,
+                                        'tasks',   // نام ریلیشن زیرمجموعه
+                                        'name',               // فیلد عنوان زیرمجموعه
+                                        null,    // فیلد ثانویه مثل شهر
+                                         0.5          // درصد حساسیت
+                                    );
+
+                                $totalWords += $count;
+                            }
+                        }
+
+                        \Filament\Notifications\Notification::make()
+                            ->title("آموزش مجدد انجام شد")
+                            ->body("فرایند روی " . count($records) . " رکورد انجام شد و مجموع {$totalWords} کلمه وارد شد.")
+                            ->success()
+                            ->send();
+                    }),
+
             ])->headerActions([
                 Action::make('print')
                     ->label('چاپ جدول')
