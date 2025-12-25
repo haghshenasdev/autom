@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->json('allowed_words');   // لیست کلمات مجاز
             $table->json('blocked_words')->nullable();   // لیست کلمات غیرمجاز
-            $table->integer('sensitivity')->nullable();  // میزان حساسیت عددی
+            $table->float('sensitivity')->nullable();  // میزان حساسیت عددی
             $table->string('model_type');                // نوع مدل (morph)
             $table->unsignedBigInteger('model_id');      // آیدی مدل مربوطه
             $table->string('target_field')->nullable();  // نام فیلد در مدل مقصد

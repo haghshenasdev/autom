@@ -5,6 +5,11 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AiWordsDataResource\Pages;
 use App\Filament\Resources\AiWordsDataResource\RelationManagers;
 use App\Models\AiWordsData;
+use App\Models\Project;
+use App\Models\Task;
+use App\Models\TaskGroup;
+use App\Services\AiKeywordClassifier;
+use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
@@ -15,6 +20,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use PhpOffice\PhpSpreadsheet\Calculation\Category;
 
 class AiWordsDataResource extends Resource
 {
@@ -28,20 +34,39 @@ class AiWordsDataResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('model_type')
-                    ->disabled()
-                    ->label('نوع مدل'),
+                Forms\Components\Select::make('model_type')
+                    ->label('نوع مدل')
+                    ->options([
+                        Project::class => 'پروژه',
+                        TaskGroup::class => 'دسته‌بندی کار ها',
+                        // هر مدل دیگری که داری را اینجا اضافه کن
+                    ])
+                    ->searchable()
+                    ->disabledOn('edit')
+                    ->required(),
 
-                Forms\Components\TextInput::make('model_id')
-                    ->disabled()
-                    ->label('شناسه مدل'),
+                Forms\Components\Select::make('model_id')
+                    ->label('شناسه مدل')
+                    ->options(function (callable $get) {
+                        $modelClass = $get('model_type');
+                        if ($modelClass && class_exists($modelClass)) {
+                            return $modelClass::query()
+                                ->pluck('name', 'id') // فرض کردم فیلد عنوان مدل مقصد `title` است
+                                ->toArray();
+                        }
+                        return [];
+                    })
+                    ->disabledOn('edit')
+                    ->searchable()
+                    ->required(),
 
                 Forms\Components\TextInput::make('target_field')
-                    ->disabled()
+                    ->disabledOn('edit')
                     ->label('فیلد هدف'),
 
                 Forms\Components\TextInput::make('sensitivity')
                     ->numeric()
+                    ->step(0.01)
                     ->label('حساسیت'),
 
                 // مدیریت کلمات مجاز
@@ -94,16 +119,34 @@ class AiWordsDataResource extends Resource
                     ->label('آموزش مجدد')
                     ->icon('heroicon-o-arrow-path')
                     ->action(function (AiWordsData $record) {
-                        // اینجا می‌توانی کلاس KeywordClassifier را صدا بزنی
-                        app(\App\Services\AiKeywordClassifier::class)
-                            ->learn(
-                                $record->model_type::find($record->model_id),
-                                $record->target_field,
-                                $record->target_field,
-                                null,
-                                $record->sensitivity
-                            );
+                        $parentModel = $record->model_type::find($record->model_id);
+
+                        if ($parentModel) {
+                            // فراخوانی کلاس یادگیری با ورودی‌های درست
+                            $count = app(\App\Services\AiKeywordClassifier::class)
+                                ->learn(
+                                    $parentModel,
+                                    $record->relation_name ?? 'tasks',   // نام ریلیشن زیرمجموعه (می‌توانی در جدول ذخیره کنی)
+                                    $record->target_field,               // فیلد عنوان زیرمجموعه
+                                    $record->secondary_field ?? null,    // فیلد ثانویه مثل شهر
+                                    $record->sensitivity ?? 0.5          // درصد حساسیت
+                                );
+
+                            // پیام موفقیت
+                            \Filament\Notifications\Notification::make()
+                                ->title("آموزش مجدد انجام شد")
+                                ->body("تعداد {$count} کلمه وارد شد.")
+                                ->success()
+                                ->send();
+                        } else {
+                            \Filament\Notifications\Notification::make()
+                                ->title("خطا")
+                                ->body("مدل مربوطه یافت نشد.")
+                                ->danger()
+                                ->send();
+                        }
                     }),
+
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

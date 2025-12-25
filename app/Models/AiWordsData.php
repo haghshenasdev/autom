@@ -21,7 +21,7 @@ class AiWordsData extends Model
     protected $casts = [
         'allowed_words' => 'array',
         'blocked_words' => 'array',
-        'sensitivity'   => 'integer',
+        'sensitivity'   => 'float',
     ];
 
     public function model(): \Illuminate\Database\Eloquent\Relations\MorphTo
