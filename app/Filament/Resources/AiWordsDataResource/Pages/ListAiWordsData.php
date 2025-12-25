@@ -17,27 +17,38 @@ class ListAiWordsData extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
-            Action::make('testClassify')
-                ->label('تست دسته‌بندی')
-                ->icon('heroicon-o-question-mark-circle')
-                ->modalHeading('تست دسته‌بندی عنوان')
-                ->modalButton('تشخیص بده')
-                ->form([
-                    TextInput::make('title')
-                        ->label('عنوان')
-                        ->required(),
-                ])
-                ->action(function (array $data) {
-                    $classifier = app(AiKeywordClassifier::class);
-                    $results = $classifier->classify($data['title'], 0.1);
+        Action::make('testClassify')
+            ->label('تست دسته‌بندی')
+            ->icon('heroicon-o-question-mark-circle')
+            ->modalHeading('تست دسته‌بندی عنوان')
+            ->modalButton('تشخیص بده')
+            ->form([
+                TextInput::make('title')
+                    ->label('عنوان')
+                    ->required(),
+                TextInput::make('sensitivity')
+                    ->label('حساسیت (بین 0 و 1)')
+                    ->numeric()
+                    ->step('0.1')
+                    ->default(0.1)
+                    ->required(),
+            ])
+            ->action(function (array $data, Action $action) {
+                $classifier = app(\App\Services\AiKeywordClassifier::class);
+                $results = $classifier->classify($data['title'], (float)$data['sensitivity']);
 
-                    $list = collect($results)->map(fn($r) =>
-                    "مدل: {$r['model_type']} - شناسه: {$r['model_id']} - درصد: {$r['percent']}%"
-                    )->implode("\n");
+                $list = collect($results)->map(function ($r) {
+                    // پیدا کردن مدل مربوطه
+                    $modelClass = $r['model_type'];
+                    $model = $modelClass::find($r['model_id']);
+                    $modelTitle = $model?->title ?? $model?->name ?? '---';
 
-                    if (empty($list)) {
-                        $list = "هیچ دسته‌بندی مرتبطی یافت نشد.";
-                    }
+                    return "عنوان: {$modelTitle} - مدل: {$r['model_type']} - شناسه: {$r['model_id']} - درصد: {$r['percent']}%";
+                })->implode("<br>");
+
+                if (empty($list)) {
+                    $list = "هیچ دسته‌بندی مرتبطی یافت نشد.";
+                }
 
                     \Filament\Notifications\Notification::make()
                         ->title('نتیجه تست دسته‌بندی')
