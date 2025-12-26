@@ -131,6 +131,62 @@ class AiKeywordClassifier
 
 
     /**
+     * بهینه‌سازی کلمات: حذف کلمات مشترک در اکثر مدل‌ها
+     *
+     * @param string $modelType کلاس مدل (مثلا App\Models\Project)
+     * @param array<int> $modelIds لیست آیدی‌های مدل
+     * @param float $thresholdPercent درصد آستانه (مثلا 0.7 یعنی اگر کلمه در 70٪ مدل‌ها مشترک بود حذف شود)
+     * @return int تعداد کلمات حذف‌شده
+     */
+    public function optimizeCommonWords(string $modelType, array $modelIds, float $thresholdPercent = 0.7): int
+    {
+        // پیدا کردن رکوردهای AiWordsData مربوط به این مدل و آیدی‌ها
+        $datasets = AiWordsData::where('model_type', $modelType)
+            ->whereIn('model_id', $modelIds)
+            ->get();
+        $totalDatasets = $datasets->count();
+
+        if ($totalDatasets === 0) {
+            return 0;
+        }
+
+        // شمارش حضور هر کلمه در چند مدل
+        $wordPresence = [];
+        foreach ($datasets as $data) {
+            $words = collect($data->allowed_words)->pluck('word')->unique();
+            foreach ($words as $w) {
+                $wordPresence[$w] = ($wordPresence[$w] ?? 0) + 1;
+            }
+        }
+
+        // پیدا کردن کلمات مشترک
+        $commonWords = [];
+        foreach ($wordPresence as $word => $count) {
+            $percent = $count / $totalDatasets;
+            if ($percent >= $thresholdPercent) {
+                $commonWords[] = $word;
+            }
+        }
+
+        // حذف کلمات مشترک از هر لیست
+        $removed = 0;
+        foreach ($datasets as $data) {
+            $filtered = collect($data->allowed_words)
+                ->reject(fn($rule) => in_array($rule['word'], $commonWords))
+                ->values()
+                ->toArray();
+
+            $removed += count($data->allowed_words) - count($filtered);
+
+            $data->allowed_words = $filtered;
+            $data->save();
+        }
+
+        return $removed;
+    }
+
+
+    /**
      * تابع تشخیص دسته‌بندی/پروژه بر اساس عنوان
      *
      * @param string $title
