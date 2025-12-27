@@ -458,7 +458,7 @@ class BaleBotController extends Controller
 
                     return response('نامه ارسال شد');
                 }
-                elseif (str_starts_with($text, '#کار') or str_starts_with($text, '#جلسه')) {
+                elseif (str_starts_with($firstLine, '#کار') or str_starts_with($firstLine, '#جلسه')) {
 
                     $task = $this->handleTasks_create($text,$user,$chatId,$isPrivateChat);
 
