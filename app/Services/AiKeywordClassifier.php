@@ -85,30 +85,20 @@ class AiKeywordClassifier
         $directWords = []; // کلمات مستقیم از نام مدل و فیلد ثانویه
         $totalSamples = count($parent->$relationName);
 
-        // اگر تعداد زیرمجموعه‌ها کمتر از 3 بود، از name خود مدل استفاده کن
-        if ($totalSamples < 3) {
-            $words = $this->extractKeywords($parent->name);
+
+        foreach ($parent->$relationName as $child) {
+            $words = $this->extractKeywords($child->$titleField);
 
             foreach ($words as $w) {
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
-                $directWords[] = $w; // این کلمات همیشه وارد لیست می‌شوند
-            }
-
-            $totalSamples = max(1, $totalSamples); // جلوگیری از تقسیم بر صفر
-        } else {
-            foreach ($parent->$relationName as $child) {
-                $words = $this->extractKeywords($child->$titleField);
-
-                foreach ($words as $w) {
-                    $keywords[$w] = ($keywords[$w] ?? 0) + 1;
-                }
             }
         }
 
-        // اگر هیچ کلمه‌ای پیدا نشد، مانند حالت زیرمجموعه صفر عمل شود
-        if (count($keywords) < 2) {
-            $words = $this->extractKeywords($parent->name);
-            foreach ($words as $w) {
+
+        // اگر هیچ کلمه‌ای پیدا نشد،یا نمونه ها کم بود از نام مدل اصلی بگیر
+        if (count($keywords) < 2 or $totalSamples < 3) {
+            $parentNameWords = $this->extractKeywords($parent->name);
+            foreach ($parentNameWords as $w) {
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
                 $directWords[] = $w; // این کلمات هم همیشه وارد لیست می‌شوند
             }
