@@ -1541,6 +1541,7 @@ TEXT;
             }
         }catch (Exception $exception){
             $message = '❌ ثبت صورت جلسه با مشکل مواجه شد .';
+            $this->sendMessage($chatId, $message);
 
             $content = $this->AiChat(<<<EOT
  اطلاعات زیر و خطای سیستم را بررسی کن و با توجه به این دو مورد پیشنهاد اصلاح پیام و توضیح خلاصه و مناسب برای کاربر بده و اصلا نیازی به توضیحات فنی نیست. توضیح اضافه ای نده .
@@ -1564,8 +1565,9 @@ EOT);
             throw $exception;
         } finally {
             $this->deleteMessage($chatId,$pmID); //حذف پیام پردازش
-            $this->sendMessage($chatId, $message);
         }
+
+        $this->sendMessage($chatId, $message);
 
         return $record;
     }
