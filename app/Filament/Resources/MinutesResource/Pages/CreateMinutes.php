@@ -20,11 +20,11 @@ class CreateMinutes extends CreateRecord
         return [
             Action::make('parseText')
                 ->label('پردازش متن')
-                ->modalHeading('تکمیل فرم از طریق پردازش متن نامه')
+                ->modalHeading('تکمیل فرم از طریق پردازش متن ساختار دار صورتجلسه')
                 ->modalButton('بارگذاری در فرم')
                 ->form([
                     Textarea::make('caption')
-                        ->label('متن نامه')
+                        ->label('متن ساختاری صورت جلسه')
                         ->rows(10)
                         ->required(),
                 ])

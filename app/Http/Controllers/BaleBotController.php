@@ -419,7 +419,7 @@ class BaleBotController extends Controller
                     if (isset($data['message']['reply_to_message']['document']['file_id'])) {
                         $reply_msg = $data['message']['reply_to_message'];
                         $doc = $reply_msg['document'];
-                        $record = $this->handleMinute_create($text, $chatId, $user,$isPrivateChat);
+                        $record = $this->handleMinute_create($text, $chatId, $user,$isPrivateChat,$doc);
 
                         $this->MinuteFileAdd($record,$doc,$media_group_id,$bale_user);
                     }else {
@@ -518,7 +518,7 @@ class BaleBotController extends Controller
                 // ذخیره در مدل مناسب
                 $record = null;
                 if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
-                    $record = $this->handleMinute_create($caption,$chatId,$user,$isPrivateChat);
+                    $record = $this->handleMinute_create($caption,$chatId,$user,$isPrivateChat,$data['message']['document'] ?? null);
 
                     if (isset($data['message']['document'])) {
                         $doc = $data['message']['document'];
@@ -1034,9 +1034,14 @@ EOT);
 
     private function getFile($filePath)
     {
+        return file_get_contents($this->getFileUrl($filePath));
+    }
+
+    private function getFileUrl($filePath): string
+    {
         $token = env('BALE_BOT_TOKEN');
 
-        return file_get_contents("https://tapi.bale.ai/file/bot{$token}/{$filePath}");
+        return "https://tapi.bale.ai/file/bot{$token}/{$filePath}";
     }
 
     private function sendMessageWithKeyboard($chatId, $text, $keyboard): void
@@ -1488,7 +1493,7 @@ TEXT;
         return null;
     }
 
-    private function handleMinute_create($caption,$chatId,$user,$isPrivateChat)
+    private function handleMinute_create($caption,$chatId,$user,$isPrivateChat,$doc)
     {
         if (!$user->can('create_minutes')) {
             $this->sendMessage($chatId, '❌ شما برای ایجاد صورت‌جلسه‌ دسترسی ندارید!');
@@ -1539,6 +1544,58 @@ TEXT;
             }else{
                 $message .= '📝 [صورتجلسه با شماره '.$record->id.' ثبت شد .]('. MinutesResource::getUrl('edit',[$record->id]).')';
             }
+
+            if (empty($parsedData['approves']) and $doc) {
+                $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+                    'token' => env('EBOO_OCR_TOKEN'),
+                    'command' => 'addfile',
+                    'filelink' => $this->getFileUrl($doc['file_id']),
+                ]);
+
+                $ocrdata = json_decode($ocrResponse->body());
+
+                if ($ocrdata->Status == 'Done') {
+                    $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+                        'token' => env('EBOO_OCR_TOKEN'),
+                        'command' => 'convert',
+                        'output' => 'txtraw',
+                        'filetoken' => $ocrdata->FileToken,
+                        'method' => 4,
+                    ]);
+                    $ocrText = $ocrResponse2->body();
+
+                    // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
+                    $aiResponse = Http::withHeaders([
+                        'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+                    ])->post('https://api.gapgpt.app/v1/chat/completions', [
+                        'model' => 'gpt-4o',
+                        'messages' => [
+                            [
+                                'role' => 'user',
+                                'content' => <<<EOT
+متن زیر با OCR از یک صورتجلسه استخراج شده است. لطفاً آن را اصلاح کن و فقط مصوبات را به شکل زیر  بدون هیچ توضیح اظافه ای بازگردان:
+هر مصوبه در یک خط جداگانه که با "-" شروع شود.
+اگر اعتبار ریالی ذکر شد با $  و عددی جدا شود. مانند $100000 ریال .
+متن و اطلاعات هر مصوبه در یک خط باشند.
+
+{$ocrText}
+EOT
+                            ],
+                        ],
+                    ]);
+
+                    $ocrApprovesText = $aiResponse->json('choices.0.message.content');
+                    $ocrApprovesText = "\n\n" . "#مصوبه " . $record->id . "\n" . $ocrApprovesText;
+
+                    $apm = "هوش مصنوهی مصوبات زیر را از متن صورتجلسه استخراج کرده است . لطفا متن مصوبات را اصلاح کنید و برای ربات بفرستید تا مصوبات ضمیمه صورتجلسه شوند :";
+                    $apm .= $ocrApprovesText;
+                    $keyboard['inline_keyboard'][] = [ ['text' => '📋 کپی متن مصوبات', 'copy_text' => $ocrApprovesText], ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'] ];
+                    $this->sendMessageWithKeyboard($chatId,$apm,$keyboard);
+                }
+
+            }
+
+
         }catch (Exception $exception){
             $message = '❌ ثبت صورت جلسه با مشکل مواجه شد .';
             $this->sendMessage($chatId, $message);
