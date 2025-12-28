@@ -1590,6 +1590,7 @@ EOT
 
                     $apm = "هوش مصنوهی مصوبات زیر را از متن صورتجلسه استخراج کرده است . لطفا متن مصوبات را اصلاح کنید و برای ربات بفرستید تا مصوبات ضمیمه صورتجلسه شوند :";
                     $apm .= $ocrApprovesText;
+                    $this->sendMessage($chatId,$apm);
                     $keyboard['inline_keyboard'][] = [ ['text' => '📋 کپی متن مصوبات', 'copy_text' => $ocrApprovesText], ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'] ];
                     $this->sendMessageWithKeyboard($chatId,$apm,$keyboard);
                 }
