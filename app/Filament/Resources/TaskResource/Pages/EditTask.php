@@ -34,33 +34,38 @@ class EditTask extends EditRecord
                                     $model = $modelClass::find($r['model_id']);
                                     $modelTitle = $model?->title ?? $model?->name ?? '---';
 
-                                    // کلید ساده برای Select
                                     $key = $modelType . '|' . $r['model_id'];
                                     $options[$key] = "عنوان: {$modelTitle} - مدل: {$modelType} - درصد: {$r['percent']}%";
                                 }
                             }
 
-                            return $options; // حالا Select مقدار دارد
+                            return $options;
                         })
                         ->searchable()
+                        ->multiple()
                         ->required(),
-
                 ])
-                ->action(function ($data, $record) {
+                ->action(function ($data, $record, $action) {
                     if (!empty($data['selected_result'])) {
-                        [$modelType, $modelId] = explode('|', $data['selected_result']);
+                        // چون multiple هست، آرایه برمی‌گردد
+                        foreach ($data['selected_result'] as $selected) {
+                            [$modelType, $modelId] = explode('|', $selected);
 
-                        if ($modelType === \App\Models\Project::class) {
-                            $record->project_id = $modelId;
-                        } elseif ($modelType === \App\Models\TaskGroup::class) {
-                            $record->task_group_id = $modelId;
+                            if ($modelType === \App\Models\Project::class) {
+                                // فقط روی فرم ست شود
+                                $action->fillForm([
+                                    'project_id' => $modelId,
+                                ]);
+                            } elseif ($modelType === \App\Models\TaskGroup::class) {
+                                $action->fillForm([
+                                    'task_group_id' => $modelId,
+                                ]);
+                            }
                         }
-
-                        $record->save();
 
                         Notification::make()
                             ->title('دسته‌بندی AI اعمال شد')
-                            ->body("نتیجه انتخابی ذخیره شد.")
+                            ->body("نتیجه انتخابی روی فرم ست شد (ذخیره نشد).")
                             ->success()
                             ->send();
                     }
