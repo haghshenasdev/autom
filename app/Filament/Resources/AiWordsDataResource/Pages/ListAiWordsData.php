@@ -37,14 +37,18 @@ class ListAiWordsData extends ListRecords
                 $classifier = app(\App\Services\AiKeywordClassifier::class);
                 $results = $classifier->classify($data['title'], (float)$data['sensitivity']);
 
-                $list = collect($results)->map(function ($r) {
-                    // پیدا کردن مدل مربوطه
-                    $modelClass = $r['model_type'];
-                    $model = $modelClass::find($r['model_id']);
-                    $modelTitle = $model?->title ?? $model?->name ?? '---';
+// چون خروجی به شکل [model_type => [list of results]] است
+                $list = collect($results)->map(function ($group, $modelType) {
+                    return collect($group)->map(function ($r) use ($modelType) {
+                        // پیدا کردن مدل مربوط
+                        $modelClass = $r['model_type'];
+                        $model = $modelClass::find($r['model_id']);
+                        $modelTitle = $model?->title ?? $model?->name ?? '---';
 
-                    return "عنوان: {$modelTitle} - مدل: {$r['model_type']} - شناسه: {$r['model_id']} - درصد: {$r['percent']}%";
-                })->implode("<br>");
+                        return "عنوان: {$modelTitle} - مدل: {$modelType} - شناسه: {$r['model_id']} - درصد: {$r['percent']}%";
+                    })->implode("<br>");
+                })->implode("<hr>");
+
 
                 if (empty($list)) {
                     $list = "هیچ دسته‌بندی مرتبطی یافت نشد.";
