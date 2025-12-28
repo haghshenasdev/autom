@@ -27,7 +27,7 @@ class MinutesParser
 
             $titleLine = array_shift($lines);
             $title = $this->cleanTitle($titleLine);
-            $titleDate = $titleDate ?? $this->extractDateFromTitle($title);
+            $titleDate = $titleDate ?? $this->extractDateFromTitle($title) ?? Carbon::now();
 
             $approves = [];
             $organs = [];
