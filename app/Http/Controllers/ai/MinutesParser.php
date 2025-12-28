@@ -22,129 +22,133 @@ class MinutesParser
 
     public function parse(string $text,int $user_id = 1,Carbon $titleDate = null): array
     {
-        $lines = array_filter(array_map('trim', explode("\n", $text)));
+        try {
+            $lines = array_filter(array_map('trim', explode("\n", $text)));
 
-        $titleLine = array_shift($lines);
-        $title = $this->cleanTitle($titleLine);
-        $titleDate = $titleDate ?? $this->extractDateFromTitle($title);
+            $titleLine = array_shift($lines);
+            $title = $this->cleanTitle($titleLine);
+            $titleDate = $titleDate ?? $this->extractDateFromTitle($title);
 
-        $approves = [];
-        $organs = [];
-        $taskId = null;
-        $globalProjects = [];
+            $approves = [];
+            $organs = [];
+            $taskId = null;
+            $globalProjects = [];
 //        $organsName = [];
 
-        foreach ($lines as $line) {
-            if (str_starts_with($line, '-') || str_starts_with($line, '_') || str_starts_with($line, 'ـ')) {
-                $rawLine = ltrim($line, "-_ـ ");
+            foreach ($lines as $line) {
+                if (str_starts_with($line, '-') || str_starts_with($line, '_') || str_starts_with($line, 'ـ')) {
+                    $rawLine = ltrim($line, "-_ـ ");
 
-                $approve = [];
+                    $approve = [];
 
-                // استخراج @ها از approve
-                preg_match_all('/@\s*([^\s]+)/u', $rawLine, $matches);
-                foreach ($matches[1] as $mention) {
-                    $name = trim(str_replace(['_','-'], ' ', $mention));
-                    $user = User::where('name', 'like', "%$name%")
-                        ->orWhere('id', $mention)
-                        ->first();
-                    if ($user) {
-                        $approve['user'] = ['id' => $user->id, 'name' => $user->name];
+                    // استخراج @ها از approve
+                    preg_match_all('/@\s*([^\s]+)/u', $rawLine, $matches);
+                    foreach ($matches[1] as $mention) {
+                        $name = trim(str_replace(['_','-'], ' ', $mention));
+                        $user = User::where('name', 'like', "%$name%")
+                            ->orWhere('id', $mention)
+                            ->first();
+                        if ($user) {
+                            $approve['user'] = ['id' => $user->id, 'name' => $user->name];
+                        }
+                    }
+
+                    // --- استخراج amount (اعداد با $) ---
+                    $amount = null;
+                    if (preg_match('/\$\s*([\d][\d,٫،.\s]*)/u', $rawLine, $m)) {
+                        $amount = trim(preg_replace('/[^\d]/u', '', $m[1]));
+                        // پاک کردن مقدار از متن
+                        $rawLine = preg_replace('/\$\s*([\d][\d,٫،.\s]*)/u', '', $rawLine);
+                    }
+                    $approve['amount'] = $amount;
+
+                    // --- استخراج پروژه‌ها / دستورکارها ---
+                    [$approve['projects'],$rawLine] = $this->extractProjects($rawLine);
+
+                    // حذف @ها از متن
+                    $cleanLine = preg_replace('/@\s*([^\s]+)/u', '', $rawLine);
+                    $approve['text'] = trim($cleanLine);
+
+                    // استخراج تاریخ‌های نسبی
+                    $approve['due_at'] = $this->extractRelativeDate($rawLine,$titleDate);
+
+                    $approves[] = $approve;
+                }
+                else if (preg_match('/(?:ایجاد\s*جلسه|جلسه)(.*)/u', $line, $m)) {
+                    $after = trim($m[1]);
+                    $meetingTitle = null;
+                    if ($after and $after != '') {
+                        $meetingTitle = $after;
+                    } else {
+                        $meetingTitle = str_replace('صورتجلسه', 'جلسه', $title);
+                    }
+
+                    // ایجاد جلسه در دیتابیس
+                    $catPreder = new CategoryPredictor();
+                    $cats = $catPreder->predictWithCity($meetingTitle);
+                    $time = $titleDate ?? Carbon::now();
+                    $task = Task::create([
+                        'name' => $meetingTitle,
+                        'description' => $text,
+                        'created_at' => $time,
+                        'completed_at' => $time,
+                        'started_at' => $time,
+                        'completed' => 1,
+                        'status' => 1,
+                        'Responsible_id' => $user_id,
+                        'city_id' => $cats['city'] ?? null,
+                    ]);
+                    if (isset($cats['categories'])){
+                        $task->project()->attach($cats['categories']);
+                    }
+                    $task->group()->attach([1, 32]);
+
+                    $taskId = $task->id;
+                }
+                else if ($titleDate === null) {
+                    // تشخیص تاریخ در خط های بعدی
+                    $maybeDate = $this->extractDateFromTitle($line);
+                    if ($maybeDate) {
+                        $titleDate = $maybeDate;
                     }
                 }
+                else{
+                    // --- استخراج پروژه‌ها / دستورکارها ---
+                    [$globalProjects,$line] = $this->extractProjects($line);
 
-                // --- استخراج amount (اعداد با $) ---
-                $amount = null;
-                if (preg_match('/\$\s*([\d][\d,٫،.\s]*)/u', $rawLine, $m)) {
-                    $amount = trim(preg_replace('/[^\d]/u', '', $m[1]));
-                    // پاک کردن مقدار از متن
-                    $rawLine = preg_replace('/\$\s*([\d][\d,٫،.\s]*)/u', '', $rawLine);
-                }
-                $approve['amount'] = $amount;
+                    // استخراج @های مستقل برای organs
+                    preg_match_all('/@\s*([^@]+)/u', $line, $organMatchesLine);
+                    if (!empty($organMatchesLine[1])) {
+                        foreach ($organMatchesLine[1] as $mention) {
+                            $name = str_replace(['_', '-'], ' ', $mention);
+                            $name = str_replace('@', '', $name);
+                            $name = trim($name);
+                            $organKeywords = explode(" ", $name);
 
-                // --- استخراج پروژه‌ها / دستورکارها ---
-                [$approve['projects'],$rawLine] = $this->extractProjects($rawLine);
-
-                // حذف @ها از متن
-                $cleanLine = preg_replace('/@\s*([^\s]+)/u', '', $rawLine);
-                $approve['text'] = trim($cleanLine);
-
-                // استخراج تاریخ‌های نسبی
-                $approve['due_at'] = $this->extractRelativeDate($rawLine,$titleDate);
-
-                $approves[] = $approve;
-            }
-            else if (preg_match('/(?:ایجاد\s*جلسه|جلسه)(.*)/u', $line, $m)) {
-                $after = trim($m[1]);
-                $meetingTitle = null;
-                if ($after and $after != '') {
-                    $meetingTitle = $after;
-                } else {
-                    $meetingTitle = str_replace('صورتجلسه', 'جلسه', $title);
-                }
-
-                // ایجاد جلسه در دیتابیس
-                $catPreder = new CategoryPredictor();
-                $cats = $catPreder->predictWithCity($meetingTitle);
-                $time = $titleDate ?? Carbon::now();
-                $task = Task::create([
-                    'name' => $meetingTitle,
-                    'description' => $text,
-                    'created_at' => $time,
-                    'completed_at' => $time,
-                    'started_at' => $time,
-                    'completed' => 1,
-                    'status' => 1,
-                    'Responsible_id' => $user_id,
-                    'city_id' => $cats['city'] ?? null,
-                ]);
-                if (isset($cats['categories'])){
-                    $task->project()->attach($cats['categories']);
-                }
-                $task->group()->attach([1, 32]);
-
-                $taskId = $task->id;
-            }
-            else if ($titleDate === null) {
-                // تشخیص تاریخ در خط های بعدی
-                $maybeDate = $this->extractDateFromTitle($line);
-                if ($maybeDate) {
-                    $titleDate = $maybeDate;
-                }
-            }
-            else{
-                // --- استخراج پروژه‌ها / دستورکارها ---
-                [$globalProjects,$line] = $this->extractProjects($line);
-
-                // استخراج @های مستقل برای organs
-                preg_match_all('/@\s*([^@]+)/u', $line, $organMatchesLine);
-                if (!empty($organMatchesLine[1])) {
-                    foreach ($organMatchesLine[1] as $mention) {
-                        $name = str_replace(['_', '-'], ' ', $mention);
-                        $name = str_replace('@', '', $name);
-                        $name = trim($name);
-                        $organKeywords = explode(" ", $name);
-
-                        $organs[] = $this->detectOrgan($organKeywords);
+                            $organs[] = $this->detectOrgan($organKeywords);
+                        }
                     }
+
                 }
-
             }
-        }
 
-        if (!$taskId) {
-            // اگر جلسه نبود، همان تسک دیتکت
-            $taskId = $this->taskDetect($title);
-        }
-        $organs = array_unique($organs);
+            if (!$taskId) {
+                // اگر جلسه نبود، همان تسک دیتکت
+                $taskId = $this->taskDetect($title);
+            }
+            $organs = array_unique($organs);
 
-        return [
-            'title' => $title,
-            'title_date' => $titleDate,
-            'approves' => $approves,
-            'organs' => $organs,
-            'task_id' => $taskId,
-            'global_projects' => $globalProjects,
-        ];
+            return [
+                'title' => $title,
+                'title_date' => $titleDate,
+                'approves' => $approves,
+                'organs' => $organs,
+                'task_id' => $taskId,
+                'global_projects' => $globalProjects,
+            ];
+        } catch (Exception $exception) {
+            throw new $exception;
+        }
     }
 
     protected function cleanTitle(string $line): string
