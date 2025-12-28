@@ -1546,6 +1546,7 @@ TEXT;
             }
 
             if (empty($parsedData['approves']) and $doc) {
+                $loadinApAi = $this->sendMessage($chatId,"درحال استخراج مصوبات با هوش مصنوعی");
                 $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                     'token' => env('EBOO_OCR_TOKEN'),
                     'command' => 'addfile',
@@ -1592,6 +1593,8 @@ EOT
                     $keyboard['inline_keyboard'][] = [ ['text' => '📋 کپی متن مصوبات', 'copy_text' => $ocrApprovesText], ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'] ];
                     $this->sendMessageWithKeyboard($chatId,$apm,$keyboard);
                 }
+
+                $this->deleteMessage($chatId,$loadinApAi);
 
             }
 
