@@ -126,7 +126,10 @@ class MinutesParser
                             $name = trim($name);
                             $organKeywords = explode(" ", $name);
 
-                            $organs[] = $this->detectOrgan($organKeywords);
+                            $ogd = $this->detectOrgan($organKeywords);
+                            if ($ogd){
+                                $organs[] = $ogd;
+                            }
                         }
                     }
 
