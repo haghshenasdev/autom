@@ -24,25 +24,27 @@ class EditTask extends EditRecord
                     Select::make('selected_result')
                         ->label('نتایج دسته‌بندی')
                         ->options(function ($record) {
-                            $classifier = app(AiKeywordClassifier::class);
-                            $results = $classifier->classify($record->name, 0.5, null, null, 5); // لیمیت ۵
+                            $classifier = app(\App\Services\AiKeywordClassifier::class);
+                            $results = $classifier->classify($record->name, 0.1, null, null, 5);
 
-                            // خروجی به صورت [model_type => [...]]
                             $options = [];
                             foreach ($results as $modelType => $group) {
                                 foreach ($group as $r) {
                                     $modelClass = $r['model_type'];
                                     $model = $modelClass::find($r['model_id']);
-                                    $title = $model?->title ?? $model?->name ?? '---';
+                                    $modelTitle = $model?->title ?? $model?->name ?? '---';
 
-                                    $options[$modelType . '|' . $r['model_id']] =
-                                        "{$title} ({$modelType}) - درصد: {$r['percent']}%";
+                                    // کلید ساده برای Select
+                                    $key = $modelType . '|' . $r['model_id'];
+                                    $options[$key] = "عنوان: {$modelTitle} - مدل: {$modelType} - درصد: {$r['percent']}%";
                                 }
                             }
-                            return $options;
+
+                            return $options; // حالا Select مقدار دارد
                         })
                         ->searchable()
                         ->required(),
+
                 ])
                 ->action(function ($data, $record) {
                     if (!empty($data['selected_result'])) {

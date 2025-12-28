@@ -25,7 +25,6 @@ class CreateTask extends CreateRecord
                         ->options(function ($record) {
                             $classifier = app(AiKeywordClassifier::class);
                             $results = $classifier->classify($record->name, 0.5, null, null, 5); // لیمیت ۵
-                            dd($results);
                             // خروجی به صورت [model_type => [...]]
                             $options = [];
                             foreach ($results as $modelType => $group) {
