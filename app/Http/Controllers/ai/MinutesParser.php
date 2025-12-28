@@ -37,7 +37,8 @@ class MinutesParser
 
             foreach ($lines as $line) {
                 if (str_starts_with($line, '-') || str_starts_with($line, '_') || str_starts_with($line, 'ـ')) {
-                    $rawLine = ltrim($line, "-_ـ ");
+//                    $rawLine = ltrim($line, "-_ـ ");
+                    $rawLine = preg_replace('/^[\-\_\ـ\s]+/u', '', $line);
 
                     $approve = [];
 
