@@ -205,16 +205,34 @@ class AiKeywordClassifier
     /**
      * تابع تشخیص دسته‌بندی/پروژه بر اساس عنوان
      *
-     * @param string $title
+     * @param string $title عنوان ورودی
      * @param float $thresholdPercent حداقل درصد برای پذیرش مدل (مثلا 0.5 یعنی 50٪)
-     * @return array لیست دسته‌بندی‌ها/پروژه‌های مرتبط
+     * @param string|null $filterModelType نوع مدل برای فیلتر (مثلا App\Models\Project یا null برای همه)
+     * @param \Closure|null $queryCallback کوئری دلخواه روی AiWordsData (مثلا fn($q) => $q->where(...))
+     * @param int|null $limit تعداد خروجی محدود (مثلا 10 یا null برای همه)
+     * @return array لیست دسته‌بندی‌ها/پروژه‌های مرتبط، تفکیک‌شده بر اساس نوع مدل
      */
-    public function classify(string $title, float $thresholdPercent = 0.5): array
-    {
+    public function classify(
+        string $title,
+        float $thresholdPercent = 0.5,
+        ?string $filterModelType = null,
+        ?\Closure $queryCallback = null,
+        ?int $limit = null
+    ): array {
         $words = $this->extractKeywords($title);
         $results = [];
 
-        $datasets = AiWordsData::all();
+        // ساخت کوئری پایه
+        $query = AiWordsData::query();
+        if ($filterModelType) {
+            $query->where('model_type', $filterModelType);
+        }
+        if ($queryCallback) {
+            $queryCallback($query); // اجرای کوئری دلخواه
+        }
+
+        $datasets = $query->get();
+
         foreach ($datasets as $data) {
             $score = 0;
             $matched = 0;
@@ -223,18 +241,10 @@ class AiKeywordClassifier
             foreach ($data->allowed_words as $rule) {
                 $word = $rule['word'];
 
-                // بررسی وجود کلمه یا مترادف‌ها
                 if (in_array($word, $words) || count(array_intersect($rule['synonyms'], $words)) > 0) {
                     $matched++;
-
-                    // اگر کلمه ضروری باشد و وجود داشته باشد، امتیاز بیشتری بده
-                    if ($rule['required']) {
-                        $score += 2;
-                    } else {
-                        $score += 1;
-                    }
+                    $score += $rule['required'] ? 2 : 1;
                 } else {
-                    // اگر کلمه ضروری باشد و وجود نداشته باشد، کل مدل رد شود
                     if ($rule['required']) {
                         $score = 0;
                         $matched = 0;
@@ -262,8 +272,20 @@ class AiKeywordClassifier
             return $b['percent'] <=> $a['percent'] ?: $b['score'] <=> $a['score'];
         });
 
-        return $results;
+        // اعمال لیمیت
+        if ($limit) {
+            $results = array_slice($results, 0, $limit);
+        }
+
+        // تفکیک بر اساس نوع مدل
+        $grouped = [];
+        foreach ($results as $res) {
+            $grouped[$res['model_type']][] = $res;
+        }
+
+        return $grouped;
     }
+
 
     private function createAllowedWords($keywords,$totalSamples,$directWords,$sensitivityPercent): array
     {
