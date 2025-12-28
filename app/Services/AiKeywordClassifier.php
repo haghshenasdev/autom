@@ -82,6 +82,7 @@ class AiKeywordClassifier
     public function learn(Model $parent, string $relationName, string $titleField, ?string $secondaryField = null, float $sensitivityPercent = 0.5): int
     {
         $keywords = [];
+        $directWords = []; // کلمات مستقیم از نام مدل و فیلد ثانویه
         $totalSamples = count($parent->$relationName);
 
         // اگر تعداد زیرمجموعه‌ها کمتر از 3 بود، از name خود مدل استفاده کن
@@ -90,6 +91,7 @@ class AiKeywordClassifier
 
             foreach ($words as $w) {
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
+                $directWords[] = $w; // این کلمات همیشه وارد لیست می‌شوند
             }
 
             $totalSamples = max(1, $totalSamples); // جلوگیری از تقسیم بر صفر
@@ -108,6 +110,7 @@ class AiKeywordClassifier
             $words = $this->extractKeywords($parent->name);
             foreach ($words as $w) {
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
+                $directWords[] = $w; // این کلمات هم همیشه وارد لیست می‌شوند
             }
             $totalSamples = max(1, $totalSamples);
         }
@@ -123,6 +126,7 @@ class AiKeywordClassifier
             $secondaryWords = $this->extractKeywords($secondaryValue);
             foreach ($secondaryWords as $w) {
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
+                $directWords[] = $w; // این کلمات هم همیشه وارد لیست می‌شوند
             }
         }
 
@@ -133,7 +137,8 @@ class AiKeywordClassifier
         foreach ($keywords as $word => $count) {
             $frequencyPercent = $count / $totalSamples;
 
-            if ($frequencyPercent >= $sensitivityPercent) {
+            // اگر درصد حضور کافی بود یا کلمه مستقیم بود
+            if ($frequencyPercent >= $sensitivityPercent || in_array($word, $directWords)) {
                 if (!collect($allowedWords)->pluck('word')->contains($word)) {
                     $allowedWords[] = [
                         'word'       => $word,
