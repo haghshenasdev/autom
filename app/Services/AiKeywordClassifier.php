@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AiWordsData;
+use App\Models\City;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 
@@ -102,13 +103,20 @@ class AiKeywordClassifier
             }
         }
 
+        // اگر هیچ کلمه‌ای پیدا نشد، مانند حالت زیرمجموعه صفر عمل شود
+        if (count($keywords) < 2) {
+            $words = $this->extractKeywords($parent->name);
+            foreach ($words as $w) {
+                $keywords[$w] = ($keywords[$w] ?? 0) + 1;
+            }
+            $totalSamples = max(1, $totalSamples);
+        }
+
         // اضافه کردن فیلد ثانویه از مدل اصلی
         if ($secondaryField && !empty($parent->$secondaryField)) {
             $secondaryValue = $parent->$secondaryField;
 
-            // اگر فیلد Foreign Key بود و رابطه دارد، مقدار نیمه ارتباطش خوانده شود
             if ($secondaryValue instanceof Model) {
-                // فرض می‌کنیم فیلد اصلی رابطه name است
                 $secondaryValue = $secondaryValue->name ?? (string)$secondaryValue;
             }
 
@@ -126,7 +134,6 @@ class AiKeywordClassifier
             $frequencyPercent = $count / $totalSamples;
 
             if ($frequencyPercent >= $sensitivityPercent) {
-                // جلوگیری از ورود کلمات تکراری
                 if (!collect($allowedWords)->pluck('word')->contains($word)) {
                     $allowedWords[] = [
                         'word'       => $word,
@@ -170,7 +177,7 @@ class AiKeywordClassifier
             ->get();
         $totalDatasets = $datasets->count();
 
-        if ($totalDatasets === 0) {
+        if ($totalDatasets < 2) {
             return 0;
         }
 
@@ -183,12 +190,18 @@ class AiKeywordClassifier
             }
         }
 
-        // پیدا کردن کلمات مشترک
+        // گرفتن لیست اسامی شهرها از جدول cities
+        $cityNames = City::pluck('name')->map(fn($n) => mb_strtolower(trim($n)))->toArray();
+
+        // پیدا کردن کلمات مشترک (به جز اسامی شهرها)
         $commonWords = [];
         foreach ($wordPresence as $word => $count) {
             $percent = $count / $totalDatasets;
             if ($percent >= $thresholdPercent) {
-                $commonWords[] = $word;
+                // اگر کلمه جزو اسامی شهرها نبود، در لیست حذف قرار گیرد
+                if (!in_array(mb_strtolower(trim($word)), $cityNames)) {
+                    $commonWords[] = $word;
+                }
             }
         }
 
