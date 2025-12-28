@@ -94,9 +94,9 @@ class AiKeywordClassifier
             }
         }
 
-
+        $allowedWordsCount = count($this->createAllowedWords($keywords,$totalSamples,$directWords,$sensitivityPercent));
         // اگر هیچ کلمه‌ای پیدا نشد،یا نمونه ها کم بود از نام مدل اصلی بگیر
-        if (count($keywords) < 2 or $totalSamples < 3) {
+        if ($allowedWordsCount < 2 or $totalSamples < 3) {
             $parentNameWords = $this->extractKeywords($parent->name);
             foreach ($parentNameWords as $w) {
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
@@ -123,24 +123,8 @@ class AiKeywordClassifier
         // مرتب‌سازی بر اساس بیشترین تکرار
         arsort($keywords);
 
-        $allowedWords = [];
-        foreach ($keywords as $word => $count) {
-            $frequencyPercent = $count / $totalSamples;
+        $allowedWords = $this->createAllowedWords($keywords,$totalSamples,$directWords,$sensitivityPercent);
 
-            // اگر درصد حضور کافی بود یا کلمه مستقیم بود
-            if (in_array($word, $directWords) or $frequencyPercent >= $sensitivityPercent) {
-                if (!collect($allowedWords)->pluck('word')->contains($word)) {
-                    $allowedWords[] = [
-                        'word'       => $word,
-                        'synonyms'   => [],
-                        'required'   => false,
-                        'order'      => null,
-                        'frequency'  => $count,
-                        'percent'    => round($frequencyPercent * 100, 2),
-                    ];
-                }
-            }
-        }
 
         $aiWords = AiWordsData::firstOrNew([
             'model_type'   => get_class($parent),
@@ -279,6 +263,29 @@ class AiKeywordClassifier
         });
 
         return $results;
+    }
+
+    private function createAllowedWords($keywords,$totalSamples,$directWords,$sensitivityPercent): array
+    {
+        $allowedWords = [];
+        foreach ($keywords as $word => $count) {
+            $frequencyPercent = $count / $totalSamples;
+
+            // اگر درصد حضور کافی بود یا کلمه مستقیم بود
+            if (in_array($word, $directWords) or $frequencyPercent >= $sensitivityPercent) {
+                if (!collect($allowedWords)->pluck('word')->contains($word)) {
+                    $allowedWords[] = [
+                        'word'       => $word,
+                        'synonyms'   => [],
+                        'required'   => false,
+                        'order'      => null,
+                        'frequency'  => $count,
+                        'percent'    => round($frequencyPercent * 100, 2),
+                    ];
+                }
+            }
+        }
+        return $allowedWords;
     }
 
 }
