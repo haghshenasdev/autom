@@ -91,7 +91,7 @@ class AiKeywordClassifier
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
             }
 
-            $totalSamples = max(1, $totalSamples);
+            $totalSamples = max(1, $totalSamples); // جلوگیری از تقسیم بر صفر
         } else {
             foreach ($parent->$relationName as $child) {
                 $words = $this->extractKeywords($child->$titleField);
@@ -103,22 +103,18 @@ class AiKeywordClassifier
         }
 
         // اضافه کردن فیلد ثانویه از مدل اصلی
-        $secondaryRequiredWords = [];
         if ($secondaryField && !empty($parent->$secondaryField)) {
             $secondaryValue = $parent->$secondaryField;
 
+            // اگر فیلد Foreign Key بود و رابطه دارد، مقدار نیمه ارتباطش خوانده شود
             if ($secondaryValue instanceof Model) {
+                // فرض می‌کنیم فیلد اصلی رابطه name است
                 $secondaryValue = $secondaryValue->name ?? (string)$secondaryValue;
             }
 
             $secondaryWords = $this->extractKeywords($secondaryValue);
             foreach ($secondaryWords as $w) {
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
-
-                // اگر مقدار کلمه دقیقاً "شهر" نبود، ضروری شود
-                if (mb_strtolower(trim($w)) !== 'شهر') {
-                    $secondaryRequiredWords[] = $w;
-                }
             }
         }
 
@@ -129,12 +125,13 @@ class AiKeywordClassifier
         foreach ($keywords as $word => $count) {
             $frequencyPercent = $count / $totalSamples;
 
-            if ($frequencyPercent >= $sensitivityPercent || in_array($word, $secondaryRequiredWords)) {
+            if ($frequencyPercent >= $sensitivityPercent) {
+                // جلوگیری از ورود کلمات تکراری
                 if (!collect($allowedWords)->pluck('word')->contains($word)) {
                     $allowedWords[] = [
                         'word'       => $word,
                         'synonyms'   => [],
-                        'required'   => in_array($word, $secondaryRequiredWords), // ضروری اگر کلمه ≠ "شهر"
+                        'required'   => false,
                         'order'      => null,
                         'frequency'  => $count,
                         'percent'    => round($frequencyPercent * 100, 2),
@@ -173,7 +170,7 @@ class AiKeywordClassifier
             ->get();
         $totalDatasets = $datasets->count();
 
-        if ($totalDatasets < 2) {
+        if ($totalDatasets === 0) {
             return 0;
         }
 
