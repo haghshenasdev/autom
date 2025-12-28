@@ -70,6 +70,44 @@ class TaskGroupResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
+                Tables\Actions\BulkAction::make('bulkRelearn')
+                    ->label('یادگیری زیر مجموعه ها AI')->configure()
+                    ->icon('heroicon-o-arrow-path')->visible(auth()->user()->can('create_ai::words::data'))
+                    ->action(function ($records) {
+                        $totalWords = 0;
+                        $classifier = app(\App\Services\AiKeywordClassifier::class);
+
+                        // استخراج نوع مدل و آیدی‌ها
+                        $modelType = \App\Models\TaskGroup::class; // چون این BulkAction در جدول پروژه‌هاست
+                        $modelIds  = collect($records)->pluck('id')->toArray();
+
+                        foreach ($records as $record) {
+                            $parentModel = $record;
+
+                            if ($parentModel) {
+                                $count = $classifier
+                                    ->learn(
+                                        $parentModel,
+                                        'tasks',   // نام ریلیشن زیرمجموعه
+                                        'name',               // فیلد عنوان زیرمجموعه
+                                        null,    // فیلد ثانویه مثل شهر
+                                        0.5          // درصد حساسیت
+                                    );
+
+                                $totalWords += $count;
+                            }
+                        }
+
+                        // سپس بهینه‌سازی کلمات مشترک
+                        $removed = $classifier->optimizeCommonWords($modelType, $modelIds);
+
+
+                        \Filament\Notifications\Notification::make()
+                            ->title("آموزش مجدد انجام شد")
+                            ->body("فرایند روی " . count($records) . " رکورد انجام شد و مجموع {$totalWords} کلمه وارد شد." . "\n" . "کلمات مشترک حذف شدند. تعداد {$removed} کلمه پاک شد.")
+                            ->success()
+                            ->send();
+                    }),
             ]);
     }
 

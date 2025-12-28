@@ -104,11 +104,11 @@ class AiWordsDataResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('id')->label('شناسه')->sortable(),
-                Tables\Columns\TextColumn::make('model_type')->label('نوع مدل')->searchable(),
+                Tables\Columns\TextColumn::make('model_type')->label('نوع مدل')->sortable()->searchable(),
                 Tables\Columns\TextColumn::make('model_id')->label('شناسه مدل')->searchable(),
                 Tables\Columns\TextColumn::make('model_title') ->label('عنوان مدل') ->getStateUsing(fn($record) => $record->model->title ?? $record->model->name ?? null),
                 Tables\Columns\TextColumn::make('target_field')->label('فیلد هدف'),
-                Tables\Columns\TextColumn::make('sensitivity')->label('حساسیت'),
+                Tables\Columns\TextColumn::make('sensitivity')->label('حساسیت')->sortable(),
                 Tables\Columns\TextColumn::make('allowed_words') ->label('تعداد کلمات') ->getStateUsing(fn($record) => is_array($record->allowed_words) ? count($record->allowed_words) : 0)->sortable(),
                 Tables\Columns\TextColumn::make('created_at')->label('تاریخ ایجاد')->jalaliDateTime()->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')->label('آخرین آموزش')->jalaliDateTime()->sortable(),
