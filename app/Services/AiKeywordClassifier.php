@@ -128,7 +128,7 @@ class AiKeywordClassifier
             $frequencyPercent = $count / $totalSamples;
 
             // اگر درصد حضور کافی بود یا کلمه مستقیم بود
-            if ($frequencyPercent >= $sensitivityPercent || in_array($word, $directWords)) {
+            if (in_array($word, $directWords) or $frequencyPercent >= $sensitivityPercent) {
                 if (!collect($allowedWords)->pluck('word')->contains($word)) {
                     $allowedWords[] = [
                         'word'       => $word,
