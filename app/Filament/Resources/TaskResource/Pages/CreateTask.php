@@ -16,6 +16,7 @@ class CreateTask extends CreateRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\DeleteAction::make(),
             Actions\Action::make('ai_classify')
                 ->label('دسته بندی و تعیین دستورکار AI')
                 ->icon('heroicon-o-sparkles')
@@ -23,40 +24,48 @@ class CreateTask extends CreateRecord
                     Select::make('selected_result')
                         ->label('نتایج دسته‌بندی')
                         ->options(function ($record) {
-                            $classifier = app(AiKeywordClassifier::class);
-                            $results = $classifier->classify($record->name, 0.5, null, null, 5); // لیمیت ۵
-                            // خروجی به صورت [model_type => [...]]
+                            $classifier = app(\App\Services\AiKeywordClassifier::class);
+                            $results = $classifier->classify($record->name, 0.1, null, null, 5);
+
                             $options = [];
                             foreach ($results as $modelType => $group) {
                                 foreach ($group as $r) {
                                     $modelClass = $r['model_type'];
                                     $model = $modelClass::find($r['model_id']);
-                                    $title = $model?->title ?? $model?->name ?? '---';
+                                    $modelTitle = $model?->title ?? $model?->name ?? '---';
 
-                                    $options[$modelType . '|' . $r['model_id']] =
-                                        "{$title} ({$modelType}) - درصد: {$r['percent']}%";
+                                    $key = $modelType . '|' . $r['model_id'];
+                                    $options[$key] = "عنوان: {$modelTitle} - مدل: {$modelType} - درصد: {$r['percent']}%";
                                 }
                             }
+
                             return $options;
                         })
                         ->searchable()
+                        ->multiple()
                         ->required(),
                 ])
-                ->action(function ($data, $record) {
+                ->action(function ($data, $record, $action) {
                     if (!empty($data['selected_result'])) {
-                        [$modelType, $modelId] = explode('|', $data['selected_result']);
+                        // چون multiple هست، آرایه برمی‌گردد
+                        foreach ($data['selected_result'] as $selected) {
+                            [$modelType, $modelId] = explode('|', $selected);
 
-                        if ($modelType === \App\Models\Project::class) {
-                            $record->project_id = $modelId;
-                        } elseif ($modelType === \App\Models\TaskGroup::class) {
-                            $record->task_group_id = $modelId;
+                            if ($modelType === \App\Models\Project::class) {
+                                // فقط روی فرم ست شود
+                                $action->fillForm([
+                                    'project_id' => $modelId,
+                                ]);
+                            } elseif ($modelType === \App\Models\TaskGroup::class) {
+                                $action->fillForm([
+                                    'task_group_id' => $modelId,
+                                ]);
+                            }
                         }
-
-                        $record->save();
 
                         Notification::make()
                             ->title('دسته‌بندی AI اعمال شد')
-                            ->body("نتیجه انتخابی ذخیره شد.")
+                            ->body("نتیجه انتخابی روی فرم ست شد (ذخیره نشد).")
                             ->success()
                             ->send();
                     }
