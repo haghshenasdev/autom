@@ -83,15 +83,42 @@ class AiKeywordClassifier
         $keywords = [];
         $totalSamples = count($parent->$relationName);
 
-        foreach ($parent->$relationName as $child) {
-            $words = $this->extractKeywords($child->$titleField);
-
-            if ($secondaryField && !empty($child->$secondaryField)) {
-                $words[] = $child->$secondaryField;
-            }
+        // اگر تعداد زیرمجموعه‌ها کمتر از 3 بود، از name خود مدل استفاده کن
+        if ($totalSamples < 3) {
+            $words = $this->extractKeywords($parent->name);
 
             foreach ($words as $w) {
                 $keywords[$w] = ($keywords[$w] ?? 0) + 1;
+            }
+
+            $totalSamples = max(1, $totalSamples);
+        } else {
+            foreach ($parent->$relationName as $child) {
+                $words = $this->extractKeywords($child->$titleField);
+
+                foreach ($words as $w) {
+                    $keywords[$w] = ($keywords[$w] ?? 0) + 1;
+                }
+            }
+        }
+
+        // اضافه کردن فیلد ثانویه از مدل اصلی
+        $secondaryRequiredWords = [];
+        if ($secondaryField && !empty($parent->$secondaryField)) {
+            $secondaryValue = $parent->$secondaryField;
+
+            if ($secondaryValue instanceof Model) {
+                $secondaryValue = $secondaryValue->name ?? (string)$secondaryValue;
+            }
+
+            $secondaryWords = $this->extractKeywords($secondaryValue);
+            foreach ($secondaryWords as $w) {
+                $keywords[$w] = ($keywords[$w] ?? 0) + 1;
+
+                // اگر مقدار کلمه دقیقاً "شهر" نبود، ضروری شود
+                if (mb_strtolower(trim($w)) !== 'شهر') {
+                    $secondaryRequiredWords[] = $w;
+                }
             }
         }
 
@@ -102,20 +129,20 @@ class AiKeywordClassifier
         foreach ($keywords as $word => $count) {
             $frequencyPercent = $count / $totalSamples;
 
-            // فقط کلماتی که درصدشان >= حساسیت باشند وارد شوند
-            if ($frequencyPercent >= $sensitivityPercent) {
-                $allowedWords[] = [
-                    'word'       => $word,
-                    'synonyms'   => [],
-                    'required'   => false,
-                    'order'      => null,
-                    'frequency'  => $count,
-                    'percent'    => round($frequencyPercent * 100, 2),
-                ];
+            if ($frequencyPercent >= $sensitivityPercent || in_array($word, $secondaryRequiredWords)) {
+                if (!collect($allowedWords)->pluck('word')->contains($word)) {
+                    $allowedWords[] = [
+                        'word'       => $word,
+                        'synonyms'   => [],
+                        'required'   => in_array($word, $secondaryRequiredWords), // ضروری اگر کلمه ≠ "شهر"
+                        'order'      => null,
+                        'frequency'  => $count,
+                        'percent'    => round($frequencyPercent * 100, 2),
+                    ];
+                }
             }
         }
 
-        // ذخیره یا بروزرسانی در AiWordsData
         $aiWords = AiWordsData::firstOrNew([
             'model_type'   => get_class($parent),
             'model_id'     => $parent->id,
@@ -123,7 +150,7 @@ class AiKeywordClassifier
         ]);
 
         $aiWords->allowed_words = $allowedWords;
-        $aiWords->sensitivity   = $sensitivityPercent; // ذخیره درصد حساسیت
+        $aiWords->sensitivity   = $sensitivityPercent;
         $aiWords->save();
 
         return count($allowedWords);
@@ -146,7 +173,7 @@ class AiKeywordClassifier
             ->get();
         $totalDatasets = $datasets->count();
 
-        if ($totalDatasets === 0) {
+        if ($totalDatasets < 2) {
             return 0;
         }
 

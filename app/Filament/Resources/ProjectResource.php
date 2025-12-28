@@ -278,7 +278,7 @@ class ProjectResource extends Resource
                                         $parentModel,
                                         'tasks',   // نام ریلیشن زیرمجموعه
                                         'name',               // فیلد عنوان زیرمجموعه
-                                        null,    // فیلد ثانویه مثل شهر
+                                        'city',    // فیلد ثانویه مثل شهر
                                          0.5          // درصد حساسیت
                                     );
 
