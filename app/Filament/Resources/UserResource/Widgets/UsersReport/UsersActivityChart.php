@@ -128,4 +128,6 @@ class UsersActivityChart extends ChartWidget
     {
         return 'full'; // پر کردن عرض صفحه
     }
+
+    protected function getOptions(): array { return [ 'indexAxis' => 'y' ]; }
 }
