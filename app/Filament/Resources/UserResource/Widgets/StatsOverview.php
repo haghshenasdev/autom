@@ -22,7 +22,13 @@ class StatsOverview extends BaseWidget
                 $this->betYear ?  $this->record->task_responsible()->where('completed','=',1)->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->task_responsible()->where('completed','=',1)->count()
             )->icon('heroicon-o-archive-box'),
             Stat::make(' کار های انجام نشده ' . $this->selectedYear,
-                $this->betYear ?  $this->record->task_responsible()->where('completed','!=',1)->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->task_responsible()->where('completed','!=',1)->count()
+                $this->betYear ?  $this->record->task_responsible()->where(function ($q) {
+                    $q->whereNull('completed')
+                        ->orWhere('completed', 0);
+                })->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->task_responsible()->where(function ($q) {
+                    $q->whereNull('completed')
+                        ->orWhere('completed', 0);
+                })->count()
             )->icon('heroicon-o-archive-box'),
 
             Stat::make('کارپوشه (بررسی نشده/کل)' . $this->selectedYear, function () {
