@@ -25,12 +25,34 @@ class StatsOverview extends BaseWidget
                 $this->betYear ?  $this->record->task_responsible()->where('completed','!=',1)->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->task_responsible()->where('completed','!=',1)->count()
             )->icon('heroicon-o-archive-box'),
 
-            Stat::make('کارپوشه بررسی نشده ' . $this->selectedYear,
-                $this->betYear ? $this->record->cartable()->where('checked','!=',1)->whereBetween('cartables.created_at', $this->betYear)->count() : $this->record->cartable()->where('checked','!=',1)->count()
-            )->icon('heroicon-o-archive-box'),
-            Stat::make(' ارجاع های بررسی نشده ' . $this->selectedYear,
-                $this->betYear ?  $this->record->referral()->where('checked','!=',1)->whereBetween('referrals.created_at', $this->betYear)->count() : $this->record->referral()->where('checked','!=',1)->count()
-            )->icon('heroicon-o-archive-box'),
+            Stat::make('کارپوشه (بررسی نشده/کل)' . $this->selectedYear, function () {
+                $query = $this->record->cartable();
+                if ($this->betYear) {
+                    $query = $query->whereBetween('cartables.created_at', $this->betYear);
+                }
+
+                $total = $query->count();
+                $unchecked = $query->where(function ($q) {
+                    $q->whereNull('checked')->orWhere('checked', 0);
+                })->count();
+
+                return "{$unchecked} / {$total}";
+            })->icon('heroicon-o-archive-box'),
+
+            Stat::make('ارجاع‌ها (بررسی نشده/کل)' . $this->selectedYear, function () {
+                $query = $this->record->referral();
+                if ($this->betYear) {
+                    $query = $query->whereBetween('referrals.created_at', $this->betYear);
+                }
+
+                $total = $query->count();
+                $unchecked = $query->where(function ($q) {
+                    $q->whereNull('checked')->orWhere('checked', 0);
+                })->count();
+
+                return "{$unchecked} / {$total}";
+            })->icon('heroicon-o-archive-box'),
+
             Stat::make(' صورت جلسه ها ' . $this->selectedYear,
                 $this->betYear ?  $this->record->minutes()->whereBetween('minutes.created_at', $this->betYear)->count() : $this->record->minutes()->count()
             )->icon('heroicon-o-archive-box'),

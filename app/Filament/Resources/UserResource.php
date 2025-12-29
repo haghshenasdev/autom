@@ -102,6 +102,8 @@ class UserResource extends Resource
     {
         return [
             RelationManagers\TasksRelationManager::class,
+            RelationManagers\CartableRelationManager::class,
+            RelationManagers\ReferralRelationManager::class,
         ];
     }
 
