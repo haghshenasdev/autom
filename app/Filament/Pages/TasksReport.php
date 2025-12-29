@@ -25,8 +25,8 @@ class TasksReport extends Page
     {
         return [
             YearSelector::make(['selectedYear' => $this->selectedYear]),
+            TasksTrendChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
             TasksGroupsPieChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
-            TasksTrendChart::make(),
         ];
     }
 

@@ -4,6 +4,8 @@ namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
 use App\Filament\Resources\UserResource\Widgets\StatsOverview;
+use App\Filament\Resources\UserResource\Widgets\TasksGroupsPieChartUser;
+use App\Filament\Resources\UserResource\Widgets\TasksTrendChartUser;
 use App\Models\User;
 use Exception;
 use Filament\Forms\Components\Select;
@@ -91,6 +93,8 @@ class UserReport extends Page
     {
         return [
             StatsOverview::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            TasksTrendChartUser::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            TasksGroupsPieChartUser::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
         ];
     }
 

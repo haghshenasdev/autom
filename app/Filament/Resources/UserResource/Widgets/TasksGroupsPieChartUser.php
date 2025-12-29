@@ -1,17 +1,20 @@
 <?php
 
-namespace App\Filament\Resources\TaskResource\Widgets;
+namespace App\Filament\Resources\UserResource\Widgets;
 
 use App\Models\TaskGroup;
 use Filament\Widgets\ChartWidget;
 
-class TasksGroupsPieChart extends ChartWidget
+class TasksGroupsPieChartUser extends ChartWidget
 {
     protected static ?string $heading = 'توزیع کارها بر اساس دسته‌بندی';
 
     public ?array $betYear = null;
     public string|null $selectedYear = null;
 
+    public $record;
+
+    // فیلتر انتخابی: completed_at, created_at یا updated_at
     public string $dateFilter = 'completed_at';
 
     protected function getFilters(): ?array
@@ -25,20 +28,48 @@ class TasksGroupsPieChart extends ChartWidget
         ];
     }
 
+
     protected function getData(): array
     {
         // همه گروه‌ها همراه با شمارش کارها
         $groups = null;
-        if ($this->betYear){
+        if ($this->betYear) {
             self::$heading .= '، انجام شده در سال ' . $this->selectedYear;
-            $groups = TaskGroup::withCount([
+
+            // همه گروه‌ها همراه با شمارش کارهای یوزر در آن گروه
+            $groups = \App\Models\TaskGroup::withCount([
                 'tasks as tasks_count' => function ($query) {
-                    $query->whereBetween($this->dateFilter, $this->betYear);
+                    $query->whereBetween('tasks.' . $this->dateFilter, $this->betYear)
+                        ->where('tasks.responsible_id', $this->record->id);
                 },
             ])->get();
-        }else{
-            $groups = TaskGroup::withCount('tasks')->get();
+
+            // شمارش کارهای بدون گروه (چند به چند → یعنی هیچ رکوردی در جدول pivot ندارد)
+            $noGroupCount = \App\Models\Task::where('responsible_id', $this->record->id)
+                ->whereBetween('tasks.' . $this->dateFilter, $this->betYear)
+                ->whereDoesntHave('group') // ✅ مهم
+                ->count();
+        } else {
+            $groups = \App\Models\TaskGroup::withCount([
+                'tasks as tasks_count' => function ($query) {
+                    $query->where('tasks.responsible_id', $this->record->id);
+                },
+            ])->get();
+
+            $noGroupCount = \App\Models\Task::where('responsible_id', $this->record->id)
+                ->whereDoesntHave('group') // ✅ مهم
+                ->count();
         }
+
+// اضافه کردن یک آیتم مجازی برای "بدون دسته‌بندی"
+        if ($noGroupCount > 0) {
+            $groups->push((object)[
+                'id' => null,
+                'name' => 'بدون دسته‌بندی',
+                'tasks_count' => $noGroupCount,
+            ]);
+        }
+
 
 
         // حذف گروه‌هایی که هیچ کار ندارند

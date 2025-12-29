@@ -1,20 +1,21 @@
 <?php
 
-namespace App\Filament\Resources\TaskResource\Widgets;
+namespace App\Filament\Resources\UserResource\Widgets;
 
-use Filament\Widgets\ChartWidget;
-use App\Models\TaskGroup;
 use App\Models\Task;
-use Morilog\Jalali\Jalalian;
-use Carbon\Carbon;
+use App\Models\TaskGroup;
 use Carbon\CarbonPeriod;
+use Filament\Widgets\ChartWidget;
+use Morilog\Jalali\Jalalian;
 
-class TasksTrendChart extends ChartWidget
+class TasksTrendChartUser extends ChartWidget
 {
     protected static ?string $heading = 'روند فعالیت ها در دسته‌بندی‌ها';
 
     public ?array $betYear = null;
     public string|null $selectedYear = null;
+
+    public $record;
 
     // تعریف فیلترها
     protected function getFilters(): ?array
@@ -111,7 +112,7 @@ class TasksTrendChart extends ChartWidget
                 $end = $date->copy()->endOf($unit);
 
                 $query = Task::whereHas('group', fn($q) => $q->where('task_groups.id', $group->id))
-                    ->whereBetween($dateField, [$start, $end]);
+                    ->whereBetween($dateField, [$start, $end])->where('responsible_id', $this->record->id);
 
                 // ✅ اگر سال انتخاب شده وجود داشت، محدودیت سال رو هم اعمال کن
                 if ($this->betYear) {
