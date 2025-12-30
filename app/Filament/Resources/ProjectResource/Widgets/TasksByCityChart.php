@@ -10,8 +10,9 @@ use App\Models\User;
 class TasksByCityChart extends ChartWidget
 {
     public ?\App\Models\Project $record = null;
+    public ?int $user_id = null;
 
-    protected static ?string $heading = 'وضعیت شهر ها در دستورکار';
+    protected static ?string $heading = 'وضعیت شهر ها';
 
     protected function getFilters(): ?array
     {
@@ -25,7 +26,14 @@ class TasksByCityChart extends ChartWidget
 
     protected function getData(): array
     {
-        $tasks = $this->record->tasks()->with('city')->get();
+        $query = null;
+        if ($this->record) {
+            $query = $this->record->tasks();
+        }else{
+            $query = Task::query();
+            if ($this->user_id) $query->where('Responsible_id', $this->user_id);
+        }
+        $tasks = $query->with('city')->get();
         $filter = $this->filter ?? 'all';
 
         $labels = [];

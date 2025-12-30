@@ -2,14 +2,16 @@
 
 namespace App\Filament\Resources\ProjectResource\Widgets;
 
+use App\Models\Task;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Carbon;
 
 class TaskDelayChart extends ChartWidget
 {
     public ?\App\Models\Project $record = null;
+    public ?int $user_id = null;
 
-    protected static ?string $heading = 'نمودار تأخیر تسک‌ها';
+    protected static ?string $heading = 'نمودار تأخیر فعالیت ‌ها';
 
     protected function getType(): string
     {
@@ -18,7 +20,14 @@ class TaskDelayChart extends ChartWidget
 
     protected function getData(): array
     {
-        $tasks = $this->record->tasks()
+        $query = null;
+        if ($this->record) {
+            $query = $this->record->tasks();
+        }else{
+            $query = Task::query();
+            if ($this->user_id) $query->where('Responsible_id', $this->user_id);
+        }
+        $tasks = $query
             ->whereNotNull('started_at')
             ->whereNotNull('ended_at')
             ->get();

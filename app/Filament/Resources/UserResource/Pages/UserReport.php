@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\UserResource\Pages;
 
+use App\Filament\Resources\ProjectResource\Widgets\TaskDelayChart;
+use App\Filament\Resources\ProjectResource\Widgets\TasksByCityChart;
 use App\Filament\Resources\TaskResource\Widgets\TaskCalenderCountChartForTasks;
 use App\Filament\Resources\UserResource;
 use App\Filament\Resources\UserResource\Widgets\StatsOverview;
@@ -96,7 +98,9 @@ class UserReport extends Page
             StatsOverview::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TasksTrendChartUser::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TasksGroupsPieChartUser::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            TaskDelayChart::make(['user_id' => $this->record->id,'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TaskCalenderCountChartForTasks::make(['user_id' => $this->record->id,'selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
+            TasksByCityChart::make(['user_id' => $this->record->id, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
         ];
     }
 
