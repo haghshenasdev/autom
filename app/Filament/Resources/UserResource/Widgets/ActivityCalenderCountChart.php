@@ -11,7 +11,7 @@ use Morilog\Jalali\Jalalian;
 
 class ActivityCalenderCountChart extends ChartWidget
 {
-    protected static ?string $heading = 'تقویم فعالیت ها';
+    protected static ?string $heading = 'تقویم ایجاد ها';
 
     public string|null $selectedYear = null;
     public array|null $betYear = null; // [startCarbon, endCarbon]
