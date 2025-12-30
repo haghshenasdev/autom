@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ProjectResource\Widgets;
 
 use App\Models\Task;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Str;
 
 class ProjectGanttChart extends ChartWidget
 {
@@ -43,7 +44,7 @@ class ProjectGanttChart extends ChartWidget
         $durations = [];
 
         foreach ($tasks as $task) {
-            $labels[] = $task->title;
+            $labels[] = $task->id . ' ' . Str::limit($task->name, 20);
 
             // محاسبه مدت زمان به روز
             $start = \Carbon\Carbon::parse($task->started_at);
@@ -69,4 +70,5 @@ class ProjectGanttChart extends ChartWidget
     {
         return 'full'; // پر کردن عرض صفحه
     }
+    protected function getOptions(): array { return [ 'indexAxis' => 'y' ]; }
 }
