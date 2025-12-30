@@ -2,13 +2,18 @@
 
 namespace App\Filament\Resources\ProjectResource\Widgets;
 
+use App\Models\Task;
 use Filament\Widgets\ChartWidget;
 
 class ProjectGanttChart extends ChartWidget
 {
     public ?\App\Models\Project $record = null;
+    public ?int $user_id = null;
 
-    protected static ?string $heading = 'گانت چارت دستورکار';
+    public string|null $selectedYear = null;
+    public array|null $betYear = null; // [startCarbon, endCarbon]
+
+    protected static ?string $heading = 'گانت چارت ';
 
     protected function getType(): string
     {
@@ -17,8 +22,19 @@ class ProjectGanttChart extends ChartWidget
 
     protected function getData(): array
     {
-        $tasks = $this->record
-            ->tasks()
+        $query = null;
+        if ($this->record) {
+            $query = $this->record->tasks();
+        }else{
+            $query = Task::query();
+            if ($this->user_id) $query->where('Responsible_id', $this->user_id);
+        }
+
+        if ($this->selectedYear && $this->betYear) {
+            $query->whereBetween('created_at', $this->betYear);
+        }
+
+        $tasks = $query
             ->whereNotNull('started_at')
             ->whereNotNull('ended_at')
             ->get();

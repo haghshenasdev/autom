@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\ProjectResource\Widgets\ProjectGanttChart;
 use App\Filament\Resources\ProjectResource\Widgets\TaskDelayChart;
 use App\Filament\Resources\ProjectResource\Widgets\TasksByCityChart;
 use App\Filament\Resources\ProjectResource\Widgets\YearSelector;
@@ -33,6 +34,7 @@ class TasksReport extends Page
             TasksGroupsPieChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
             TaskDelayChart::make(['selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TasksByCityChart::make([ 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            ProjectGanttChart::make([ 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TaskCalenderCountChartForTasks::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
         ];
     }
