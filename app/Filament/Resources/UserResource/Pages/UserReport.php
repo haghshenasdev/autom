@@ -7,6 +7,7 @@ use App\Filament\Resources\ProjectResource\Widgets\TaskDelayChart;
 use App\Filament\Resources\ProjectResource\Widgets\TasksByCityChart;
 use App\Filament\Resources\TaskResource\Widgets\TaskCalenderCountChartForTasks;
 use App\Filament\Resources\UserResource;
+use App\Filament\Resources\UserResource\Widgets\ActivityCalenderCountChart;
 use App\Filament\Resources\UserResource\Widgets\StatsOverview;
 use App\Filament\Resources\UserResource\Widgets\TasksGroupsPieChartUser;
 use App\Filament\Resources\UserResource\Widgets\TasksTrendChartUser;
@@ -97,10 +98,11 @@ class UserReport extends Page
     {
         return [
             StatsOverview::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            TaskCalenderCountChartForTasks::make(['user_id' => $this->record->id,'selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
+            ActivityCalenderCountChart::make(['user_id' => $this->record->id,'selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
             TasksTrendChartUser::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TasksGroupsPieChartUser::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TaskDelayChart::make(['user_id' => $this->record->id,'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            TaskCalenderCountChartForTasks::make(['user_id' => $this->record->id,'selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
             TasksByCityChart::make(['user_id' => $this->record->id, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             ProjectGanttChart::make([ 'user_id' => $this->record->id,'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
         ];

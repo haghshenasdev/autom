@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\UserResource\Widgets\ActivityCalenderCountChart;
 use App\Filament\Resources\UserResource\Widgets\UsersReport\UsersActivityChart;
 use App\Filament\Resources\UserResource\Widgets\UsersReport\UsersReportStatsOverview;
 use App\Filament\Resources\UserResource\Widgets\UsersReport\UsersTasksGroupsChart;
@@ -22,6 +23,7 @@ class UsersReport extends Page
             UsersReportStatsOverview::make(),
             UsersActivityChart::make(),
             UsersTasksGroupsChart::make(),
+            ActivityCalenderCountChart::make(),
         ];
     }
 }
