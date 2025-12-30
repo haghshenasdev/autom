@@ -16,7 +16,6 @@ class CreateTask extends CreateRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
             Actions\Action::make('ai_classify')
                 ->label('دسته بندی و تعیین دستورکار AI')
                 ->icon('heroicon-o-sparkles')
