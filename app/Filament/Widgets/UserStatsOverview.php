@@ -42,7 +42,7 @@ class UserStatsOverview extends BaseWidget
             Stat::make('ارجاع بررسی نشده', $this->formatShortNumber(Referral::query()->where('to_user_id',$auth_id)->whereNot('checked',1)->count()))->url(ReferralResource::getUrl())->icon('heroicon-o-user'),
             Stat::make(' کار پوشه بررسی نشده', $this->formatShortNumber(Cartable::query()->where('user_id',$auth_id)->whereNot('checked',1)->count()))->url(CartableResource::getUrl())->icon('heroicon-o-user'),
             Stat::make('دستورکار های شما', $this->formatShortNumber(Project::query()->where('user_id',$auth_id)->count()))->icon('heroicon-o-archive-box')->url(ProjectResource::getUrl()),
-            Stat::make(' کار یا جلسه', $this->formatShortNumber(Task::query()->where('Responsible_id',$auth_id)->count()))->icon('heroicon-o-briefcase')->url(TaskResource::getUrl()),
+            Stat::make(' فعالیت ها', $this->formatShortNumber(Task::query()->where('Responsible_id',$auth_id)->count()))->icon('heroicon-o-briefcase')->url(TaskResource::getUrl()),
             Stat::make('صورت جلسه ها', $this->formatShortNumber(Minutes::query()->where('typer_id',$auth_id)->count()))->icon('heroicon-o-document-text')->url(MinutesResource::getUrl()),
         ];
     }

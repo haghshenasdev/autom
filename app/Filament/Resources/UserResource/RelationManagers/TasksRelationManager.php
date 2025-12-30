@@ -21,13 +21,13 @@ class TasksRelationManager extends RelationManager
 {
     protected static string $relationship = 'task_responsible';
 
-    protected static ?string $label = 'کار';
+    protected static ?string $label = 'فعالیت';
 
-    protected static ?string $pluralLabel = 'کار';
+    protected static ?string $pluralLabel = 'فعالیت';
 
-    protected static ?string $modelLabel = 'کار';
+    protected static ?string $modelLabel = 'فعالیت';
 
-    protected static ?string $title = 'کار ها';
+    protected static ?string $title = 'فعالیت ها';
 
     public function form(Form $form): Form
     {

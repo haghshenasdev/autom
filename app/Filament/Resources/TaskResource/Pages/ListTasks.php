@@ -15,7 +15,7 @@ class ListTasks extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
-            Actions\Action::make('report')->label('گزارش کار ها')->url(TasksReport::getUrl())->outlined()->icon('heroicon-o-chart-pie'),
+            Actions\Action::make('report')->label('گزارش فعالیت ها')->url(TasksReport::getUrl())->outlined()->icon('heroicon-o-chart-pie'),
 
         ];
     }

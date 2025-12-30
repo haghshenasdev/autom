@@ -31,7 +31,7 @@ class SendTaskCreatedNotification
         {
             $bale_bot = new BaleBotController();
             $creator_name = $task->creator->name ?? 'نا مشخص';
-            $message = "کار جدیدی توسط {$creator_name} برای شما ثبت شد: " . "\n";
+            $message = "فعالیت جدیدی توسط {$creator_name} برای شما ثبت شد: " . "\n";
             $message .= $bale_bot->CreateTaskMessage($task);
             $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n";
             $bale_bot->sendNotifBale($task->Responsible_id, $message);
@@ -39,7 +39,7 @@ class SendTaskCreatedNotification
             $user = User::query()->find($task->Responsible_id);
             if ($user){
                 Notification::make()
-                    ->title('کار جدید')
+                    ->title('فعالیت جدید')
                     ->body($message)
                     ->sendToDatabase($user);
             }

@@ -17,7 +17,7 @@ class TasksReport extends Page
 
     protected static string $view = 'filament.pages.tasks-report';
 
-    protected static ?string $title = 'گزارش جامع کار ها';
+    protected static ?string $title = 'گزارش جامع فعالیت ها';
     public ?array $betYear = null;
     public string|null $selectedYear = null;
 

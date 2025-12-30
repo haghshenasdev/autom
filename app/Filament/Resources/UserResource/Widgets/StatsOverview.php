@@ -15,13 +15,13 @@ class StatsOverview extends BaseWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('کار های تعریف شده ' . $this->selectedYear,
+            Stat::make('فعالیت های تعریف شده ' . $this->selectedYear,
                 $this->betYear ? $this->record->task_responsible()->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->task_responsible()->count()
             )->icon('heroicon-o-archive-box'),
-            Stat::make(' کار های انجام شده ' . $this->selectedYear,
+            Stat::make(' فعالیت های انجام شده ' . $this->selectedYear,
                 $this->betYear ?  $this->record->task_responsible()->where('completed','=',1)->whereBetween('tasks.created_at', $this->betYear)->count() : $this->record->task_responsible()->where('completed','=',1)->count()
             )->icon('heroicon-o-archive-box'),
-            Stat::make(' کار های انجام نشده ' . $this->selectedYear,
+            Stat::make(' فعالیت های انجام نشده ' . $this->selectedYear,
                 $this->betYear ?  $this->record->task_responsible()->where(function ($q) {
                     $q->whereNull('completed')
                         ->orWhere('completed', 0);

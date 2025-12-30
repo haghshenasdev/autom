@@ -61,7 +61,7 @@ class SendTasksReminderJob implements ShouldQueue
             // ساخت پیام
             $message = "🌺 سلام صبح بخیر {$user->name} \n"
                 . "🤗 امیدوارم روز خوبی داشته باشی\n\n"
-                . "🗂 کار های زیر برای شما در کارنما ثبت شده است و موعد انجام آن ها روبه اتمام است یا از موعد آن گذشته \n\n";
+                . "🗂 فعالیت های زیر برای شما در کارنما ثبت شده است و موعد انجام آن ها روبه اتمام است یا از موعد آن گذشته \n\n";
 
             foreach ($tasks as $task) {
                 $delayDays = $today->diffInDays(Carbon::parse($task->ended_at), false);
@@ -85,7 +85,7 @@ class SendTasksReminderJob implements ShouldQueue
             $bale_bot->sendNotifBale($user->id, $message);
             // ارسال به پنل سامانه
             Notification::make()
-                ->title('یادآور کار ها')
+                ->title('یادآور فعالیت ها')
                 ->body($message)
                 ->sendToDatabase($user);
         }

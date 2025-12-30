@@ -37,7 +37,7 @@ class StatsOverview extends BaseWidget
             Stat::make('تعداد نامه ها', $this->formatShortNumber(Letter::query()->count()))->icon('heroicon-o-envelope')->url(LetterResource::getUrl()),
             Stat::make('مراجعه کننده ها', $this->formatShortNumber(Customer::query()->count()))->icon('heroicon-o-user')->url(CustomerResource::getUrl()),
             Stat::make('تعداد دستورکار ها', $this->formatShortNumber(Project::query()->count()))->icon('heroicon-o-archive-box')->url(ProjectResource::getUrl()),
-            Stat::make('کار یا جلسه', $this->formatShortNumber(Task::query()->count()))->icon('heroicon-o-briefcase')->url(TaskResource::getUrl()),
+            Stat::make('فعالیت ها', $this->formatShortNumber(Task::query()->count()))->icon('heroicon-o-briefcase')->url(TaskResource::getUrl()),
             Stat::make('صورت جلسه ها', $this->formatShortNumber(Minutes::query()->count()))->icon('heroicon-o-document-text')->url(MinutesResource::getUrl()),
             Stat::make('مصوبه ها', $this->formatShortNumber(Approve::query()->count()))->icon('heroicon-o-document-check')->url(ApproveResource::getUrl()),
         ]);
