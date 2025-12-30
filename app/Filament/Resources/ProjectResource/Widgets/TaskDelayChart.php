@@ -11,6 +11,9 @@ class TaskDelayChart extends ChartWidget
     public ?\App\Models\Project $record = null;
     public ?int $user_id = null;
 
+    public string|null $selectedYear = null;
+    public array|null $betYear = null; // [startCarbon, endCarbon]
+
     protected static ?string $heading = 'نمودار تأخیر فعالیت ‌ها';
 
     protected function getType(): string

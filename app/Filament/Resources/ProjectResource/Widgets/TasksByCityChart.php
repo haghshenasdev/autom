@@ -12,6 +12,9 @@ class TasksByCityChart extends ChartWidget
     public ?\App\Models\Project $record = null;
     public ?int $user_id = null;
 
+    public string|null $selectedYear = null;
+    public array|null $betYear = null; // [startCarbon, endCarbon]
+
     protected static ?string $heading = 'وضعیت شهر ها';
 
     protected function getFilters(): ?array
@@ -32,6 +35,10 @@ class TasksByCityChart extends ChartWidget
         }else{
             $query = Task::query();
             if ($this->user_id) $query->where('Responsible_id', $this->user_id);
+        }
+
+        if ($this->selectedYear && $this->betYear) {
+            $query->whereBetween('created_at', $this->betYear);
         }
         $tasks = $query->with('city')->get();
         $filter = $this->filter ?? 'all';
