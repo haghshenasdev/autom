@@ -4,27 +4,32 @@ namespace App\Filament\Resources\ProjectResource\Widgets;
 
 use App\Models\Project;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Database\Eloquent\Model;
 use Morilog\Jalali\Jalalian;
 
-class TaskProjectChart extends ChartWidget
+class TaskCalenderCountChart extends ChartWidget
 {
     protected static ?string $heading = 'تقویم فعالیت ها';
 
     public string|null $selectedYear = null;
     public array|null $betYear = null; // [startCarbon, endCarbon]
 
-    public ?Project $record = null;
+    public ?Model $record = null;
+    public ?string $relate = null;
 
     protected function getData(): array
     {
+        $query = $this->record;
+        if ($this->relate) $query = $query->{$this->relate}();
+
         if ($this->selectedYear && $this->betYear) {
             // فقط همان سال
-            $tasks = $this->record->tasks()
+            $tasks = $query
                 ->whereBetween('completed_at', $this->betYear)
                 ->get(['completed_at']);
         } else {
             // همه سال‌ها
-            $tasks = $this->record->tasks()->get(['completed_at']);
+            $tasks = $query->get(['completed_at']);
         }
 
         $groupedData = collect([]);

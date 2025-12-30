@@ -3,8 +3,10 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\ProjectResource\Widgets\YearSelector;
+use App\Filament\Resources\TaskResource\Widgets\TaskCalenderCountChartForTasks;
 use App\Filament\Resources\TaskResource\Widgets\TasksGroupsPieChart;
 use App\Filament\Resources\TaskResource\Widgets\TasksTrendChart;
+use App\Models\Task;
 use Exception;
 use Filament\Pages\Page;
 use Morilog\Jalali\Jalalian;
@@ -27,6 +29,7 @@ class TasksReport extends Page
             YearSelector::make(['selectedYear' => $this->selectedYear]),
             TasksTrendChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
             TasksGroupsPieChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
+            TaskCalenderCountChartForTasks::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\UserResource\Pages;
 
+use App\Filament\Resources\TaskResource\Widgets\TaskCalenderCountChartForTasks;
 use App\Filament\Resources\UserResource;
 use App\Filament\Resources\UserResource\Widgets\StatsOverview;
 use App\Filament\Resources\UserResource\Widgets\TasksGroupsPieChartUser;
@@ -95,6 +96,7 @@ class UserReport extends Page
             StatsOverview::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TasksTrendChartUser::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             TasksGroupsPieChartUser::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            TaskCalenderCountChartForTasks::make(['user_id' => $this->record->id,'selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
         ];
     }
 

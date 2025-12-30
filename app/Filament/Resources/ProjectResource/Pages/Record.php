@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\ProjectResource\Pages;
 
 use App\Filament\Resources\ProjectResource;
-use App\Filament\Resources\ProjectResource\Widgets\TaskProjectChart;
+use App\Filament\Resources\ProjectResource\Widgets\TaskCalenderCountChart;
 use App\Filament\Resources\ProjectResource\Widgets\YearSelector;
 use App\Models\Project;
 use Exception;
@@ -94,7 +94,7 @@ class Record extends Page
     {
         return [
             ProjectResource\Widgets\ProjectStateWidget::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            TaskProjectChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
+            TaskCalenderCountChart::make(['record' => $this->record,'relate' => 'tasks', 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             ProjectResource\Widgets\ProjectProgress::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             ProjectResource\Widgets\ProjectProgressChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
             ProjectResource\Widgets\TaskDelayChart::make(['record' => $this->record, 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
