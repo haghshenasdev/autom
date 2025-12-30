@@ -86,7 +86,7 @@ class TaskResource extends Resource
                     Tables\Columns\TextColumn::make('id')->label('ثبت')
                         ->searchable()->sortable(),
                     Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
-                    Tables\Columns\TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks()->toggleable(isToggledHiddenByDefault: false),
+                    Tables\Columns\TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks()->words(7)->toggleable(isToggledHiddenByDefault: false),
                     Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
                         ->toggleable(isToggledHiddenByDefault: true),
                     Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
