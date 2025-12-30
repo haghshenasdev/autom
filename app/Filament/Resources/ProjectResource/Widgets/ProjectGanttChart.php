@@ -8,7 +8,7 @@ class ProjectGanttChart extends ChartWidget
 {
     public ?\App\Models\Project $record = null;
 
-    protected static ?string $heading = 'گانت چارت پروژه';
+    protected static ?string $heading = 'گانت چارت دستورکار';
 
     protected function getType(): string
     {

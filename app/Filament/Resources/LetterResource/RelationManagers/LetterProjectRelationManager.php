@@ -18,13 +18,13 @@ class LetterProjectRelationManager extends RelationManager
 {
     protected static string $relationship = 'projects';
 
-    protected static ?string $label = 'پروژه ها';
+    protected static ?string $label = 'دستورکار ها';
 
-    protected static ?string $pluralLabel = 'پروژه';
+    protected static ?string $pluralLabel = 'دستورکار';
 
-    protected static ?string $modelLabel = 'پروژه';
+    protected static ?string $modelLabel = 'دستورکار';
 
-    protected static ?string $title = 'پروژه ها';
+    protected static ?string $title = 'دستورکار ها';
 
     public function form(Form $form): Form
     {
@@ -40,7 +40,7 @@ class LetterProjectRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\TextColumn::make('project')->state(function (Model $record): string {
                     return Project::find($record->project_id)->name;
-                })->label('پروژه'),
+                })->label('دستورکار'),
                 Tables\Columns\TextColumn::make('pivot.summary')->words(10)->label('خلاصه'),
             ])
             ->filters([
@@ -52,7 +52,7 @@ class LetterProjectRelationManager extends RelationManager
             ->actions([
                 Tables\Actions\EditAction::make()->form([
                     Forms\Components\Select::make('project_id')
-                        ->label('انتخاب پروژه')
+                        ->label('انتخاب دستورکار')
                         ->options(Project::all()->pluck('name', 'id')->map(fn ($name, $id) => "{$id} - {$name}"))
                         ->searchable()
                         ->required(),

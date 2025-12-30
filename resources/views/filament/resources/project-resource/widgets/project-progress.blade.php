@@ -1,7 +1,7 @@
 <x-filament-widgets::widget>
     <x-filament::section>
             <div class="p-4">
-                <h3 class="text-lg font-semibold">پیشرفت پروژه{{ $selectedYear ? " در سال ".$selectedYear : '' }}</h3>
+                <h3 class="text-lg font-semibold">پیشرفت دستورکار{{ $selectedYear ? " در سال ".$selectedYear : '' }}</h3>
                 <p class="text-sm text-gray-500 mb-5">درصد کار‌های انجام‌شده: {{ $progress }}%</p>
 
                 <!-- Progress Bar -->

@@ -27,7 +27,7 @@ class TasksRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         $schema = Task::formSchema();
-        $schema[] = Forms\Components\Select::make('project_id')->label('پروژه')
+        $schema[] = Forms\Components\Select::make('project_id')->label('دستورکار')
             ->relationship('project', 'name')
             ->searchable()->preload()->multiple();
         return $form

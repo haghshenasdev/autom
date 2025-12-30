@@ -16,7 +16,7 @@ class AiKeywordClassifier
     ];
 
     protected array $phrasesToRemove = [
-        'عنوان','موضوع','پروژه','دسته','تسک',
+        'عنوان','موضوع','دستورکار','دسته','تسک',
         'نماینده مردم شریف شهرستانهای شاهین شهر و میمه و برخوار',
         'نماینده مردم شریف شهرستان های شاهین شهر و میمه و برخوار',
         'شاهین شهر و میمه و برخوار',
@@ -72,7 +72,7 @@ class AiKeywordClassifier
     /**
      * تابع لرن: یادگیری از رکوردهای زیرمجموعه
      *
-     * @param Model $parent رکورد پروژه یا دسته‌بندی
+     * @param Model $parent رکورد دستورکار یا دسته‌بندی
      * @param string $relationName نام ریلیشن زیرمجموعه (مثلا letters یا tasks)
      * @param string $titleField فیلد عنوان زیرمجموعه
      * @param string|null $secondaryField فیلد ثانویه مثل شهر
@@ -203,14 +203,14 @@ class AiKeywordClassifier
 
 
     /**
-     * تابع تشخیص دسته‌بندی/پروژه بر اساس عنوان
+     * تابع تشخیص دسته‌بندی/دستورکار بر اساس عنوان
      *
      * @param string $title عنوان ورودی
      * @param float $thresholdPercent حداقل درصد برای پذیرش مدل (مثلا 0.5 یعنی 50٪)
      * @param string|null $filterModelType نوع مدل برای فیلتر (مثلا App\Models\Project یا null برای همه)
      * @param \Closure|null $queryCallback کوئری دلخواه روی AiWordsData (مثلا fn($q) => $q->where(...))
      * @param int|null $limit تعداد خروجی محدود (مثلا 10 یا null برای همه)
-     * @return array لیست دسته‌بندی‌ها/پروژه‌های مرتبط، تفکیک‌شده بر اساس نوع مدل
+     * @return array لیست دسته‌بندی‌ها/دستورکار‌های مرتبط، تفکیک‌شده بر اساس نوع مدل
      */
     public function classify(
         string $title,

@@ -497,7 +497,7 @@ class BaleBotController extends Controller
                         })->count() . "\n";
                     $message .= "↖️ ارجاع بررسی نشده : " . Referral::query()->where('to_user_id', $user->id)->whereNot('checked', 1)->count() . "\n";
                     $message .= "🧰  کار پوشه بررسی نشده : " . Cartable::query()->where('user_id', $user->id)->whereNot('checked', 1)->count() . "\n";
-                    $message .= "ℹ️ پروژه های شما : " . Project::query()->where('user_id', $user->id)->count() . "\n";
+                    $message .= "ℹ️ دستورکار های شما : " . Project::query()->where('user_id', $user->id)->count() . "\n";
                     $message .= "🕹️ کار های شما : " . Task::query()->where('Responsible_id', $user->id)->count() . "\n";
                     $message .= "📝 صورت جلسه های شما : " . Minutes::query()->where('typer_id', $user->id)->count();
 

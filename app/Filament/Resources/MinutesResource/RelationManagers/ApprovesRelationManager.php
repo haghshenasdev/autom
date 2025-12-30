@@ -40,7 +40,7 @@ class ApprovesRelationManager extends RelationManager
                     ->searchable()->sortable(),
                 TextColumn::make('title')->label('عنوان')
                     ->searchable(),
-                TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('organ.name')->label('اداره')->listWithLineBreaks()->toggleable(),
                 TextColumn::make('amount')->label('اعتبار')->toggleable()->sortable()->numeric()->suffix('ریال'),
                 TextColumn::make('status')

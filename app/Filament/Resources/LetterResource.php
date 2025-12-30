@@ -250,7 +250,7 @@ class LetterResource extends Resource
                     ->preload()
                     ->createOptionForm(Organ::formSchema()),
                 Forms\Components\Select::make('projects')
-                    ->label('پروژه')->multiple()->lazy()
+                    ->label('دستورکار')->multiple()->lazy()
                     ->relationship('projects', 'name')
                     ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
                     ->searchable(['projects.id', 'projects.name'])
@@ -348,7 +348,7 @@ class LetterResource extends Resource
                 TextColumn::make('daftar.name')->label('دفتر')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->sortable(),
-                TextColumn::make('projects.name')->label('پروژه')
+                TextColumn::make('projects.name')->label('دستورکار')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->listWithLineBreaks()->sortable(),
                 Tables\Columns\TextColumn::make('status')

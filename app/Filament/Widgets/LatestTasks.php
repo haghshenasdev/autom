@@ -21,7 +21,7 @@ class LatestTasks extends BaseWidget
     use HasWidgetShield;
 
     protected static ?int $sort = 2;
-    protected static ?string $heading= 'آخرین کار ها';
+    protected static ?string $heading= 'آخرین فعالیت ها';
 
 
     public function table(Table $table): Table

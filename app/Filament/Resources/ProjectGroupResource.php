@@ -21,14 +21,14 @@ class ProjectGroupResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
 
-    protected static ?string $label = "دسته بندی پروژه";
+    protected static ?string $label = "دسته بندی دستورکار";
 
-    protected static ?string $navigationGroup = 'پروژه / جلسه / پیگیری';
+    protected static ?string $navigationGroup = 'دستورکار / فعالیت ها';
 
 
-    protected static ?string $pluralModelLabel = "دسته بندی پروژه";
+    protected static ?string $pluralModelLabel = "دسته بندی دستورکار";
 
-    protected static ?string $pluralLabel = "دسته بندی پروژه";
+    protected static ?string $pluralLabel = "دسته بندی دستورکار";
 
     public static function form(Form $form): Form
     {

@@ -37,8 +37,8 @@ class AiWordsDataResource extends Resource
                 Forms\Components\Select::make('model_type')
                     ->label('نوع مدل')
                     ->options([
-                        Project::class => 'پروژه',
-                        TaskGroup::class => 'دسته‌بندی کار ها',
+                        Project::class => 'دستورکار',
+                        TaskGroup::class => 'دسته‌بندی فعالیت ها',
                         // هر مدل دیگری که داری را اینجا اضافه کن
                     ])
                     ->searchable()

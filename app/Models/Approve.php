@@ -103,8 +103,8 @@ class Approve extends Model
                 ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
                 ->label('دستگاه اجرایی'),
 
-            Select::make('project_id')->label('پروژه')
-                ->label('پروژه')->multiple()
+            Select::make('project_id')->label('دستورکار')
+                ->label('دستورکار')->multiple()
                 ->relationship('project', 'name')
                 ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
                 ->searchable(['projects.id', 'projects.name'])

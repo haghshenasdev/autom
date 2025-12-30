@@ -86,7 +86,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()
                     ->label('دستور')->collapsed(),
                 NavigationGroup::make()
-                    ->label('پروژه / جلسه / پیگیری')->collapsed(),
+                    ->label('دستورکار / فعالیت ها')->collapsed(),
                 NavigationGroup::make()
                     ->label('اطلاع رسانی')->collapsed(),
                 NavigationGroup::make()

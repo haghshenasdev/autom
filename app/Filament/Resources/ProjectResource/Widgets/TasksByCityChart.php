@@ -11,7 +11,7 @@ class TasksByCityChart extends ChartWidget
 {
     public ?\App\Models\Project $record = null;
 
-    protected static ?string $heading = 'وضعیت شهر ها در پروژه';
+    protected static ?string $heading = 'وضعیت شهر ها در دستورکار';
 
     protected function getFilters(): ?array
     {

@@ -11,7 +11,7 @@ class ProjectProgressChart extends ChartWidget
     public string|null $selectedYear = null;
     public array|null $betYear = null;
 
-    protected static ?string $heading = 'نمودار پیشرفت کلی پروژه';
+    protected static ?string $heading = 'نمودار پیشرفت کلی دستورکار';
 
     protected function getType(): string
     {

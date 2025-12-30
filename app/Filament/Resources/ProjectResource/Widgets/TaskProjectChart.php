@@ -8,7 +8,7 @@ use Morilog\Jalali\Jalalian;
 
 class TaskProjectChart extends ChartWidget
 {
-    protected static ?string $heading = 'تقویم کار ها';
+    protected static ?string $heading = 'تقویم فعالیت ها';
 
     public string|null $selectedYear = null;
     public array|null $betYear = null; // [startCarbon, endCarbon]
@@ -65,8 +65,8 @@ class TaskProjectChart extends ChartWidget
             'datasets' => [
                 [
                     'label' => $this->selectedYear
-                        ? "کارهای انجام شده (سال {$this->selectedYear})"
-                        : "کارهای انجام شده (همه سال‌ها)",
+                        ? "فعالیتهای انجام شده (سال {$this->selectedYear})"
+                        : "فعالیتهای انجام شده (همه سال‌ها)",
                     'data' => $values,
                 ],
             ],

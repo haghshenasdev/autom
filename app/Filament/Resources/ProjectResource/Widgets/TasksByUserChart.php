@@ -9,7 +9,7 @@ class TasksByUserChart extends ChartWidget
 {
     public ?\App\Models\Project $record = null;
 
-    protected static ?string $heading = 'وضعیت کارهای کاربران در پروژه';
+    protected static ?string $heading = 'وضعیت کارهای کاربران در دستورکار';
 
     protected function getData(): array
     {

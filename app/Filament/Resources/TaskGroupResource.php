@@ -21,14 +21,14 @@ class TaskGroupResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
 
-    protected static ?string $label = "دسته بندی کارها";
+    protected static ?string $label = "دسته بندی فعالیت ها";
 
-    protected static ?string $navigationGroup = 'پروژه / جلسه / پیگیری';
+    protected static ?string $navigationGroup = 'دستورکار / فعالیت ها';
 
 
-    protected static ?string $pluralModelLabel = "دسته بندی کارها";
+    protected static ?string $pluralModelLabel = "دسته بندی فعالیت ها";
 
-    protected static ?string $pluralLabel = "دسته بندی کارها";
+    protected static ?string $pluralLabel = "دسته بندی فعالیت ها";
 
     public static function form(Form $form): Form
     {
@@ -78,7 +78,7 @@ class TaskGroupResource extends Resource
                         $classifier = app(\App\Services\AiKeywordClassifier::class);
 
                         // استخراج نوع مدل و آیدی‌ها
-                        $modelType = \App\Models\TaskGroup::class; // چون این BulkAction در جدول پروژه‌هاست
+                        $modelType = \App\Models\TaskGroup::class; // چون این BulkAction در جدول دستورکار‌هاست
                         $modelIds  = collect($records)->pluck('id')->toArray();
 
                         foreach ($records as $record) {

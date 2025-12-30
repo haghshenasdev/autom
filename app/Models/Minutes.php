@@ -126,15 +126,15 @@ class Minutes extends Model
                 ->relationship('task_creator', 'name')
                 ->suffixActions([
                     Action::make('open_task')
-                        ->label('دیدن کار')
+                        ->label('دیدن فعالیت')
                         ->url(fn(?Model $record) => $record
                             ? env('APP_URL') . '/admin/tasks/' . $record->id . '/edit'
                             : '#', shouldOpenInNewTab: true)
                         ->icon('heroicon-o-arrow-top-right-on-square'),
                 ])->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
                 ->searchable(['name','id'])->preload()->createOptionForm(array_merge(Task::formSchema(),[
-                    Select::make('project_id')->label('پروژه')
-                        ->label('پروژه')->multiple()
+                    Select::make('project_id')->label('دستورکار')
+                        ->label('دستورکار')->multiple()
                         ->relationship('project', 'name')
                         ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
                         ->searchable(['projects.id', 'projects.name'])

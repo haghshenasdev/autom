@@ -70,14 +70,14 @@ class MinutesResource extends Resource
             TextColumn::make('organ.name')->label('امضا کنندگان'),
             TextColumn::make('tasks_count')
                 ->counts('tasks')
-                ->label('تعداد کارها')->sortable()
+                ->label('تعداد فعالیتها')->sortable()
                 ->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('approves_count')
                 ->label('تعداد مصوبه')->sortable()
                 ->counts('approves')
                 ->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('date')->label(' تاریخ')->jalaliDateTime(),
-            ProgressBar::make('pb')->label('درصد کار انجام شده')
+            ProgressBar::make('pb')->label('درصد فعالیت انجام شده')
                 ->getStateUsing(function ($record) {
                     $total = $record->tasks()->count();
                     $progress = $record->tasks()->where('completed',true)->count();

@@ -19,13 +19,13 @@ class TasksRelationManager extends RelationManager
 {
     protected static string $relationship = 'tasks';
 
-    protected static ?string $label = 'کار';
+    protected static ?string $label = 'فعالیت';
 
-    protected static ?string $pluralLabel = 'کار';
+    protected static ?string $pluralLabel = 'فعالیت';
 
-    protected static ?string $modelLabel = 'کار';
+    protected static ?string $modelLabel = 'فعالیت';
 
-    protected static ?string $title = 'کار ها';
+    protected static ?string $title = 'فعالیت ها';
 
     public function form(Form $form): Form
     {
@@ -53,7 +53,7 @@ class TasksRelationManager extends RelationManager
             ])
             ->actions([
                 Action::make('open_task')
-                    ->label('دیدن کار')
+                    ->label('دیدن فعالیت')
                     ->url(fn(?Model $record) => $record
                         ? env('APP_URL') . '/admin/tasks/' . $record->id . '/edit'
                         : '#', shouldOpenInNewTab: true)

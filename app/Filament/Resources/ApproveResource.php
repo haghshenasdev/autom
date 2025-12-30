@@ -65,7 +65,7 @@ class ApproveResource extends Resource
             TextColumn::make('title')->label('عنوان')
                 ->searchable(),
             TextColumn::make('minute.title')->label('صورت جلسه'),
-            TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks()->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks()->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('organ.name')->label('اداره')->listWithLineBreaks()->toggleable(),
             TextColumn::make('amount')->label('اعتبار')->toggleable()->sortable()->numeric()->suffix('ریال'),
             TextColumn::make('status')
@@ -93,7 +93,7 @@ class ApproveResource extends Resource
                     ->label('شهر')->multiple()->preload()
                     ->relationship('city','name'),
                 SelectFilter::make('project')
-                    ->label('پروژه')->multiple()->preload()
+                    ->label('دستورکار')->multiple()->preload()
                     ->relationship('project','name'),
                 SelectFilter::make('organ')
                     ->label('اداره')->multiple()->preload()

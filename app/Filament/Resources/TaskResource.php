@@ -33,7 +33,7 @@ class TaskResource extends Resource
 
     protected static ?string $label = "کار";
 
-    protected static ?string $navigationGroup = 'پروژه / جلسه / پیگیری';
+    protected static ?string $navigationGroup = 'دستورکار / فعالیت ها';
 
 
     protected static ?string $pluralModelLabel = "کار ها";
@@ -55,8 +55,8 @@ class TaskResource extends Resource
     public static function form(Form $form): Form
     {
         $schema = Task::formSchema();
-        $schema[] = Forms\Components\Select::make('project_id')->label('پروژه')
-            ->label('پروژه')->multiple()
+        $schema[] = Forms\Components\Select::make('project_id')->label('دستورکار')
+            ->label('دستورکار')->multiple()
             ->relationship('project', 'name')
             ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
             ->searchable(['projects.id', 'projects.name'])
@@ -86,7 +86,7 @@ class TaskResource extends Resource
                     Tables\Columns\TextColumn::make('id')->label('ثبت')
                         ->searchable()->sortable(),
                     Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
-                    Tables\Columns\TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks(),
+                    Tables\Columns\TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks(),
                     Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
                         ->toggleable(isToggledHiddenByDefault: true),
                     Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
@@ -136,7 +136,7 @@ class TaskResource extends Resource
                 Tables\Columns\TextColumn::make('id')->label('ثبت')
                     ->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
-                Tables\Columns\TextColumn::make('project.name')->label('پروژه')->listWithLineBreaks(),
+                Tables\Columns\TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks(),
                 Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
@@ -212,7 +212,7 @@ class TaskResource extends Resource
 
                         return __('group') . ': ' . implode(', ', TaskGroup::whereIn('id', $data['group'])->get()->pluck('name')->toArray());
                     }),
-                Tables\Filters\SelectFilter::make('project_id')->label('پروژه')
+                Tables\Filters\SelectFilter::make('project_id')->label('دستورکار')
                     ->relationship('project', 'name')
                     ->searchable()->preload()->multiple(),
                 Tables\Filters\SelectFilter::make('minutes_id')->label('صورت جلسه')

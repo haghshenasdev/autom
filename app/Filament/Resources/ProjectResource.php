@@ -37,14 +37,14 @@ class ProjectResource extends Resource
 {
     protected static ?string $model = Project::class;
 
-    protected static ?string $label = "پروژه";
+    protected static ?string $label = "دستورکار";
 
-    protected static ?string $navigationGroup = 'پروژه / جلسه / پیگیری';
+    protected static ?string $navigationGroup = 'دستورکار / فعالیت ها';
 
 
-    protected static ?string $pluralModelLabel = "پروژه ها";
+    protected static ?string $pluralModelLabel = "دستورکار ها";
 
-    protected static ?string $pluralLabel = "پروژه";
+    protected static ?string $pluralLabel = "دستورکار";
 
 
     protected static ?string $navigationIcon = 'heroicon-o-archive-box';
@@ -266,7 +266,7 @@ class ProjectResource extends Resource
                         $classifier = app(\App\Services\AiKeywordClassifier::class);
 
                         // استخراج نوع مدل و آیدی‌ها
-                        $modelType = \App\Models\Project::class; // چون این BulkAction در جدول پروژه‌هاست
+                        $modelType = \App\Models\Project::class; // چون این BulkAction در جدول دستورکار‌هاست
                         $modelIds  = collect($records)->pluck('id')->toArray();
 
                         foreach ($records as $record) {
