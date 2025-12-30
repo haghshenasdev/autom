@@ -31,14 +31,14 @@ class TaskResource extends Resource
 {
     protected static ?string $model = Task::class;
 
-    protected static ?string $label = "کار";
+    protected static ?string $label = "فعالیت";
 
     protected static ?string $navigationGroup = 'دستورکار / فعالیت ها';
 
 
-    protected static ?string $pluralModelLabel = "کار ها";
+    protected static ?string $pluralModelLabel = "فعالیت ها";
 
-    protected static ?string $pluralLabel = "کار";
+    protected static ?string $pluralLabel = "فعالیت";
 
 
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
