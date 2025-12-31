@@ -10,7 +10,7 @@ var ErrorReport = {
    */
   lastException: null,
   /**
-   * @var object stores the Error UserReport Data to prevent unnecessary data fetching
+   * @var object stores the Error MyReport Data to prevent unnecessary data fetching
    */
   errorReportData: null,
   /**

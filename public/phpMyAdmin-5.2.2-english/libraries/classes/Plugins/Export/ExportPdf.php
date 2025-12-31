@@ -29,7 +29,7 @@ class ExportPdf extends ExportPlugin
     private $pdf;
 
     /**
-     * PDF UserReport Title
+     * PDF MyReport Title
      *
      * @var string
      */
@@ -74,7 +74,7 @@ class ExportPdf extends ExportPlugin
         // create primary items and add them to the group
         $leaf = new TextPropertyItem(
             'report_title',
-            __('UserReport title:')
+            __('MyReport title:')
         );
         $generalOptions->addProperty($leaf);
         // add the group to the root group
