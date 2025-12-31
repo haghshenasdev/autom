@@ -56,9 +56,9 @@ class UsersReportStatsOverview extends BaseWidget
                     $q->where('completed', 1)
                         ->whereBetween('completed_at', [$start, $end]);
                 },
-                'task_created as tasks_created_count' => function ($q) use ($start, $end) {
-                    $q->whereBetween('tasks.created_at', [$start, $end]);
-                },
+//                'task_created as tasks_created_count' => function ($q) use ($start, $end) {
+//                    $q->whereBetween('tasks.created_at', [$start, $end]);
+//                },
                 'letters as letters_count' => function ($q) use ($start, $end) {
                     $q->whereBetween('letters.created_at', [$start, $end]);
                 },
@@ -83,7 +83,7 @@ class UsersReportStatsOverview extends BaseWidget
                     'task_responsible as tasks_responsible_count' => function ($q) {
                         $q->where('completed', 1);
                     },
-                    'task_created as tasks_created_count',
+//                    'task_created as tasks_created_count',
                     'letters as letters_count',
                     'minutes as minutes_count',
                 ])
