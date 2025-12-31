@@ -24,9 +24,10 @@ class UsersReportStatsOverview extends BaseWidget
                 $q->where('completed', 1)
                     ->whereBetween('completed_at', [$todayStart, $todayEnd]);
             },
-            'task_created as tasks_created_count' => function ($q) use ($todayStart, $todayEnd) {
-                $q->whereBetween('tasks.created_at', [$todayStart, $todayEnd]);
-            },
+            //ایجاد کننده کار
+//            'task_created as tasks_created_count' => function ($q) use ($todayStart, $todayEnd) {
+//                $q->whereBetween('tasks.created_at', [$todayStart, $todayEnd]);
+//            },
             'letters as letters_count' => function ($q) use ($todayStart, $todayEnd) {
                 $q->whereBetween('letters.created_at', [$todayStart, $todayEnd]);
             },
