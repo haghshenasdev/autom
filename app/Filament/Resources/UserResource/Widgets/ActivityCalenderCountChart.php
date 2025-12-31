@@ -74,7 +74,7 @@ class ActivityCalenderCountChart extends ChartWidget
 
         $letters->each(fn($l) => $countByMonth($l->created_at, $lettersData));
         $referrals->each(fn($r) => $countByMonth($r->created_at, $referralsData));
-        $minutes->each(fn($m) => $countByMonth($m->date_minutes, $minutesData));
+        $minutes->each(fn($m) => $countByMonth($m->date, $minutesData));
 
         return [
             'datasets' => [
