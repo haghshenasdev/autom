@@ -9,6 +9,9 @@ class UsersActivityChart extends ChartWidget
 {
     protected static ?string $heading = 'فعالیت کاربران';
 
+    public string|null $selectedYear = null;
+    public array|null $betYear = null; // [startCarbon, endCarbon]
+
     protected function getFilters(): ?array
     {
         return [
@@ -22,20 +25,45 @@ class UsersActivityChart extends ChartWidget
 
     protected function getData(): array
     {
+        [$start, $end] = $this->betYear ?? [null, null];
+
         $users = User::withCount([
-            'task_responsible',
-            'minutes',
-            'referral',
-            'letters',
-            // شمارش شرطی برای کارهای انجام شده و انجام نشده
-            'task_responsible as tasks_completed_count' => function ($query) {
-                $query->where('completed', true);
+            'task_responsible' => function ($query) use ($start, $end) {
+                if ($start && $end) {
+                    $query->whereBetween('tasks.created_at', [$start, $end]);
+                }
             },
-            'task_responsible as tasks_incompleted_count' => function ($query) {
+            'minutes' => function ($query) use ($start, $end) {
+                if ($start && $end) {
+                    $query->whereBetween('minutes.date', [$start, $end]);
+                }
+            },
+            'referral' => function ($query) use ($start, $end) {
+                if ($start && $end) {
+                    $query->whereBetween('referrals.created_at', [$start, $end]);
+                }
+            },
+            'letters' => function ($query) use ($start, $end) {
+                if ($start && $end) {
+                    $query->whereBetween('letters.created_at', [$start, $end]);
+                }
+            },
+
+            // شمارش شرطی برای کارهای انجام شده و انجام نشده
+            'task_responsible as tasks_completed_count' => function ($query) use ($start, $end) {
+                $query->where('completed', true);
+                if ($start && $end) {
+                    $query->whereBetween('completed_at', [$start, $end]);
+                }
+            },
+            'task_responsible as tasks_incompleted_count' => function ($query) use ($start, $end) {
                 $query->where(function ($q) {
                     $q->whereNull('completed')
                         ->orWhere('completed', 0);
                 });
+                if ($start && $end) {
+                    $query->whereBetween('created_at', [$start, $end]);
+                }
             },
         ])->where('id', '!=', 1)->get();
 
@@ -49,7 +77,6 @@ class UsersActivityChart extends ChartWidget
 
         $datasets = [];
 
-        // بررسی فیلتر انتخابی
         switch ($this->filter) {
             case 'tasks':
                 $datasets[] = [

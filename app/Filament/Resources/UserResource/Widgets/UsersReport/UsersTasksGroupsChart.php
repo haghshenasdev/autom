@@ -10,6 +10,9 @@ class UsersTasksGroupsChart extends ChartWidget
 {
     protected static ?string $heading = 'مقایسه کاربران در گروه‌های کاری';
 
+    public string|null $selectedYear = null;
+    public array|null $betYear = null; // [startCarbon, endCarbon]
+
     protected function getData(): array
     {
         // همه گروه‌ها
@@ -25,9 +28,16 @@ class UsersTasksGroupsChart extends ChartWidget
         foreach ($groups as $index => $group) {
             // شمارش تعداد کارهای هر کاربر در این گروه با کوئری مستقیم
             $data = $users->map(function ($user) use ($group) {
-                return $user->task_responsible()
-                    ->whereHas('group', fn($q) => $q->where('task_groups.id', $group->id))
-                    ->count();
+                $query = $user->task_responsible()
+                    ->whereHas('group', fn($q) => $q->where('task_groups.id', $group->id));
+
+                // ✅ اگر بازه تاریخ انتخاب شده باشد، شرط تاریخ را اعمال کن
+                if ($this->betYear) {
+                    [$start, $end] = $this->betYear;
+                    $query->whereBetween('tasks.completed_at', [$start, $end]);
+                }
+
+                return $query->count();
             });
 
             // اگر همه مقادیر صفر بود، این گروه را حذف کن
