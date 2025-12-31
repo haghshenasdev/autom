@@ -27,9 +27,9 @@ class UsersReport extends Page
         return [
             YearSelector::make(['selectedYear' => $this->selectedYear]),
             UsersReportStatsOverview::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
+            ActivityCalenderCountChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
             UsersActivityChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
             UsersTasksGroupsChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
-            ActivityCalenderCountChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
         ];
     }
 
