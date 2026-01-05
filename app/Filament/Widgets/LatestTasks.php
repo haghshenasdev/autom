@@ -28,8 +28,7 @@ class LatestTasks extends BaseWidget
     {
         $columns = [
             Tables\Columns\TextColumn::make('name')->label('عنوان'),
-            Tables\Columns\ToggleColumn::make('completed')->label('وضعیت انجام')
-                ->boolean()->sortable(),
+            Tables\Columns\ToggleColumn::make('completed')->label('وضعیت انجام')->sortable(),
             Tables\Columns\TextColumn::make('ended_at')
                 ->label('زمان اتمام')->sortable()
                 ->state(function (Model $record): string {
