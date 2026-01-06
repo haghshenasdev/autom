@@ -1152,7 +1152,6 @@ EOT);
             }
 
             // بروزرسانی کیبورد
-            $messageId = $data['message']['message']['message_id'];
             $this->sendClassificationSuggestion($chatId, $modelsub, $messageId);
             return;
         }
