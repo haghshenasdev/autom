@@ -51,10 +51,10 @@ class EditTask extends EditRecord
                         foreach ($data['selected_result'] as $selected) {
                             [$modelType, $modelId] = explode('|', $selected);
                             if ($modelType === \App\Models\Project::class) {
-                                $prs['project_id'] = $modelId;
+                                $prs['project_id'][] = $modelId;
 
                             } elseif ($modelType === \App\Models\TaskGroup::class) {
-                                $prs['task_group_id'] = $modelId;
+                                $prs['task_group_id'][] = $modelId;
                             }
                         }
 
