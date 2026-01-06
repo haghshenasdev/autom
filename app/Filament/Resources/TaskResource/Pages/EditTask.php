@@ -46,20 +46,19 @@ class EditTask extends EditRecord
                 ])
                 ->action(function ($data, $livewire) {
                     if (!empty($data['selected_result'])) {
+                        $prs = [];
                         // چون multiple هست، آرایه برمی‌گردد
                         foreach ($data['selected_result'] as $selected) {
                             [$modelType, $modelId] = explode('|', $selected);
                             if ($modelType === \App\Models\Project::class) {
-                                // فقط روی فرم ست شود
-                                $livewire->form->fill([
-                                    'project_id' => [$modelId],
-                                ]);
+                                $prs['project_id'] = $modelId;
+
                             } elseif ($modelType === \App\Models\TaskGroup::class) {
-                                $livewire->form->fill([
-                                    'task_group_id' => $modelId,
-                                ]);
+                                $prs['task_group_id'] = $modelId;
                             }
                         }
+
+                        $livewire->form->fill($prs);
 
                         Notification::make()
                             ->title('دسته‌بندی AI اعمال شد')
