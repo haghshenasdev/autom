@@ -1114,6 +1114,33 @@ EOT);
             return;
         }
 
+        if (str_starts_with($callbackData, 'toggle_category|')) {
+            // callback_data: toggle_category|letter_id|model_type|model_id
+            [, $letterId, $modelType, $modelId] = explode('|', $callbackData);
+
+            $letter = Task::find($letterId);
+            if (!$letter) return;
+
+            // چک کن که آیا از قبل این دسته ثبت شده؟
+            $exists = $letter->project()
+                ->where('project_id', $modelId)
+                ->exists();
+
+            if ($exists) {
+                // حذف دسته
+                $letter->project()
+                    ->where('project_id', $modelId)
+                    ->delete();
+            } else {
+                // افزودن دسته
+                $letter->project()->attach([$modelId]);
+            }
+
+            // بازسازی و ارسال مجدد کیبورد بروز شده
+            $this->sendClassificationSuggestion($chatId, $letter,$messageId);
+            return ;
+        }
+
         // مدیریت صفحه‌بندی نامه یا کار
         if (str_contains($callbackData, '_page_')) {
             // مثال: letter_page_2|جستجو یا task_page_3|کلمه
@@ -1157,7 +1184,7 @@ EOT);
         }
     }
 
-    public function sendClassificationSuggestion($chatId, Model $modelsub)
+    public function sendClassificationSuggestion($chatId, Model $modelsub , $messageId = null)
     {
         $title = $modelsub->name ?? $modelsub->subject ?? $modelsub->title;
 
@@ -1194,7 +1221,19 @@ EOT);
         ];
 
         $textMessage = "📌 پیشنهادهایی برای دسته‌بندی این نامه:";
-        $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
+        if (is_null($messageId)) {
+            $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
+        }else{
+            $token = env('BALE_BOT_TOKEN');
+            // ویرایش همان پیام قبلی
+            Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => $textMessage,
+                'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+
     }
 
     private function paginateAndSend($chatId, $query, $queryText, $page, $perPage, $type, $user,$messageId = null)
