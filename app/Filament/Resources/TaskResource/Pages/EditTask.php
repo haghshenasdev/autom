@@ -58,7 +58,7 @@ class EditTask extends EditRecord
                             }
                         }
 
-                        $livewire->form->fill($prs);
+                        $livewire->form->set($prs);
 
                         Notification::make()
                             ->title('دسته‌بندی AI اعمال شد')
