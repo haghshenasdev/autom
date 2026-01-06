@@ -480,6 +480,28 @@ class BaleBotController extends Controller
 
                     return response("Task ذخیره شد: ");
                 }
+                elseif (str_starts_with($firstLine, '#گزارش')) {
+
+                    $task = $this->handleTasks_create($text,$user,$chatId,$isPrivateChat,[36]);
+
+                    if ($task){
+                        // ضمیمه کردن ریپلای
+                        if (isset($data['message']['reply_to_message']['document']['file_id'])){
+                            $reply_msg = $data['message']['reply_to_message'];
+                            $doc = $reply_msg['document'];
+                            $appendix = AppendixOther::withoutEvents(function () use ($task,$doc,$reply_msg) {
+                                return $task->appendix_others()->create([
+                                    'title'       => 'ضمیمه',
+                                    'description' => $reply_msg['caption'] ?? null,
+                                    'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
+                                ]);
+                            });
+                            Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
+                        }
+                    }
+
+                    return response("Task ذخیره شد: ");
+                }
                 elseif (str_starts_with($firstLine, '/راهنما')) {
                     $queryText = trim(str_replace('/راهنما', '', $firstLine));
                     $message = $this->HelpHandler($queryText);
@@ -545,6 +567,23 @@ class BaleBotController extends Controller
                 }
                 elseif (in_array($matched, ['#کار', '#جلسه'])){
                     $task = $this->handleTasks_create($caption,$user,$chatId,$isPrivateChat);
+
+                    if ($task){
+                        // ضمیمه کردن فایل
+                        if (isset($data['message']['document']['file_id'])){
+                            $doc = $data['message']['document'];
+                            $appendix = AppendixOther::withoutEvents(function () use ($task,$doc) {
+                                return $task->appendix_others()->create([
+                                    'title'       => 'ضمیمه',
+                                    'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
+                                ]);
+                            });
+                            Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
+                        }
+                    }
+                }
+                elseif (in_array($matched, ['#گزارش'])){
+                    $task = $this->handleTasks_create($caption,$user,$chatId,$isPrivateChat,[36]);
 
                     if ($task){
                         // ضمیمه کردن فایل
@@ -1440,7 +1479,7 @@ TEXT;
         return $message;
     }
 
-    private function handleTasks_create($text,$user,$chatId,$isPrivateChat)
+    private function handleTasks_create($text,$user,$chatId,$isPrivateChat, array $group = null)
     {
         // استخراج دستور کار
         $extractedProjects = $this->extractProjects($text);
@@ -1472,7 +1511,12 @@ TEXT;
             ];
             $task = Task::create($dataTask);
             $task->project()->attach(count($projects_id) != 0 ? array_unique($projects_id) : $cats['categories']);
-            $task->group()->attach([32, ($user->id == 20) ? 1 : 2]);
+            $task->group()->attach([32]);
+            if ($group){
+                $task->group()->attach($group);
+            }else{
+                $task->group()->attach([($user->id == 20) ? 1 : 2]);
+            }
 
             //پیام
             $dataTask['city_id'] = City::find($dataTask['city_id'])->name ?? 'نامشخص';
