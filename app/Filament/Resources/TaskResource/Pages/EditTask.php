@@ -49,7 +49,7 @@ class EditTask extends EditRecord
                         // چون multiple هست، آرایه برمی‌گردد
                         foreach ($data['selected_result'] as $selected) {
                             [$modelType, $modelId] = explode('|', $selected);
-                            dd($livewire->form->get('project_id'));
+                            dd($livewire->form);
                             if ($modelType === \App\Models\Project::class) {
                                 // فقط روی فرم ست شود
                                 $livewire->form->fill([
