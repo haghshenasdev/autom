@@ -1175,7 +1175,7 @@ EOT);
 
                 // بررسی اینکه آیا این دسته قبلاً برای این نامه انتخاب شده؟ (مثلاً از طریق relationship یا table واسط)
                 $isSelected = $modelsub->project()
-                    ->where('model_id', $modelId)
+                    ->where('project_id', $modelId)
                     ->exists();
 
                 $text = ($isSelected ? '✅ ' : '') . $modelTitle;
