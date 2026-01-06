@@ -1490,7 +1490,7 @@ TEXT;
         $firstLine = $lines[0] ?? '';
         // حذف #کار از ابتدای متن و تمیز کردن فاصله‌ها
         if (str_starts_with($firstLine, '#کار')) $title = trim(substr($firstLine, strlen('#کار')));
-        $title = trim(str_replace('#', '', $title));
+        $title = trim(str_replace('#', '', $firstLine));
 
         $catPreder = new CategoryPredictor();
         $cats = $catPreder->predictWithCityOrgan($title);
