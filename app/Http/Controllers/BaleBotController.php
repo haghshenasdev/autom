@@ -1595,7 +1595,7 @@ TEXT;
     private function handleTasks_create($text,$user,$chatId,$isPrivateChat, array $group = null)
     {
         // استخراج دستور کار
-        $extractedProjects = $this->extractProjects( clone $text);
+        $extractedProjects = $this->extractProjects($chatId,$text);
         $text = $extractedProjects['text'];
         $projects_id = $extractedProjects['projects_id'];
 
@@ -1633,10 +1633,6 @@ TEXT;
             }else{
                 $task->group()->attach([($user->id == 20) ? 1 : 2]);
             }
-
-            //پیام
-            $dataTask['city_id'] = City::find($dataTask['city_id'])->name ?? 'نامشخص';
-            $dataTask['started_at'] = Jalalian::fromDateTime($dataTask['started_at'])->format('Y/m/d');
 
             $message = '';
             if ($isPrivateChat){
@@ -1890,8 +1886,9 @@ EOT);
         }
     }
 
-    private function extractProjects($text)
+    private function extractProjects($chatId,$text)
     {
+        $this->sendMessage($chatId,$text);
         $projects_id = [];
         if (preg_match('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $text, $pm)) {
             $content = trim($pm[1]);
