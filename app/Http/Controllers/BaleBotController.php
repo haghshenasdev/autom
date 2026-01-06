@@ -1216,7 +1216,7 @@ EOT);
             ],
             \App\Models\TaskGroup::class => [
                 'relation' => 'group',
-                'foreign_key' => 'group_id',
+                'foreign_key' => 'task_group_id',
                 'label' => 'گروه‌ها',
             ],
         ];
