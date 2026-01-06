@@ -1888,7 +1888,6 @@ EOT);
 
     private function extractProjects($chatId,$text)
     {
-        $this->sendMessage($chatId,$text);
         $projects_id = [];
         if (preg_match('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $text, $pm)) {
             $content = trim($pm[1]);
@@ -1916,6 +1915,7 @@ EOT);
             // پاک کردن بخش پروژه/دستورکار از متن
             $text = preg_replace('/(?:پروژه|دستور\s*کار)\s+.+/u', '', $text);
         }
+        $this->sendMessage($chatId,json_encode([$projects_id,$text]));
         return [
             'text' => $text,
             'projects_id' => $projects_id,
