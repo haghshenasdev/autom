@@ -1595,7 +1595,7 @@ TEXT;
     private function handleTasks_create($text,$user,$chatId,$isPrivateChat, array $group = null)
     {
         // استخراج دستور کار
-        $extractedProjects = $this->extractProjects($chatId,$text);
+        $extractedProjects = $this->extractProjects($text);
         $text = $extractedProjects['text'];
         $projects_id = $extractedProjects['projects_id'];
 
@@ -1886,41 +1886,45 @@ EOT);
         }
     }
 
-    private function extractProjects($chatId,$text)
+    private function extractProjects($text)
     {
         $projects_id = [];
-        if (preg_match('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $text, $pm)) {
-            $content = trim($pm[1]);
 
-            // جدا کردن چند پروژه با کاما فارسی یا نقطه
-            $items = preg_split('/[،\.]+/u', $content);
+        // همه تطابق‌ها را پیدا کن (نه فقط اولین مورد)
+        if (preg_match_all('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $text, $matches)) {
+            foreach ($matches[1] as $content) {
+                $items = preg_split('/[،\.]+/u', trim($content));
 
-            foreach ($items as $item) {
-                $item = trim($item);
-                if (!$item) continue;
+                foreach ($items as $item) {
+                    $item = trim($item);
+                    if (!$item) continue;
 
-                if (is_numeric($item)) {
-                    $project = Project::find($item);
-                    if ($project) {
-                        $projects_id[] = $project->id;
-                    }
-                } else {
-                    $project = Project::query()->where('name', 'like', '%' . $item . '%')->first();
-                    if ($project) {
-                        $projects_id[] = $project->id;
+                    if (is_numeric($item)) {
+                        $project = Project::find($item);
+                        if ($project) {
+                            $projects_id[] = $project->id;
+                        }
+                    } else {
+                        $project = Project::query()
+                            ->where('name', 'like', '%' . $item . '%')
+                            ->first();
+                        if ($project) {
+                            $projects_id[] = $project->id;
+                        }
                     }
                 }
             }
 
-            // پاک کردن بخش پروژه/دستورکار از متن
+            // پاک کردن همه موارد پروژه/دستور کار از متن
             $text = preg_replace('/(?:پروژه|دستور\s*کار)\s+.+/u', '', $text);
         }
-        $this->sendMessage($chatId,json_encode([$projects_id,$text]));
+
         return [
             'text' => $text,
-            'projects_id' => $projects_id,
+            'projects_id' => array_unique($projects_id),
         ];
     }
+
 
     private function authBale(array $userMessage,$chatId,string $text = null) : array|string
     {
