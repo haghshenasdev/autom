@@ -207,45 +207,51 @@ class AiKeywordClassifier
      *
      * @param string $title عنوان ورودی
      * @param float $thresholdPercent حداقل درصد برای پذیرش مدل (مثلا 0.5 یعنی 50٪)
-     * @param string|null $filterModelType نوع مدل برای فیلتر (مثلا App\Models\Project یا null برای همه)
-     * @param \Closure|null $queryCallback کوئری دلخواه روی AiWordsData (مثلا fn($q) => $q->where(...))
-     * @param int|null $limit تعداد خروجی محدود (مثلا 10 یا null برای همه)
-     * @return array لیست دسته‌بندی‌ها/دستورکار‌های مرتبط، تفکیک‌شده بر اساس نوع مدل
+     * @param array|null $filterModelTypes آرایه‌ای از مدل‌تایپ‌هایی که باید بررسی شوند (مثلا ['App\Models\Project', 'App\Models\Task'])
+     * @param Closure|null $queryCallback کوئری دلخواه روی AiWordsData (مثلا fn($q) => $q->where(...))
+     * @param int|null $limitPerType حداکثر تعداد خروجی برای هر model_type
+     *
+     * @return array خروجی دسته‌بندی‌شده بر اساس model_type
      */
     public function classify(
         string $title,
         float $thresholdPercent = 0.5,
-        ?string $filterModelType = null,
+        ?array $filterModelTypes = null,
         ?\Closure $queryCallback = null,
-        ?int $limit = null
+        ?int $limitPerType = null
     ): array {
         $words = $this->extractKeywords($title);
         $results = [];
 
-        // ساخت کوئری پایه
+        // ساخت کوئری
         $query = AiWordsData::query();
-        if ($filterModelType) {
-            $query->where('model_type', $filterModelType);
+
+        if ($filterModelTypes) {
+            $query->whereIn('model_type', $filterModelTypes);
         }
+
         if ($queryCallback) {
-            $queryCallback($query); // اجرای کوئری دلخواه
+            $queryCallback($query);
         }
 
         $datasets = $query->get();
 
+        // بررسی هر رکورد
         foreach ($datasets as $data) {
             $score = 0;
             $matched = 0;
-            $total   = count($data->allowed_words);
+            $total = count($data->allowed_words ?? []);
 
-            foreach ($data->allowed_words as $rule) {
-                $word = $rule['word'];
+            foreach ($data->allowed_words ?? [] as $rule) {
+                $word = $rule['word'] ?? null;
+                if (!$word) continue;
 
-                if (in_array($word, $words) || count(array_intersect($rule['synonyms'], $words)) > 0) {
+                if (in_array($word, $words) || count(array_intersect($rule['synonyms'] ?? [], $words)) > 0) {
                     $matched++;
-                    $score += $rule['required'] ? 2 : 1;
+                    $score += ($rule['required'] ?? false) ? 2 : 1;
                 } else {
-                    if ($rule['required']) {
+                    if ($rule['required'] ?? false) {
+                        // اگر کلمه الزامی نبود، نتیجه رد می‌شود
                         $score = 0;
                         $matched = 0;
                         break;
@@ -253,10 +259,9 @@ class AiKeywordClassifier
                 }
             }
 
-            // محاسبه درصد تطابق
             $percentMatch = $total > 0 ? ($matched / $total) : 0;
 
-            // فقط اگر درصد تطابق >= آستانه باشد، مدل پذیرفته شود
+            // بررسی آستانه تطابق
             if ($percentMatch >= $thresholdPercent) {
                 $results[] = [
                     'model_type' => $data->model_type,
@@ -267,20 +272,27 @@ class AiKeywordClassifier
             }
         }
 
-        // مرتب‌سازی بر اساس درصد و امتیاز
+        // مرتب‌سازی کلی
         usort($results, function ($a, $b) {
             return $b['percent'] <=> $a['percent'] ?: $b['score'] <=> $a['score'];
         });
 
-        // اعمال لیمیت
-        if ($limit) {
-            $results = array_slice($results, 0, $limit);
+        // گروه‌بندی بر اساس مدل‌تایپ
+        $grouped = [];
+
+        foreach ($results as $res) {
+            $grouped[$res['model_type']][] = [
+                'model_id' => $res['model_id'],
+                'score' => $res['score'],
+                'percent' => $res['percent'],
+            ];
         }
 
-        // تفکیک بر اساس نوع مدل
-        $grouped = [];
-        foreach ($results as $res) {
-            $grouped[$res['model_type']][] = $res;
+        // اعمال لیمیت برای هر مدل‌تایپ
+        if ($limitPerType !== null) {
+            foreach ($grouped as $modelType => $items) {
+                $grouped[$modelType] = array_slice($items, 0, $limitPerType);
+            }
         }
 
         return $grouped;

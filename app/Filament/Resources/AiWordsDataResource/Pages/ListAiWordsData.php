@@ -35,14 +35,12 @@ class ListAiWordsData extends ListRecords
             ])
             ->action(function (array $data, Action $action) {
                 $classifier = app(\App\Services\AiKeywordClassifier::class);
-                $results = $classifier->classify($data['title'], (float)$data['sensitivity']);
+                $results = $classifier->classify($data['title'], (float)$data['sensitivity'],limitPerType : 5);
 
-// چون خروجی به شکل [model_type => [list of results]] است
                 $list = collect($results)->map(function ($group, $modelType) {
                     return collect($group)->map(function ($r) use ($modelType) {
                         // پیدا کردن مدل مربوط
-                        $modelClass = $r['model_type'];
-                        $model = $modelClass::find($r['model_id']);
+                        $model = $modelType::find($r['model_id']);
                         $modelTitle = $model?->title ?? $model?->name ?? '---';
 
                         return "عنوان: {$modelTitle} - مدل: {$modelType} - شناسه: {$r['model_id']} - درصد: {$r['percent']}%";
