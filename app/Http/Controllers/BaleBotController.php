@@ -1116,7 +1116,8 @@ EOT);
 
         if (str_starts_with($callbackData, 'toggle_category|')) {
             // ساختار: toggle_category|model_class|model_id|type_class|type_id
-            [, $modelClass, $modelId, $typeClass, $typeId] = explode('|', $callbackData);
+            [, $modelClass, $modelId, $typeClass, $typeId,$filterJson] = explode('|', $callbackData);
+            $filterModelTypes = json_decode($filterJson, true);
 
             $modelsub = app($modelClass)::find($modelId);
             if (!$modelsub) return;
@@ -1152,7 +1153,7 @@ EOT);
             }
 
             // بروزرسانی کیبورد
-            $this->sendClassificationSuggestion($chatId, $modelsub, $messageId);
+            $this->sendClassificationSuggestion($chatId, $modelsub, $messageId,$filterModelTypes);
             return;
         }
 
@@ -1199,12 +1200,12 @@ EOT);
         }
     }
 
-    public function sendClassificationSuggestion($chatId, Model $modelsub, $messageId = null)
+    public function sendClassificationSuggestion($chatId, Model $modelsub, $messageId = null,?array $filterModelTypes = null)
     {
         $title = $modelsub->name ?? $modelsub->subject ?? $modelsub->title ?? '-';
 
         $classifier = app(\App\Services\AiKeywordClassifier::class);
-        $results = $classifier->classify($title, 0.1, null, null, 2);
+        $results = $classifier->classify($title, 0.1, $filterModelTypes, null, 3);
 
         // نگاشت مدل به: رابطه، کلید، و عنوان
         $relationMap = [
@@ -1244,7 +1245,7 @@ EOT);
                     ->exists();
 
                 $text = ($isSelected ? '✅ ' : '') . $modelTitle;
-                $callback_data = "toggle_category|{$modelsub->getMorphClass()}|{$modelsub->id}|{$modelType}|{$modelId}";
+                $callback_data = "toggle_category|{$modelsub->getMorphClass()}|{$modelsub->id}|{$modelType}|{$modelId}|" . json_encode($filterModelTypes);
 
                 $keyboard['inline_keyboard'][][] = [
                     'text' => $text,
@@ -1257,7 +1258,7 @@ EOT);
             ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']
         ];
 
-        $textMessage = "📌 پیشنهادهایی برای دسته‌بندی:";
+        $textMessage = "📌 پیشنهادهایی برای دسته‌بندی:" . "\n" . "(لطفا موارد مناسب را انتخاب کنید)";
         if (is_null($messageId)) {
             $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
         } else {
@@ -1873,6 +1874,10 @@ EOT);
         }
 
         $this->sendMessage($chatId, $message);
+
+        if (count($dataLetter['projects']) == 0){
+            $this->sendClassificationSuggestion($chatId, $record,filterModelTypes: [\App\Models\Project::class]);
+        }
 
         return $record;
     }
