@@ -76,7 +76,8 @@ class Project extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults();
+        return LogOptions::defaults()->logExcept(['updated_at','created_at'])->logAll()->logOnlyDirty() // فقط وقتی مقدار تغییر کرد ذخیره بشه
+        ->dontSubmitEmptyLogs(); // لاگ خالی ثبت نشه
     }
 
 }
