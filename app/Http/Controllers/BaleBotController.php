@@ -1126,12 +1126,12 @@ EOT);
                 \App\Models\Project::class => [
                     'relation' => 'project',
                     'foreign_key' => 'project_id',
-                    'label' => 'پروژه‌ها',
+                    'label' => 'دستور کار ها',
                 ],
                 \App\Models\TaskGroup::class => [
                     'relation' => 'group',
                     'foreign_key' => 'task_group_id',
-                    'label' => 'گروه‌ها',
+                    'label' => 'دسته بندی ها',
                 ],
             ];
 
@@ -1212,12 +1212,12 @@ EOT);
             \App\Models\Project::class => [
                 'relation' => 'project',
                 'foreign_key' => 'project_id',
-                'label' => 'پروژه‌ها',
+                'label' => 'دستور کار ها',
             ],
             \App\Models\TaskGroup::class => [
                 'relation' => 'group',
                 'foreign_key' => 'task_group_id',
-                'label' => 'گروه‌ها',
+                'label' => 'دسته بندی ها',
             ],
         ];
 
@@ -1232,7 +1232,7 @@ EOT);
 
             // عنوان سربرگ غیرقابل کلیک
             $keyboard['inline_keyboard'][] = [
-                ['text' => '📂 ' . $data['label'], 'callback_data' => '__noop__']
+                ['text' => '--- '.'📂 ' . $data['label'] .' ---', 'callback_data' => '__noop__']
             ];
 
             foreach ($group as $item) {
@@ -1244,7 +1244,7 @@ EOT);
                     ->where($data['foreign_key'], $modelId)
                     ->exists();
 
-                $text = ($isSelected ? '✅ ' : '') . $modelTitle;
+                $text = ($isSelected ? '✅ ' : '') . $modelId . '-' . $modelTitle;
                 $callback_data = "toggle_category|{$modelsub->getMorphClass()}|{$modelsub->id}|{$modelType}|{$modelId}|" . json_encode($filterModelTypes);
 
                 $keyboard['inline_keyboard'][][] = [
