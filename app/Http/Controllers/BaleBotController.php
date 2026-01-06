@@ -1174,7 +1174,7 @@ EOT);
                 $modelTitle = $model?->title ?? $model?->name ?? '---';
 
                 // بررسی اینکه آیا این دسته قبلاً برای این نامه انتخاب شده؟ (مثلاً از طریق relationship یا table واسط)
-                $isSelected = $modelsub->projects()
+                $isSelected = $modelsub->project()
                     ->where('model_id', $modelId)
                     ->exists();
 
