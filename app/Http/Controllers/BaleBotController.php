@@ -1115,30 +1115,46 @@ EOT);
         }
 
         if (str_starts_with($callbackData, 'toggle_category|')) {
-            // callback_data: toggle_category|letter_id|model_type|model_id
-            [, $letterId, $modelType, $modelId] = explode('|', $callbackData);
+            // ساختار: toggle_category|model_class|model_id|type_class|type_id
+            [, $modelClass, $modelId, $typeClass, $typeId] = explode('|', $callbackData);
 
-            $letter = Task::find($letterId);
-            if (!$letter) return;
+            $modelsub = app($modelClass)::find($modelId);
+            if (!$modelsub) return;
 
-            // چک کن که آیا از قبل این دسته ثبت شده؟
-            $exists = $letter->project()
-                ->where('project_id', $modelId)
+            $relationMap = [
+                \App\Models\Project::class => [
+                    'relation' => 'project',
+                    'foreign_key' => 'project_id',
+                    'label' => 'پروژه‌ها',
+                ],
+                \App\Models\TaskGroup::class => [
+                    'relation' => 'group',
+                    'foreign_key' => 'group_id',
+                    'label' => 'گروه‌ها',
+                ],
+            ];
+
+            $data = $relationMap[$typeClass] ?? null;
+
+            if (!$data || !method_exists($modelsub, $data['relation'])) return;
+
+            $relation = $data['relation'];
+            $foreignKey = $data['foreign_key'];
+
+            $exists = $modelsub->{$relation}()
+                ->where($foreignKey, $typeId)
                 ->exists();
 
             if ($exists) {
-                // حذف دسته
-                $letter->project()
-                    ->where('project_id', $modelId)
-                    ->delete();
+                $modelsub->{$relation}()->detach($typeId);
             } else {
-                // افزودن دسته
-                $letter->project()->attach([$modelId]);
+                $modelsub->{$relation}()->attach($typeId);
             }
 
-            // بازسازی و ارسال مجدد کیبورد بروز شده
-            $this->sendClassificationSuggestion($chatId, $letter,$messageId);
-            return ;
+            // بروزرسانی کیبورد
+            $messageId = $data['message']['message']['message_id'];
+            $this->sendClassificationSuggestion($chatId, $modelsub, $messageId);
+            return;
         }
 
         // مدیریت صفحه‌بندی نامه یا کار
@@ -1184,29 +1200,52 @@ EOT);
         }
     }
 
-    public function sendClassificationSuggestion($chatId, Model $modelsub , $messageId = null)
+    public function sendClassificationSuggestion($chatId, Model $modelsub, $messageId = null)
     {
-        $title = $modelsub->name ?? $modelsub->subject ?? $modelsub->title;
+        $title = $modelsub->name ?? $modelsub->subject ?? $modelsub->title ?? '-';
 
         $classifier = app(\App\Services\AiKeywordClassifier::class);
         $results = $classifier->classify($title, 0.1, null, null, 2);
 
+        // نگاشت مدل به: رابطه، کلید، و عنوان
+        $relationMap = [
+            \App\Models\Project::class => [
+                'relation' => 'project',
+                'foreign_key' => 'project_id',
+                'label' => 'پروژه‌ها',
+            ],
+            \App\Models\TaskGroup::class => [
+                'relation' => 'group',
+                'foreign_key' => 'group_id',
+                'label' => 'گروه‌ها',
+            ],
+        ];
+
         $keyboard = ['inline_keyboard' => []];
 
         foreach ($results as $modelType => $group) {
+            $data = $relationMap[$modelType] ?? null;
+
+            if (!$data || !method_exists($modelsub, $data['relation'])) {
+                continue;
+            }
+
+            // عنوان سربرگ غیرقابل کلیک
+            $keyboard['inline_keyboard'][] = [
+                ['text' => '📂 ' . $data['label'], 'callback_data' => '__noop__']
+            ];
+
             foreach ($group as $item) {
                 $modelId = $item['model_id'];
-                $modelClass = $modelType;
-                $model = $modelClass::find($modelId);
+                $model = $modelType::find($modelId);
                 $modelTitle = $model?->title ?? $model?->name ?? '---';
 
-                // بررسی اینکه آیا این دسته قبلاً برای این نامه انتخاب شده؟ (مثلاً از طریق relationship یا table واسط)
-                $isSelected = $modelsub->project()
-                    ->where('project_id', $modelId)
+                $isSelected = $modelsub->{$data['relation']}()
+                    ->where($data['foreign_key'], $modelId)
                     ->exists();
 
                 $text = ($isSelected ? '✅ ' : '') . $modelTitle;
-                $callback_data = "toggle_category|{$modelsub->id}|{$modelType}|{$modelId}";
+                $callback_data = "toggle_category|{$modelsub->getMorphClass()}|{$modelsub->id}|{$modelType}|{$modelId}";
 
                 $keyboard['inline_keyboard'][][] = [
                     'text' => $text,
@@ -1215,17 +1254,15 @@ EOT);
             }
         }
 
-        // دکمه جدا برای حذف پیام
         $keyboard['inline_keyboard'][] = [
             ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']
         ];
 
-        $textMessage = "📌 پیشنهادهایی برای دسته‌بندی :";
+        $textMessage = "📌 پیشنهادهایی برای دسته‌بندی:";
         if (is_null($messageId)) {
             $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
-        }else{
+        } else {
             $token = env('BALE_BOT_TOKEN');
-            // ویرایش همان پیام قبلی
             Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
                 'chat_id' => $chatId,
                 'message_id' => $messageId,
@@ -1233,7 +1270,6 @@ EOT);
                 'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
             ]);
         }
-
     }
 
     private function paginateAndSend($chatId, $query, $queryText, $page, $perPage, $type, $user,$messageId = null)
