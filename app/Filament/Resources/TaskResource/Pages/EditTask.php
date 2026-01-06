@@ -44,7 +44,7 @@ class EditTask extends EditRecord
                         ->multiple()
                         ->required(),
                 ])
-                ->action(function ($data, $record, $action) {
+                ->action(function ($data, $livewire) {
                     if (!empty($data['selected_result'])) {
                         // چون multiple هست، آرایه برمی‌گردد
                         foreach ($data['selected_result'] as $selected) {
@@ -52,11 +52,11 @@ class EditTask extends EditRecord
 
                             if ($modelType === \App\Models\Project::class) {
                                 // فقط روی فرم ست شود
-                                $action->fillForm([
+                                $livewire->form->fill([
                                     'project_id' => $modelId,
                                 ]);
                             } elseif ($modelType === \App\Models\TaskGroup::class) {
-                                $action->fillForm([
+                                $livewire->form->fill([
                                     'task_group_id' => $modelId,
                                 ]);
                             }
