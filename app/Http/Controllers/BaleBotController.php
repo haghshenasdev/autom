@@ -1220,7 +1220,7 @@ EOT);
             ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']
         ];
 
-        $textMessage = "📌 پیشنهادهایی برای دسته‌بندی این نامه:";
+        $textMessage = "📌 پیشنهادهایی برای دسته‌بندی :";
         if (is_null($messageId)) {
             $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
         }else{
