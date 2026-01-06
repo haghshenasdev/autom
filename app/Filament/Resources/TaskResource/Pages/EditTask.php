@@ -30,8 +30,7 @@ class EditTask extends EditRecord
                             $options = [];
                             foreach ($results as $modelType => $group) {
                                 foreach ($group as $r) {
-                                    $modelClass = $r['model_type'];
-                                    $model = $modelClass::find($r['model_id']);
+                                    $model = $modelType::find($r['model_id']);
                                     $modelTitle = $model?->title ?? $model?->name ?? '---';
 
                                     $key = $modelType . '|' . $r['model_id'];
