@@ -6,6 +6,8 @@ use App\Filament\Resources\TaskResource;
 use App\Services\AiKeywordClassifier;
 use Filament\Actions;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
@@ -44,8 +46,7 @@ class EditTask extends EditRecord
                         ->multiple()
                         ->required(),
                 ])
-                ->action(function ($data, $livewire) {
-                    dd($data);
+                ->action(function ($data, Get $get,Set $set) {
                     if (!empty($data['selected_result'])) {
                         // چون multiple هست، آرایه برمی‌گردد
                         foreach ($data['selected_result'] as $selected) {
@@ -53,13 +54,11 @@ class EditTask extends EditRecord
 
                             if ($modelType === \App\Models\Project::class) {
                                 // فقط روی فرم ست شود
-                                $livewire->form->fill([
-                                    'project_id' => $modelId,
-                                ]);
+                                dd($get['project_id']);
                             } elseif ($modelType === \App\Models\TaskGroup::class) {
-                                $livewire->form->fill([
-                                    'task_group_id' => $modelId,
-                                ]);
+//                                $livewire->form->fill([
+//                                    'task_group_id' => $modelId,
+//                                ]);
                             }
                         }
 
