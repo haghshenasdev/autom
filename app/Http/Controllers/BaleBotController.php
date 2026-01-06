@@ -1891,7 +1891,7 @@ EOT);
         $projects_id = [];
 
         // همه تطابق‌ها را پیدا کن (نه فقط اولین مورد)
-        if (preg_match_all('/(?:پروژه|دستور\s*کار)\s+(.+)/u', $text, $matches)) {
+        if (preg_match_all('/(?:پروژه|دستور\s*کار?)\s*(.+)/u', $text, $matches)) {
             foreach ($matches[1] as $content) {
                 $items = preg_split('/[،\.]+/u', trim($content));
 
@@ -1916,7 +1916,7 @@ EOT);
             }
 
             // پاک کردن همه موارد پروژه/دستور کار از متن
-            $text = preg_replace('/(?:پروژه|دستور\s*کار)\s+.+/u', '', $text);
+            $text = preg_replace('/(?:پروژه|دستور\s*کار?)\s*(.+)/u', '', $text);
         }
 
         return [
