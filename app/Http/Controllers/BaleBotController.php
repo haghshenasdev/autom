@@ -533,7 +533,7 @@ class BaleBotController extends Controller
             } elseif ($caption != '') {
                 $caption = CalendarUtils::convertNumbers($caption, true); // تبدیل اعداد فارسی به انگلیسی
                 // تشخیص هشتگ‌ها
-                $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار', '#جلسه'];
+                $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار', '#جلسه', '#گزارش'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
 
 
