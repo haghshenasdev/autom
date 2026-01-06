@@ -5,6 +5,7 @@ namespace App\Filament\Resources\TaskResource\Pages;
 use App\Filament\Resources\TaskResource;
 use App\Services\AiKeywordClassifier;
 use Filament\Actions;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -19,8 +20,11 @@ class EditTask extends EditRecord
             Actions\DeleteAction::make(),
             Actions\Action::make('ai_classify')
                 ->label('دسته بندی و تعیین دستورکار AI')
-                ->icon('heroicon-o-sparkles')
+                ->icon('heroicon-o-sparkles')->mountUsing(fn ($form, $livewire) => $form->fill([
+                    'project_id' => $livewire->project_id, // یا هر پراپرتی دیگر
+                ]))
                 ->form([
+                    Hidden::make('project_id'),
                     Select::make('selected_result')
                         ->label('نتایج دسته‌بندی')
                         ->options(function ($record) {
@@ -58,7 +62,7 @@ class EditTask extends EditRecord
                             }
                         }
 
-                        $livewire->form->set($prs);
+                        $livewire->form->fill($prs);
 
                         Notification::make()
                             ->title('دسته‌بندی AI اعمال شد')
