@@ -52,7 +52,7 @@ class EditTask extends EditRecord
                             if ($modelType === \App\Models\Project::class) {
                                 // فقط روی فرم ست شود
                                 $livewire->form->fill([
-                                    'project_id' => $modelId,
+                                    'project_id' => [$modelId],
                                 ]);
                             } elseif ($modelType === \App\Models\TaskGroup::class) {
                                 $livewire->form->fill([
