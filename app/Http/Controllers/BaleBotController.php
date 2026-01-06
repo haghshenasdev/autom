@@ -1157,9 +1157,9 @@ EOT);
         }
     }
 
-    public function sendClassificationSuggestion($chatId, Letter $letter)
+    public function sendClassificationSuggestion($chatId, Model $modelsub)
     {
-        $title = $letter->title;
+        $title = $modelsub->name ?? $modelsub->subject ?? $modelsub->title;
 
         $classifier = app(\App\Services\AiKeywordClassifier::class);
         $results = $classifier->classify($title, 0.1, null, null, 2);
@@ -1174,12 +1174,12 @@ EOT);
                 $modelTitle = $model?->title ?? $model?->name ?? '---';
 
                 // بررسی اینکه آیا این دسته قبلاً برای این نامه انتخاب شده؟ (مثلاً از طریق relationship یا table واسط)
-                $isSelected = $letter->projects()
+                $isSelected = $modelsub->projects()
                     ->where('model_id', $modelId)
                     ->exists();
 
                 $text = ($isSelected ? '✅ ' : '') . $modelTitle;
-                $callback_data = "toggle_category|{$letter->id}|{$modelType}|{$modelId}";
+                $callback_data = "toggle_category|{$modelsub->id}|{$modelType}|{$modelId}";
 
                 $keyboard['inline_keyboard'][][] = [
                     'text' => $text,
