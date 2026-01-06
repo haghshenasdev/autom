@@ -259,6 +259,12 @@ class Letter extends Model
         return $this->belongsToMany(Project::class, 'letter_project')->withPivot('summary');
     }
 
+    // برای هوش مصنوعی ربات
+    public function project()
+    {
+        return $this->belongsToMany(Project::class, 'letter_project')->withPivot('summary');
+    }
+
     public function Appendix(): HasMany
     {
         return $this->hasMany(Appendix::class);
