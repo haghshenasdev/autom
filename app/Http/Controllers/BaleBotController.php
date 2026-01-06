@@ -1157,6 +1157,45 @@ EOT);
         }
     }
 
+    public function sendClassificationSuggestion($chatId, Letter $letter)
+    {
+        $title = $letter->title;
+
+        $classifier = app(\App\Services\AiKeywordClassifier::class);
+        $results = $classifier->classify($title, 0.1, null, null, 2);
+
+        $keyboard = ['inline_keyboard' => []];
+
+        foreach ($results as $modelType => $group) {
+            foreach ($group as $item) {
+                $modelId = $item['model_id'];
+                $modelClass = $modelType;
+                $model = $modelClass::find($modelId);
+                $modelTitle = $model?->title ?? $model?->name ?? '---';
+
+                // بررسی اینکه آیا این دسته قبلاً برای این نامه انتخاب شده؟ (مثلاً از طریق relationship یا table واسط)
+                $isSelected = $letter->projects()
+                    ->where('model_id', $modelId)
+                    ->exists();
+
+                $text = ($isSelected ? '✅ ' : '') . $modelTitle;
+                $callback_data = "toggle_category|{$letter->id}|{$modelType}|{$modelId}";
+
+                $keyboard['inline_keyboard'][][] = [
+                    'text' => $text,
+                    'callback_data' => $callback_data,
+                ];
+            }
+        }
+
+        // دکمه جدا برای حذف پیام
+        $keyboard['inline_keyboard'][] = [
+            ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']
+        ];
+
+        $textMessage = "📌 پیشنهادهایی برای دسته‌بندی این نامه:";
+        $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
+    }
 
     private function paginateAndSend($chatId, $query, $queryText, $page, $perPage, $type, $user,$messageId = null)
     {
@@ -1531,6 +1570,10 @@ TEXT;
                 $message .= '🕹️ [کار با شماره '.$task->id.' ثبت شد .]('. TaskResource::getUrl('edit',[$task->id]).')';
             }
             $this->sendMessage($chatId, $message);
+
+            if (count($projects_id) == 0){
+                $this->sendClassificationSuggestion($chatId, $task);
+            }
 
             return $task;
         }
