@@ -1595,7 +1595,7 @@ TEXT;
     private function handleTasks_create($text,$user,$chatId,$isPrivateChat, array $group = null)
     {
         // استخراج دستور کار
-        $extractedProjects = $this->extractProjects($text);
+        $extractedProjects = $this->extractProjects( clone $text);
         $text = $extractedProjects['text'];
         $projects_id = $extractedProjects['projects_id'];
 
