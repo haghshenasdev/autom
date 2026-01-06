@@ -20,11 +20,8 @@ class EditTask extends EditRecord
             Actions\DeleteAction::make(),
             Actions\Action::make('ai_classify')
                 ->label('دسته بندی و تعیین دستورکار AI')
-                ->icon('heroicon-o-sparkles')->mountUsing(fn ($form, $livewire) => $form->fill([
-                    'project_id' => $livewire->project_id, // یا هر پراپرتی دیگر
-                ]))
+                ->icon('heroicon-o-sparkles')
                 ->form([
-                    Hidden::make('project_id'),
                     Select::make('selected_result')
                         ->label('نتایج دسته‌بندی')
                         ->options(function ($record) {
