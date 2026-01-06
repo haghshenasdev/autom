@@ -45,6 +45,7 @@ class EditTask extends EditRecord
                         ->required(),
                 ])
                 ->action(function ($data, $livewire) {
+                    dd($data);
                     if (!empty($data['selected_result'])) {
                         // چون multiple هست، آرایه برمی‌گردد
                         foreach ($data['selected_result'] as $selected) {
