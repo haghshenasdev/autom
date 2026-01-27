@@ -14,15 +14,16 @@ use Exception;
 use Filament\Pages\Page;
 use Morilog\Jalali\Jalalian;
 
-class TasksReport extends Page
+class LettersReport extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationGroup = 'گزارش ها';
 
+
     protected static string $view = 'filament.pages.tasks-report';
 
-    protected static ?string $title = 'گزارش جامع فعالیت ها';
+    protected static ?string $title = 'گزارش جامع نامه ها';
     public ?array $betYear = null;
     public string|null $selectedYear = null;
 
@@ -31,11 +32,6 @@ class TasksReport extends Page
         return [
             YearSelector::make(['selectedYear' => $this->selectedYear]),
             TasksTrendChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
-            TasksGroupsPieChart::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
-            TaskDelayChart::make(['selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            TasksByCityChart::make([ 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            ProjectGanttChart::make([ 'selectedYear' => $this->selectedYear, 'betYear' => $this->betYear]),
-            TaskCalenderCountChartForTasks::make(['selectedYear' => $this->selectedYear,'betYear' => $this->betYear]),
         ];
     }
 

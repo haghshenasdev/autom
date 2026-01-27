@@ -27,7 +27,8 @@ class LatestTasks extends BaseWidget
     public function table(Table $table): Table
     {
         $columns = [
-            Tables\Columns\TextColumn::make('name')->label('عنوان'),
+            Tables\Columns\TextColumn::make('id')->label('ثبت')->searchable(),
+            Tables\Columns\TextColumn::make('name')->label('عنوان')->searchable(),
             Tables\Columns\ToggleColumn::make('completed')->label('وضعیت انجام')->sortable(),
             Tables\Columns\TextColumn::make('ended_at')
                 ->label('زمان اتمام')->sortable()
@@ -88,7 +89,8 @@ class LatestTasks extends BaseWidget
             $columns = [
                 // استفاده از حالت split برای زمان اتمام و زمان شروع
                 Tables\Columns\Layout\Split::make([
-                    Tables\Columns\TextColumn::make('name')->label('عنوان')->state(fn (Model $record): string => ($record->completed ? '✅' : '❌') . ' ' . $record->name),
+                    Tables\Columns\TextColumn::make('id')->label('ثبت')->searchable(),
+                    Tables\Columns\TextColumn::make('name')->label('عنوان')->state(fn (Model $record): string => ($record->completed ? '✅' : '❌') . ' ' . $record->name)->searchable(),
                     Tables\Columns\ToggleColumn::make('completed')->tooltip('وضعیت انجام'),
                     Tables\Columns\TextColumn::make('ended_at')->sortable()->label('زمان اتمام')
                         ->description('زمان اتمام', position: 'above')

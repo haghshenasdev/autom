@@ -25,7 +25,8 @@ class MyReport extends Page
     protected static string $view = 'filament.resources.project-resource.pages.record';
 
     protected static ?string $navigationLabel = 'گزارش فعالیت من';
-    protected static ?string $navigationGroup = 'سیستم';
+    protected static ?string $navigationGroup = 'گزارش ها';
+
 
     public string|null $selectedYear = null;
     public array|null $betYear = null;
