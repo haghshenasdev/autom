@@ -103,8 +103,7 @@ class Task extends Model
             Forms\Components\Textarea::make('name')->label('عنوان')
                 ->required()
                 ->maxLength(255),
-            Forms\Components\Textarea::make('description')->label('توضیحات')
-                ->maxLength(255),
+            Forms\Components\Textarea::make('description')->label('توضیحات'),
 
             Forms\Components\Toggle::make('completed')->label('انجام شده'),
             Forms\Components\Toggle::make('repeat')->label('تکرار'),
