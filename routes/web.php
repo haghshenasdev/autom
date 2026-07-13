@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -15,6 +16,13 @@ use Illuminate\Support\Facades\Storage;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+
+Route::get('/clear-all-cache', function () {
+    Artisan::call('optimize:clear');
+
+    return nl2br(Artisan::output());
+});
 
 Route::get('/', function () {
     return redirect('admin');
