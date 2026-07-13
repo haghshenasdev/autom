@@ -30,6 +30,7 @@ use Jeffgreco13\FilamentBreezy\BreezyCore;
 use Rmsramos\Activitylog\ActivitylogPlugin;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 use TomatoPHP\FilamentPWA\FilamentPWAPlugin;
+use Rupadana\ApiService\ApiServicePlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -122,6 +123,8 @@ class AdminPanelProvider extends PanelProvider
                     )
                     ->navigationGroup('سیستم'),
                 FilaChatPlugin::make(),
+    ApiServicePlugin::make()
+
 //                FilamentPWAPlugin::make()->allowPWASettings(false),
             ])->viteTheme('resources/css/filament/admin/theme.css');
     }

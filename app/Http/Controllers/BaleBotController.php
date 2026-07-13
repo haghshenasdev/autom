@@ -1933,7 +1933,8 @@ EOT);
 
     private function authBale(array $userMessage,$chatId,string $text = null) : array|string
     {
-        $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
+        try {
+            $bale_user = BaleUser::query()->where('bale_id', $userMessage['id'])->first();
         if ($bale_user == null and $text) {
             // بررسی کد اهراز هویت
             $bale_user_auth = BaleUser::query()->where('bale_username', $text)->first();
@@ -1954,5 +1955,8 @@ EOT);
         config(['activitylog.default_auth_driver' => 'bot']);
 
         return [$user,$bale_user];
+        } catch (Exception $exception) {
+            return 'احراز نا معتبر';
+        }
     }
 }

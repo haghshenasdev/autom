@@ -35,6 +35,7 @@
         "pxlrbt/filament-excel": "^2.1",
         "quadrubo/filament-model-settings": "^1.5",
         "rmsramos/activitylog": "^2.0",
+        "rupadana/filament-api-service": "^3.4",
         "saade/filament-autograph": "^3.2",
         "saade/filament-fullcalendar": "3.0",
         "tomatophp/filament-pwa": "^1.0"
