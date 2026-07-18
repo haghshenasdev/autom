@@ -25,4 +25,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/me', [ProfileController::class, 'me']);
 
+    Route::get(
+        '/me/avatar',
+        [ProfileController::class, 'avatar']
+    );
+
+    Route::get(
+        '/get_avatar/{filename}',
+        [ProfileController::class, 'get_avatar']
+    );
+
 });
