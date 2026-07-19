@@ -19,10 +19,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\File;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Rupadana\ApiService\Contracts\HasAllowedSorts;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
-class Minutes extends Model
+class Minutes extends Model implements  HasAllowedSorts
 {
     use HasFactory,LogsActivity;
 
@@ -245,4 +246,14 @@ class Minutes extends Model
         ->dontSubmitEmptyLogs(); // لاگ خالی ثبت نشه
     }
 
+    public static function getAllowedSorts(): array
+    {
+        return [
+            'id',
+            'title',
+            'date',
+            'created_at',
+            'updated_at',
+        ];
+    }
 }
