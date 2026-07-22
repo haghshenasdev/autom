@@ -19,11 +19,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\File;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Rupadana\ApiService\Contracts\HasAllowedFilters;
 use Rupadana\ApiService\Contracts\HasAllowedSorts;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
-class Minutes extends Model implements  HasAllowedSorts
+class Minutes extends Model implements  HasAllowedSorts,HasAllowedFilters
 {
     use HasFactory,LogsActivity;
 
@@ -247,6 +248,17 @@ class Minutes extends Model implements  HasAllowedSorts
     }
 
     public static function getAllowedSorts(): array
+    {
+        return [
+            'id',
+            'title',
+            'date',
+            'created_at',
+            'updated_at',
+        ];
+    }
+
+    public static function getAllowedFilters(): array
     {
         return [
             'id',
