@@ -13,6 +13,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +24,7 @@ use Rupadana\ApiService\Contracts\HasAllowedFilters;
 use Rupadana\ApiService\Contracts\HasAllowedSorts;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class Minutes extends Model implements  HasAllowedSorts,HasAllowedFilters
 {
@@ -266,6 +268,23 @@ class Minutes extends Model implements  HasAllowedSorts,HasAllowedFilters
             'date',
             'created_at',
             'updated_at',
+            AllowedFilter::callback(
+                'search',
+                function (Builder $query, $value) {
+
+                    $query->where(function ($q) use ($value) {
+
+                        if (is_numeric($value)) {
+                            $q->orWhere('id', $value);
+                        }
+
+                        $q->orWhere('title', 'LIKE', "%{$value}%")
+                            ->orWhere('text', 'LIKE', "%{$value}%");
+
+                    });
+
+                }
+            ),
         ];
     }
 }
