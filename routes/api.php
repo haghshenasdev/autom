@@ -21,6 +21,19 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+Route::get('/appendix-other-show/{path}', function ($path) {
+    return response($path);
+//        if (!Storage::disk('private_appendix_other')->exists($path)) {
+//            abort(404);
+//        }
+//
+//        $content = Storage::disk('private_appendix_other')->get($path);
+//
+//        return response($content, 200)
+//            ->header('Content-Type', getMimeTypeFromExtension($path))
+//            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
+})->where('path', '.*');
+
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -36,17 +49,6 @@ Route::middleware('auth:sanctum')->group(function () {
         [ProfileController::class, 'get_avatar']
     );
 
-    Route::get('/appendix-other-show/{path}', function ($path) {
-        return response($path);
-//        if (!Storage::disk('private_appendix_other')->exists($path)) {
-//            abort(404);
-//        }
-//
-//        $content = Storage::disk('private_appendix_other')->get($path);
-//
-//        return response($content, 200)
-//            ->header('Content-Type', getMimeTypeFromExtension($path))
-//            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
-    })->where('path', '.*');
+
 
 });
