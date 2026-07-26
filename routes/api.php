@@ -37,15 +37,16 @@ Route::middleware('auth:sanctum')->group(function () {
     );
 
     Route::get('/appendix-other-show/{path}', function ($path) {
-        if (!Storage::disk('private_appendix_other')->exists($path)) {
-            abort(404);
-        }
-
-        $content = Storage::disk('private_appendix_other')->get($path);
-
-        return response($content, 200)
-            ->header('Content-Type', getMimeTypeFromExtension($path))
-            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
+        return response($path);
+//        if (!Storage::disk('private_appendix_other')->exists($path)) {
+//            abort(404);
+//        }
+//
+//        $content = Storage::disk('private_appendix_other')->get($path);
+//
+//        return response($content, 200)
+//            ->header('Content-Type', getMimeTypeFromExtension($path))
+//            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 
 });
