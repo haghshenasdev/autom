@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Filament\Resources\ReferralResource\Api\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateReferralRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
+    {
+        return [
+			'rule' => 'required|string',
+			'result' => 'required|string',
+			'by_user_id' => 'required',
+			'to_user_id' => 'required',
+			'letter_id' => 'required',
+			'checked' => 'required'
+		];
+    }
+}
