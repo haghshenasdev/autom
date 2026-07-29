@@ -24,8 +24,24 @@ class DetailHandler extends Handlers
     public function handler(Request $request)
     {
         $id = $request->route('id');
-        
-        $query = static::getEloquentQuery();
+
+        $query = static::getEloquentQuery()->with([
+            'user',
+            'type',
+            'organ',
+            'daftar',
+            'letter',
+
+            'customers',
+            'organs_owner',
+            'users',
+            'projects',
+
+            'Answer',
+            'referrals',
+            'replications',
+            'Appendix',
+        ]);
 
         $query = QueryBuilder::for(
             $query->where(static::getKeyName(), $id)
