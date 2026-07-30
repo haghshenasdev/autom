@@ -1771,10 +1771,7 @@ EOT
                             ],
                         ],
                     ]);
-                    $this->sendMessage(
-                        $chatId,
-                        $aiResponse
-                    );
+
                     $ocrApprovesText = $aiResponse->json('choices.0.message.content');
                     $ocrApprovesText = "\n\n" . "#مصوبه " . $record->id . "\n" . $ocrApprovesText;
 
