@@ -70,7 +70,7 @@ class UpdateHandler extends Handlers {
               مطابق getFilePath فعلی مدل
             */
 
-            $path = $model->id;
+            $path = 'minutes/'.$model->id;
 
 
             $file->storeAs(
