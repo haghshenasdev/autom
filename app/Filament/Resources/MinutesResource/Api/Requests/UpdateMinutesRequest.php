@@ -27,7 +27,12 @@ class UpdateMinutesRequest extends FormRequest
 			'file' => 'required|string',
 			'date' => 'required',
 			'typer_id' => 'required',
-			'task_id' => 'required'
+			'task_id' => 'required',
+            'upload_file' => [
+                'nullable',
+                'file',
+                'max:20480'
+            ],
 		];
     }
 }
