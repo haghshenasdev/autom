@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -59,6 +60,41 @@ class TempFileService
 
 
         return $filename;
+    }
+
+    public function upload(Request $request)
+    {
+
+        if (!$request->hasFile('file')) {
+            return response()->json([
+                'message' => 'فایلی ارسال نشده است'
+            ], 422);
+        }
+
+
+        $file = $request->file('file');
+
+
+        // محتوای فایل
+        $content = file_get_contents($file->getRealPath());
+
+
+        // پسوند فایل
+        $extension = $file->getClientOriginalExtension();
+
+
+        // ذخیره توسط سرویس شما
+        $filename = $this->save(
+            $content,
+            $extension
+        );
+
+
+        return response()->json([
+            'success' => true,
+            'filename' => $filename,
+            'url' => url('/temp-files/' . $filename)
+        ]);
     }
 
 
