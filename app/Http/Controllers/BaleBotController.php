@@ -1720,10 +1720,6 @@ TEXT;
                     'command' => 'addfile',
                     'filelink' => url('temp-download/'.$tfsUrl),
                 ]);
-                $this->sendMessage(
-                    $chatId,
-                    $ocrResponse->body()
-                );
                 $ocrdata = json_decode($ocrResponse->body());
 
                 if (!isset($ocrdata->FileToken)) {
@@ -1742,10 +1738,6 @@ TEXT;
                         'method' => 4,
                     ]);
                     $ocrText = $ocrResponse2->body();
-                    $this->sendMessage(
-                        $chatId,
-                        $ocrText
-                    );
                     $jalaliD = Jalalian::fromDateTime($record->date)->format('Y/m/d');
 
                     // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
@@ -1779,7 +1771,10 @@ EOT
                             ],
                         ],
                     ]);
-
+                    $this->sendMessage(
+                        $chatId,
+                        $aiResponse
+                    );
                     $ocrApprovesText = $aiResponse->json('choices.0.message.content');
                     $ocrApprovesText = "\n\n" . "#مصوبه " . $record->id . "\n" . $ocrApprovesText;
 
