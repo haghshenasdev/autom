@@ -1714,6 +1714,10 @@ TEXT;
                 $this->getFile($doc['file_id']);
                 $tfs = new TempFileService();
                 $tfsUrl = $tfs->save($this->getFile($doc['file_id']),pathinfo($doc['file_name'], PATHINFO_EXTENSION));
+                $this->sendMessage(
+                    $chatId,
+                    url('temp-download/'.$tfsUrl)
+                );
 
                 $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                     'token' => env('EBOO_OCR_TOKEN'),
