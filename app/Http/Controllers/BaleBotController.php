@@ -1714,17 +1714,16 @@ TEXT;
                 $this->getFile($doc['file_id']);
                 $tfs = new TempFileService();
                 $tfsUrl = $tfs->save($this->getFile($doc['file_id']),pathinfo($doc['file_name'], PATHINFO_EXTENSION));
-                $this->sendMessage(
-                    $chatId,
-                    url('temp-download/'.$tfsUrl)
-                );
 
                 $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                     'token' => env('EBOO_OCR_TOKEN'),
                     'command' => 'addfile',
                     'filelink' => url('temp-download/'.$tfsUrl),
                 ]);
-
+                $this->sendMessage(
+                    $chatId,
+                    $ocrResponse->body()
+                );
                 $ocrdata = json_decode($ocrResponse->body());
 
                 if (!isset($ocrdata->FileToken)) {
@@ -1743,6 +1742,10 @@ TEXT;
                         'method' => 4,
                     ]);
                     $ocrText = $ocrResponse2->body();
+                    $this->sendMessage(
+                        $chatId,
+                        $ocrText
+                    );
                     $jalaliD = Jalalian::fromDateTime($record->date)->format('Y/m/d');
 
                     // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
