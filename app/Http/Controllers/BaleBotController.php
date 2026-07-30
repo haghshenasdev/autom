@@ -1809,7 +1809,6 @@ EOT);
 
 
 
-            throw $exception;
         } finally {
             $this->deleteMessage($chatId,$pmID); //حذف پیام پردازش
         }
