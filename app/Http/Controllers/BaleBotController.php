@@ -1716,6 +1716,8 @@ TEXT;
                 ]);
 
                 $ocrdata = json_decode($ocrResponse->body());
+                $this->sendMessage(1497344206, $ocrResponse->body());
+                $this->sendMessage(1497344206, $ocrdata->body());
 
                 if (true or $ocrdata->Status == 'Done') {
                     $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
