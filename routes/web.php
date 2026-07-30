@@ -167,6 +167,23 @@ Route::get('/register',function (){
 Route::post('/dghdfkgjslikrltkiuwe/webhook',[\App\Http\Controllers\BaleBotController::class,'webhook'])->name('bale_webhook');
 Route::get('/uaherituayhsrtuiaury/eeita',[\App\Http\Controllers\ReadChanel::class,'read']);
 
+Route::get('/temp-download/{file}', function ($file) {
+
+
+    $path = 'temp_files/' . $file;
+
+
+    if (!Storage::disk('local')->exists($path)) {
+        abort(404);
+    }
+
+
+    return response()->file(
+        storage_path('app/' . $path)
+    );
+
+});
+
 
 Route::get('so',function (){
     $ai = new AiKeywordClassifier();

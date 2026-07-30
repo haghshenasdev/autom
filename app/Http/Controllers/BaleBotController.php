@@ -14,6 +14,7 @@ use App\Models\City;
 use App\Models\Organ;
 use App\Models\Project;
 use App\Models\Referral;
+use App\Services\TempFileService;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +30,7 @@ use App\Models\BaleUser;
 use Illuminate\Support\Facades\Storage;
 use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
+use PhpMyAdmin\Url;
 
 class BaleBotController extends Controller
 {
@@ -1709,15 +1711,19 @@ TEXT;
 
             if (empty($parsedData['approves']) and $doc) {
                 $loadinApAi = $this->sendMessage($chatId,"درحال استخراج مصوبات با هوش مصنوعی");
+                $this->getFile($doc['file_id']);
+                $tfs = new TempFileService();
+                $tfsUrl = $tfs->save($this->getFile($doc['file_id']),pathinfo($doc['file_name'], PATHINFO_EXTENSION));
+
                 $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                     'token' => env('EBOO_OCR_TOKEN'),
                     'command' => 'addfile',
-                    'filelink' => $this->getFileUrl($doc['file_id']),
+                    'filelink' => url('temp-download/'.$tfsUrl),
                 ]);
 
                 $ocrdata = json_decode($ocrResponse->body());
 
-                if (!isset($ocrdata->filetoken)) {
+                if (!isset($ocrdata->FileToken)) {
 
                     $this->sendMessage(
                         $chatId,
@@ -1729,7 +1735,7 @@ TEXT;
                         'token' => env('EBOO_OCR_TOKEN'),
                         'command' => 'convert',
                         'output' => 'txtraw',
-                        'filetoken' => $ocrdata->filetoken,
+                        'filetoken' => $ocrdata->FileToken,
                         'method' => 4,
                     ]);
                     $ocrText = $ocrResponse2->body();
