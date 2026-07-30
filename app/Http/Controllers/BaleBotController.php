@@ -1707,72 +1707,79 @@ TEXT;
             }
             $this->sendMessage($chatId, $message);
 
-//            if (empty($parsedData['approves']) and $doc) {
-//                $loadinApAi = $this->sendMessage($chatId,"درحال استخراج مصوبات با هوش مصنوعی");
-//                $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-//                    'token' => env('EBOO_OCR_TOKEN'),
-//                    'command' => 'addfile',
-//                    'filelink' => $this->getFileUrl($doc['file_id']),
-//                ]);
-//
-//                $ocrdata = json_decode($ocrResponse->body());
-//
-//                if (true or $ocrdata->Status == 'Done') {
-//                    $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-//                        'token' => env('EBOO_OCR_TOKEN'),
-//                        'command' => 'convert',
-//                        'output' => 'txtraw',
-//                        'filetoken' => $ocrdata->FileToken,
-//                        'method' => 4,
-//                    ]);
-//                    $ocrText = $ocrResponse2->body();
-//                    $jalaliD = Jalalian::fromDateTime($record->date)->format('Y/m/d');
-//
-//                    // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
-//                    $aiResponse = Http::withHeaders([
-//                        'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-//                    ])->post('https://api.gapgpt.app/v1/chat/completions', [
-//                        'model' => 'gpt-4o',
-//                        'messages' => [
-//                            [
-//                                'role' => 'user',
-//                                'content' => <<<EOT
-//متن زیر با OCR از یک صورتجلسه استخراج شده است. لطفاً آن را اصلاح کن و فقط مصوبات را به شکل زیر  بدون هیچ توضیح اظافه ای بازگردان:
-//هر مصوبه در یک خط جداگانه که با "-" شروع شود.
-//اگر اعتبار ریالی ذکر شد با $ عدد مشخص شود. مانند $100000 ریال .
-//متن و اطلاعات هر مصوبه در یک خط باشند.
-//لطفاً متن مصوبات زیر را بررسی کن و برای هر مصوبه‌ای که در آن مهلت یا مدت زمان مشخصی برای انجام کار ذکر شده است، مدت زمان را به صورت زیر بازنویسی کن:
-//
-//- فرمت مدت زمان باید به شکل « تا X روز » یا « تا X ماه » یا « تا X سال آینده » باشد.
-//- محاسبه مدت زمان باید بر اساس تاریخ شروع {$jalaliD} انجام شود.
-//- اگر در متن مصوبه هیچ مهلت یا مدت زمانی ذکر نشده بود، هیچ عبارتی اضافه نکن و همان متن مصوبه را بدون تغییر برگردان.
-//- خروجی فقط متن اصلاح‌شده مصوبات باشد، بدون توضیحات اضافی یا متن اضافه.
-//
-//مثال:
-//«مدت ۲۰ روز» → « تا 20 روز »
-//«این کار  تا پایان سال 1405 انجام شود» → « تا 2 ماه آینده » (مدت زمان باقی مانده از تاریخ شروع تا ابتدای سال ذکر شده )
-//«یک سال فرصت برای تکمیل وجود دارد» → « تا 1 سال آینده »
-//
-//متن صورتجلسه :
-//{$ocrText}
-//EOT
-//                            ],
-//                        ],
-//                    ]);
-//
-//                    $ocrApprovesText = $aiResponse->json('choices.0.message.content');
-//                    $ocrApprovesText = "\n\n" . "#مصوبه " . $record->id . "\n" . $ocrApprovesText;
-//
-//                    $apm = "هوش مصنوعی مصوبات زیر را از متن صورتجلسه استخراج کرده است . لطفا متن مصوبات را اصلاح کنید و برای ربات بفرستید تا مصوبات ضمیمه صورتجلسه شوند :";
-//                    $apm .= $ocrApprovesText;
-//                    $keyboard['inline_keyboard'][] = [ ['text' => '📋 کپی متن مصوبات', 'copy_text' => $ocrApprovesText], ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'] ];
-//                    $this->sendMessageWithKeyboard($chatId,$apm,$keyboard);
-//                }
-//
-//                $this->deleteMessage($chatId,$loadinApAi);
-//
-//            }
-//
+            if (empty($parsedData['approves']) and $doc) {
+                $loadinApAi = $this->sendMessage($chatId,"درحال استخراج مصوبات با هوش مصنوعی");
+                $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+                    'token' => env('EBOO_OCR_TOKEN'),
+                    'command' => 'addfile',
+                    'filelink' => $this->getFileUrl($doc['file_id']),
+                ]);
+
+                $ocrdata = json_decode($ocrResponse->body());
+
+                if (!isset($ocrdata->filetoken)) {
+
+                    $this->sendMessage(
+                        $chatId,
+                        "⚠️ استخراج خودکار متن صورتجلسه انجام نشد، اما فایل ذخیره شد."
+                    );
+
+                } else {
+                    $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+                        'token' => env('EBOO_OCR_TOKEN'),
+                        'command' => 'convert',
+                        'output' => 'txtraw',
+                        'filetoken' => $ocrdata->filetoken,
+                        'method' => 4,
+                    ]);
+                    $ocrText = $ocrResponse2->body();
+                    $jalaliD = Jalalian::fromDateTime($record->date)->format('Y/m/d');
+
+                    // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
+                    $aiResponse = Http::withHeaders([
+                        'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+                    ])->post('https://api.gapgpt.app/v1/chat/completions', [
+                        'model' => 'gpt-4o',
+                        'messages' => [
+                            [
+                                'role' => 'user',
+                                'content' => <<<EOT
+متن زیر با OCR از یک صورتجلسه استخراج شده است. لطفاً آن را اصلاح کن و فقط مصوبات را به شکل زیر  بدون هیچ توضیح اظافه ای بازگردان:
+هر مصوبه در یک خط جداگانه که با "-" شروع شود.
+اگر اعتبار ریالی ذکر شد با $ عدد مشخص شود. مانند $100000 ریال .
+متن و اطلاعات هر مصوبه در یک خط باشند.
+لطفاً متن مصوبات زیر را بررسی کن و برای هر مصوبه‌ای که در آن مهلت یا مدت زمان مشخصی برای انجام کار ذکر شده است، مدت زمان را به صورت زیر بازنویسی کن:
+
+- فرمت مدت زمان باید به شکل « تا X روز » یا « تا X ماه » یا « تا X سال آینده » باشد.
+- محاسبه مدت زمان باید بر اساس تاریخ شروع {$jalaliD} انجام شود.
+- اگر در متن مصوبه هیچ مهلت یا مدت زمانی ذکر نشده بود، هیچ عبارتی اضافه نکن و همان متن مصوبه را بدون تغییر برگردان.
+- خروجی فقط متن اصلاح‌شده مصوبات باشد، بدون توضیحات اضافی یا متن اضافه.
+
+مثال:
+«مدت ۲۰ روز» → « تا 20 روز »
+«این کار  تا پایان سال 1405 انجام شود» → « تا 2 ماه آینده » (مدت زمان باقی مانده از تاریخ شروع تا ابتدای سال ذکر شده )
+«یک سال فرصت برای تکمیل وجود دارد» → « تا 1 سال آینده »
+
+متن صورتجلسه :
+{$ocrText}
+EOT
+                            ],
+                        ],
+                    ]);
+
+                    $ocrApprovesText = $aiResponse->json('choices.0.message.content');
+                    $ocrApprovesText = "\n\n" . "#مصوبه " . $record->id . "\n" . $ocrApprovesText;
+
+                    $apm = "هوش مصنوعی مصوبات زیر را از متن صورتجلسه استخراج کرده است . لطفا متن مصوبات را اصلاح کنید و برای ربات بفرستید تا مصوبات ضمیمه صورتجلسه شوند :";
+                    $apm .= $ocrApprovesText;
+                    $keyboard['inline_keyboard'][] = [ ['text' => '📋 کپی متن مصوبات', 'copy_text' => $ocrApprovesText], ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'] ];
+                    $this->sendMessageWithKeyboard($chatId,$apm,$keyboard);
+                }
+
+                $this->deleteMessage($chatId,$loadinApAi);
+
+            }
+
 
         }catch (Exception $exception){
             $message = '❌ ثبت صورت جلسه با مشکل مواجه شد .';
