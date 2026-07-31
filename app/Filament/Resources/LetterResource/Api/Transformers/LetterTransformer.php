@@ -32,7 +32,7 @@ class LetterTransformer extends JsonResource
             'user'=>$this->whenLoaded('user',fn()=>[
                 'id'=>$this->user->id,
                 'name'=>$this->user->name,
-                'image'=>$this->user->avatar_url ?? null,
+                'avatar_url'=>$this->user->avatar_url ?? null,
             ]),
 
 
