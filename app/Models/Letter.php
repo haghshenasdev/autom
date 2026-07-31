@@ -10,10 +10,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\File;
+use Rupadana\ApiService\Contracts\HasAllowedFilters;
+use Rupadana\ApiService\Contracts\HasAllowedSorts;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\QueryBuilder\AllowedFilter;
+use Illuminate\Database\Eloquent\Builder;
 
-class Letter extends Model
+
+class Letter extends Model implements HasAllowedSorts,HasAllowedFilters
 {
     use HasFactory,HasStatus,LogsActivity;
 
@@ -306,5 +311,47 @@ class Letter extends Model
         return LogOptions::defaults()->logExcept(['updated_at','created_at'])->logAll() // فیلدهایی که می‌خوای تغییراتشون ثبت بشه
         ->logOnlyDirty() // فقط وقتی مقدار تغییر کرد ذخیره بشه
         ->dontSubmitEmptyLogs(); // لاگ خالی ثبت نشه;
+    }
+
+    public static function getAllowedSorts(): array
+    {
+        return [
+            'id',
+            'subject',
+            'status',
+            'kind',
+            'created_at',
+            'updated_at',
+        ];
+    }
+
+    public static function getAllowedFilters(): array
+    {
+        return [
+            'id',
+            'subject',
+            'description',
+            'status',
+            'kind',
+            'created_at',
+            'updated_at',
+            AllowedFilter::callback(
+                'search',
+                function (Builder $query, $value) {
+
+                    $query->where(function ($q) use ($value) {
+
+                        if (is_numeric($value)) {
+                            $q->orWhere('id', $value);
+                        }
+
+                        $q->orWhere('subject', 'LIKE', "%{$value}%")
+                            ->orWhere('description', 'LIKE', "%{$value}%");
+
+                    });
+
+                }
+            ),
+        ];
     }
 }
