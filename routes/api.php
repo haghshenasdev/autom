@@ -51,4 +51,16 @@ Route::middleware('auth:sanctum')->group(function () {
             ->header('Content-Type', getMimeTypeFromExtension($path))
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
+
+    Route::get('/private-show/{path}', function ($path) {
+        if (!Storage::disk('private')->exists($path)) {
+            abort(404);
+        }
+
+        $content = Storage::disk('private')->get($path);
+
+        return response($content, 200)
+            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
+    })->where('path', '.*');
 });
