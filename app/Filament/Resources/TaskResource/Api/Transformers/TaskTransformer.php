@@ -85,9 +85,7 @@ class TaskTransformer extends JsonResource
                 return [
                     'id' => $this->creator->id,
                     'name' => $this->creator->name,
-                    'avatar' => method_exists($this->creator,'getFilamentAvatarUrl')
-                        ? $this->creator->getFilamentAvatarUrl()
-                        : null,
+                    'avatar_url'=>$this->creator->avatar_url ?? null,
                 ];
 
             }),
@@ -105,9 +103,7 @@ class TaskTransformer extends JsonResource
                 return [
                     'id' => $this->responsible->id,
                     'name' => $this->responsible->name,
-                    'avatar' => method_exists($this->responsible,'getFilamentAvatarUrl')
-                        ? $this->responsible->getFilamentAvatarUrl()
-                        : null,
+                    'avatar_url'=>$this->responsible->avatar_url ?? null,
                 ];
 
             }),
