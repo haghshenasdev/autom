@@ -32,7 +32,7 @@ class UpdateLetterRequest extends FormRequest
 			'type_id' => 'nullable',
 			'status' => 'nullable|integer',
 			'organ_id' => 'nullable',
-			'daftar_id' => 'required|integer',
+			'daftar_id' => 'nullable|integer',
 			'peiroow_letter_id' => 'nullable|integer',
             'upload_file' => [
                 'nullable',
