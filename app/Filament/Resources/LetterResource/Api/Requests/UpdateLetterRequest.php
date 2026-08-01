@@ -23,17 +23,16 @@ class UpdateLetterRequest extends FormRequest
     {
         return [
 			'subject' => 'required|string',
-			'description' => 'required|string',
-			'summary' => 'required|string',
-			'file' => 'required|string',
-			'mokatebe' => 'required|string',
+			'description' => 'string',
+			'summary' => 'string',
+			'file' => 'string',
+			'mokatebe' => 'string',
 			'kind' => 'required',
-			'type_id' => 'required',
-			'status' => 'required|integer',
-			'user_id' => 'required',
-			'organ_id' => 'required',
-			'daftar_id' => 'required',
-			'peiroow_letter_id' => 'required'
+			'type_id' => 'nullable',
+			'status' => 'nullable|integer',
+			'organ_id' => 'nullable',
+			'daftar_id' => 'required|integer',
+			'peiroow_letter_id' => 'nullable|integer'
 		];
     }
 }
