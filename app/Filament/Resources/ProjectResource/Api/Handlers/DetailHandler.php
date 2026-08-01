@@ -24,12 +24,17 @@ class DetailHandler extends Handlers
     public function handler(Request $request)
     {
         $id = $request->route('id');
-        
+
         $query = static::getEloquentQuery();
 
-        $query = QueryBuilder::for(
-            $query->where(static::getKeyName(), $id)
-        )
+        $query = QueryBuilder::for($query)
+            ->with([
+                'organ',
+                'city',
+                'user',
+                'group',
+            ])
+            ->where(static::getKeyName(), $id)
             ->first();
 
         if (!$query) return static::sendNotFoundResponse();
