@@ -75,7 +75,7 @@ class LetterTransformer extends JsonResource
                 fn()=> $this->users->map(fn($item)=>[
                     'id'=>$item->id,
                     'name'=>$item->name,
-                    'avatar_url'=>$this->users->avatar_url ?? null,
+                    'avatar_url'=>$item->avatar_url ?? null,
                 ])
             ),
 
