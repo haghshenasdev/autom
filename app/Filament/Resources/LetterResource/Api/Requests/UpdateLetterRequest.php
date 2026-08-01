@@ -24,9 +24,9 @@ class UpdateLetterRequest extends FormRequest
         return [
 			'subject' => 'required|string',
 			'description' => 'nullable|string',
-			'summary' => 'string',
+			'summary' => 'nullable|string',
 			'file' => 'string',
-			'mokatebe' => 'string',
+			'mokatebe' => 'nullable|string',
 			'kind' => 'required',
 			'type_id' => 'nullable',
 			'status' => 'nullable|integer',
