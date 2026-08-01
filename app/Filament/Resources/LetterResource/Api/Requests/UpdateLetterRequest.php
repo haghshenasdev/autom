@@ -23,6 +23,7 @@ class UpdateLetterRequest extends FormRequest
     {
         return [
 			'subject' => 'required|string',
+			'created_at' => 'required',
 			'description' => 'nullable|string',
 			'summary' => 'nullable|string',
 			'file' => 'string',

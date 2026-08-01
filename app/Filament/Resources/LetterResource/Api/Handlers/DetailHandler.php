@@ -27,6 +27,7 @@ class DetailHandler extends Handlers
 
         $query = static::getEloquentQuery()->with([
             'user',
+            'users',
             'type',
             'organ',
             'daftar',

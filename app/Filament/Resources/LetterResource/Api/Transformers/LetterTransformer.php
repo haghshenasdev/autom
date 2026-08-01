@@ -23,6 +23,8 @@ class LetterTransformer extends JsonResource
             'id'=>$this->id,
 
             'subject'=>$this->subject,
+            'created_at'=>$this->created_at,
+            'updated_at'=>$this->updated_at,
             'description'=>$this->description,
             'summary'=>$this->summary,
             'file'=>$this->file,
@@ -66,6 +68,14 @@ class LetterTransformer extends JsonResource
                 fn()=> $this->organs_owner->map(fn($item)=>[
                     'id'=>$item->id,
                     'name'=>$item->name,
+                ])
+            ),
+
+            'cartables'=>$this->whenLoaded('users',
+                fn()=> $this->users->map(fn($item)=>[
+                    'id'=>$item->id,
+                    'name'=>$item->name,
+                    'avatar_url'=>$this->user->avatar_url ?? null,
                 ])
             ),
 
