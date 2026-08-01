@@ -23,20 +23,20 @@ class UpdateTaskRequest extends FormRequest
     {
         return [
 			'name' => 'required|string',
-			'status' => 'required|integer',
-			'progress' => 'required|integer',
-			'description' => 'required|string',
-			'completed' => 'required',
-			'completed_at' => 'required',
-			'started_at' => 'required',
-			'ended_at' => 'required',
-			'repeat' => 'required',
-			'amount' => 'required',
+			'status' => 'nullable|integer',
+			'progress' => 'nullable|integer',
+			'description' => 'string',
+			'completed' => 'nullable',
+			'completed_at' => 'nullable',
+			'started_at' => 'nullable',
+			'ended_at' => 'nullable',
+			'repeat' => 'nullable',
+			'amount' => 'nullable',
 			'created_by' => 'required',
-			'Responsible_id' => 'required',
-			'city_id' => 'required',
-			'organ_id' => 'required',
-			'minutes_id' => 'required'
+			'Responsible_id' => 'nullable',
+			'city_id' => 'nullable',
+			'organ_id' => 'nullable',
+			'minutes_id' => 'nullable'
 		];
     }
 }
