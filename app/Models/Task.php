@@ -15,10 +15,15 @@ use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Illuminate\Support\Facades\Auth;
+use Rupadana\ApiService\Contracts\HasAllowedFilters;
+use Rupadana\ApiService\Contracts\HasAllowedSorts;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\QueryBuilder\AllowedFilter;
+use Illuminate\Database\Eloquent\Builder;
 
-class Task extends Model
+
+class Task extends Model implements HasAllowedSorts,HasAllowedFilters
 {
     use HasFactory,LogsActivity,HasStatus;
 
@@ -222,5 +227,52 @@ class Task extends Model
     {
         return LogOptions::defaults()->logExcept(['updated_at','created_at'])->logAll()->logOnlyDirty() // فقط وقتی مقدار تغییر کرد ذخیره بشه
         ->dontSubmitEmptyLogs(); // لاگ خالی ثبت نشه
+    }
+
+    public static function getAllowedSorts(): array
+    {
+        return [
+            'id',
+            'name',
+            'status',
+            'created_at',
+            'updated_at',
+            'completed',
+            'completed_at',
+            'started_at',
+            'ended_at',
+        ];
+    }
+
+    public static function getAllowedFilters(): array
+    {
+        return [
+            'id',
+            'name',
+            'status',
+            'created_at',
+            'updated_at',
+            'completed',
+            'completed_at',
+            'started_at',
+            'ended_at',
+            AllowedFilter::callback(
+                'search',
+                function (Builder $query, $value) {
+
+                    $query->where(function ($q) use ($value) {
+
+                        if (is_numeric($value)) {
+                            $q->orWhere('id', $value);
+                        }
+
+                        $q->orWhere('name', 'LIKE', "%{$value}%")
+                            ->orWhere('description', 'LIKE', "%{$value}%");
+
+                    });
+
+                }
+            ),
+        ];
     }
 }
