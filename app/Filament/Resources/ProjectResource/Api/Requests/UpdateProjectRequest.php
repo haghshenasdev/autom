@@ -23,13 +23,13 @@ class UpdateProjectRequest extends FormRequest
     {
         return [
 			'name' => 'required|string',
-			'description' => 'required|string',
-			'required_amount' => 'required|integer',
-			'user_id' => 'required',
-			'organ_id' => 'required',
-			'city_id' => 'required',
-			'status' => 'required',
-			'amount' => 'required'
+			'description' => 'nullable|string',
+			'required_amount' => 'nullable|integer',
+			'user_id' => 'nullable',
+			'organ_id' => 'nullable',
+			'city_id' => 'nullable',
+			'status' => 'nullable',
+			'amount' => 'nullable'
 		];
     }
 }
