@@ -2,6 +2,7 @@
 namespace App\Filament\Resources\LetterResource\Api\Handlers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Rupadana\ApiService\Http\Handlers;
 use App\Filament\Resources\LetterResource;
 use App\Filament\Resources\LetterResource\Api\Requests\UpdateLetterRequest;
@@ -36,7 +37,55 @@ class UpdateHandler extends Handlers {
 
         $model->fill($request->all());
 
-        $model->save();
+        /*
+  |--------------------------------------------------------------------------
+  | ذخیره فایل جدید
+  |--------------------------------------------------------------------------
+  */
+
+        if ($request->hasFile('upload_file')) {
+
+
+            // حذف فایل قبلی
+            if ($model->file) {
+
+                Storage::disk('private')->delete(
+                    $model->getFilePath()
+                );
+
+            }
+
+
+            $file = $request->file('upload_file');
+
+
+            // گرفتن پسوند
+            $extension = $file->getClientOriginalExtension();
+
+
+            /*
+              مسیر ذخیره:
+              private/{id}/{id}.ext
+
+              مطابق getFilePath فعلی مدل
+            */
+
+            $path = $model->id;
+
+
+            $file->storeAs(
+                $path,
+                $model->id . '.' . $extension,
+                'private'
+            );
+
+
+            // فقط پسوند را ذخیره می‌کنیم
+            $model->file = $extension;
+        }
+
+
+        $model->saveQuietly();
 
         return static::sendSuccessResponse($model, "Successfully Update Resource");
     }

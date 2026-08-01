@@ -33,7 +33,12 @@ class UpdateLetterRequest extends FormRequest
 			'status' => 'nullable|integer',
 			'organ_id' => 'nullable',
 			'daftar_id' => 'required|integer',
-			'peiroow_letter_id' => 'nullable|integer'
+			'peiroow_letter_id' => 'nullable|integer',
+            'upload_file' => [
+                'nullable',
+                'file',
+                'max:20480'
+            ],
 		];
     }
 }
