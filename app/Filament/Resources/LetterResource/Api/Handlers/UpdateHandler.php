@@ -82,10 +82,10 @@ class UpdateHandler extends Handlers {
 
             // فقط پسوند را ذخیره می‌کنیم
             $model->file = $extension;
+            $model->saveQuietly();
+        }else{
+            $model->save();
         }
-
-
-        $model->saveQuietly();
 
         return static::sendSuccessResponse($model, "Successfully Update Resource");
     }
