@@ -58,30 +58,32 @@ class MinuteTextPS extends Controller
 
     private function convert_to_text(string $url): array
     {
-        try {
-            $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-                'token' => env('EBOO_OCR_TOKEN'),
-                'command' => 'addfile',
-                'filelink' => $url,
-            ]);
-            $ocrdata = json_decode($ocrResponse->body());
+//        try {
+//            $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+//                'token' => env('EBOO_OCR_TOKEN'),
+//                'command' => 'addfile',
+//                'filelink' => $url,
+//            ]);
+//            $ocrdata = json_decode($ocrResponse->body());
+//
+//            if (!isset($ocrdata->FileToken)) {
+//                return [false,'فایل توکن ایجاد نشد'];
+//            } else {
+//                $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+//                    'token' => env('EBOO_OCR_TOKEN'),
+//                    'command' => 'convert',
+//                    'output' => 'txtraw',
+//                    'filetoken' => $ocrdata->FileToken,
+//                    'method' => 4,
+//                ]);
+//                $ocrText = $ocrResponse2->body();
+//                return [true,$ocrText];
+//            }
+//        }catch (Exception $e){
+//            return [false,$e->getMessage()];
+//        }
 
-            if (!isset($ocrdata->FileToken)) {
-                return [false,'فایل توکن ایجاد نشد'];
-            } else {
-                $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-                    'token' => env('EBOO_OCR_TOKEN'),
-                    'command' => 'convert',
-                    'output' => 'txtraw',
-                    'filetoken' => $ocrdata->FileToken,
-                    'method' => 4,
-                ]);
-                $ocrText = $ocrResponse2->body();
-                return [true,$ocrText];
-            }
-        }catch (Exception $e){
-            return [false,$e->getMessage()];
-        }
+        return [true,'نامه به میر فنرسکیان برای وام گرفتن برای فلانی'];
     }
 
     private function aiProcesses(string $text)
