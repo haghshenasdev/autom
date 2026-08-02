@@ -16,42 +16,43 @@ class MinuteTextPS extends Controller
     public function upload(Request $request)
     {
 
-        if (!$request->hasFile('file')) {
-            return response()->json([
-                'message' => 'فایلی ارسال نشده است'
-            ], 422);
-        }
-
-
-        $file = $request->file('file');
-
-
-        // محتوای فایل
-        $content = file_get_contents($file->getRealPath());
-
-
-        // پسوند فایل
-        $extension = $file->getClientOriginalExtension();
-
-
-        $tfs = new TempFileService();
-        $filename = $tfs->save(
-            $content,
-            $extension
-        );
-        $text = $this->convert_to_text(url('/temp-download/' . $filename));
+//        if (!$request->hasFile('file')) {
+//            return response()->json([
+//                'message' => 'فایلی ارسال نشده است'
+//            ], 422);
+//        }
+//
+//
+//        $file = $request->file('file');
+//
+//
+//        // محتوای فایل
+//        $content = file_get_contents($file->getRealPath());
+//
+//
+//        // پسوند فایل
+//        $extension = $file->getClientOriginalExtension();
+//
+//
+//        $tfs = new TempFileService();
+//        $filename = $tfs->save(
+//            $content,
+//            $extension
+//        );
+//        $text = $this->convert_to_text(url('/temp-download/' . $filename));
+        $text = $this->convert_to_text(url('/temp-download/'));
         if ($text[0]){
             $data = $this->aiProcesses($text[1]);
 
             return response()->json([
                 'success' => true,
-                'data' => $data,
+                'data' => json_encode($data),
             ]);
         }else{
             return response()->json([
                 'success' => false,
                 'message' => "تبدیل فایل به متن انجام نشد" . $text[1],
-                'temp_url' => url('/temp-download/' . $filename),
+//                'temp_url' => url('/temp-download/' . $filename),
             ],401);
         }
     }
