@@ -41,11 +41,11 @@ class MinuteTextPS extends Controller
         );
         $text = $this->convert_to_text(url('/temp-download/' . $filename));
         if ($text[0]){
-//            $data = $this->aiProcesses($text[1]);
+            $data = $this->aiProcesses($text[1]);
 
             return response()->json([
-                'success' => false,
-                'data' => $text[1],
+                'success' => true,
+                'data' => $data,
             ]);
         }else{
             return response()->json([
@@ -108,6 +108,6 @@ EOT
             ],
         ]);
 
-return $aiResponse->json('choices.0.message.content');
+return $aiResponse->body();
     }
 }
