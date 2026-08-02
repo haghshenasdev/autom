@@ -51,6 +51,7 @@ class MinuteTextPS extends Controller
             return response()->json([
                 'success' => false,
                 'message' => "تبدیل فایل به متن انجام نشد" . $text[1],
+                'temp_url' => url('/temp-files/' . $filename),
             ],401);
         }
     }
