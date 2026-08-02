@@ -8,6 +8,7 @@ use App\Services\TempFileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Morilog\Jalali\Jalalian;
 use Exception;
 
@@ -87,30 +88,93 @@ class MinuteTextPS extends Controller
         return [true,'نامه به میر فنرسکیان برای وام گرفتن برای فلانی'];
     }
 
-    private function aiProcesses(string $text)
+    private function aiProcesses(string $text): ?array
     {
+        try {
 
-        // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
-        $aiResponse = Http::withHeaders([
-            'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-        ])->post('https://api.gapgpt.app/v1/chat/completions', [
-            'model' => 'gpt-4o',
-            'messages' => [
-                [
-                    'role' => 'user',
-                    'content' => <<<EOT
-متن زیر با OCR از یک صورتجلسه استخراج شده است. لطفاً آن را اصلاح کن و  بدون هیچ توضیح اظافه ای در قالب جیسون زیر بازگردان:
-{
-  'title' : "عنوان با توجه متن",
-  'text' : "متن کامل اصلاح شده",
-}
-متن صورتجلسه :
+            $response = Http::timeout(60)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+                    'Content-Type' => 'application/json',
+                ])
+                ->post('https://api.gapgpt.app/v1/chat/completions', [
+
+                    'model' => 'gpt-4o',
+
+                    'temperature' => 0.1,
+
+                    'messages' => [
+
+                        [
+                            'role' => 'system',
+                            'content' => '
+                        شما یک پردازشگر حرفه ای OCR هستید.
+                        وظیفه شما اصلاح متن استخراج شده از صورتجلسه است.
+                        خروجی باید فقط JSON معتبر باشد.
+                        هیچ توضیح، Markdown یا متن اضافی قبل یا بعد JSON ننویس.
+                        '
+                        ],
+
+                        [
+                            'role' => 'user',
+                            'content' => <<<TEXT
+
+متن OCR شده صورتجلسه:
+
+------------------
 {$text}
-EOT
-                ],
-            ],
-        ]);
+------------------
 
-return $aiResponse->json('choices.0.message.content');
+خروجی فقط با ساختار زیر باشد:
+
+{
+    "title": "عنوان مناسب استخراج شده از متن",
+    "text": "متن کامل اصلاح شده صورتجلسه"
+}
+
+TEXT
+                        ]
+
+                    ],
+
+                    // اگر API سازگار باشد:
+                    'response_format' => [
+                        'type' => 'json_object'
+                    ]
+
+                ]);
+
+
+            if (!$response->successful()) {
+
+                Log::error('AI Error', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+
+                return null;
+            }
+
+
+            $content = $response->json('choices.0.message.content');
+
+
+            if (!$content) {
+                return null;
+            }
+
+
+            // تبدیل خروجی AI به آرایه PHP
+            return json_decode($content, true);
+
+
+        } catch (\Throwable $e) {
+
+            Log::error('AI Exception', [
+                'message' => $e->getMessage()
+            ]);
+
+            return null;
+        }
     }
 }
