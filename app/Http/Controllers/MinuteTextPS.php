@@ -2,94 +2,205 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\ai\CategoryPredictor;
-use App\Models\Task;
 use App\Services\TempFileService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Morilog\Jalali\Jalalian;
 use Exception;
 
 class MinuteTextPS extends Controller
 {
+
+    /**
+     * دریافت فایل و تبدیل به متن OCR
+     */
     public function upload(Request $request)
     {
 
-//        if (!$request->hasFile('file')) {
-//            return response()->json([
-//                'message' => 'فایلی ارسال نشده است'
-//            ], 422);
-//        }
-//
-//
-//        $file = $request->file('file');
-//
-//
-//        // محتوای فایل
-//        $content = file_get_contents($file->getRealPath());
-//
-//
-//        // پسوند فایل
-//        $extension = $file->getClientOriginalExtension();
-//
-//
-//        $tfs = new TempFileService();
-//        $filename = $tfs->save(
-//            $content,
-//            $extension
-//        );
-//        $text = $this->convert_to_text(url('/temp-download/' . $filename));
-        $text = $this->convert_to_text(url('/temp-download/'));
-        if ($text[0]){
-            $data = $this->aiProcesses($text[1]);
+        if (!$request->hasFile('file')) {
 
             return response()->json([
-                'success' => true,
-                'data' => $data,
-            ]);
-        }else{
-            return response()->json([
                 'success' => false,
-                'message' => "تبدیل فایل به متن انجام نشد" . $text[1],
-//                'temp_url' => url('/temp-download/' . $filename),
-            ],401);
+                'message' => 'فایلی ارسال نشده است'
+            ],422);
+
         }
+
+
+        try {
+
+            $file = $request->file('file');
+
+
+            $content = file_get_contents(
+                $file->getRealPath()
+            );
+
+
+            $extension = $file->getClientOriginalExtension();
+
+
+            $tfs = new TempFileService();
+
+
+            $filename = $tfs->save(
+                $content,
+                $extension
+            );
+
+
+            $ocr = $this->convert_to_text(
+                url('/temp-download/'.$filename)
+            );
+
+
+            if (!$ocr[0]) {
+
+                return response()->json([
+                    'success'=>false,
+                    'message'=>$ocr[1],
+                    'file'=>$filename
+                ],422);
+
+            }
+
+
+            return response()->json([
+
+                'success'=>true,
+
+                'data'=>[
+                    'filename'=>$filename,
+                    'text'=>$ocr[1]
+                ]
+
+            ]);
+
+
+        }catch(Exception $e){
+
+            Log::error($e->getMessage());
+
+            return response()->json([
+                'success'=>false,
+                'message'=>$e->getMessage()
+            ],500);
+
+        }
+
     }
+
+
+
+    /**
+     * پردازش متن توسط AI
+     */
+    public function processText(Request $request)
+    {
+
+        $request->validate([
+            'text'=>'required|string'
+        ]);
+
+
+
+        $result = $this->aiProcesses(
+            $request->text
+        );
+
+
+        if(!$result){
+
+            return response()->json([
+                'success'=>false,
+                'message'=>'خطا در پردازش هوش مصنوعی'
+            ],500);
+
+        }
+
+
+        return response()->json([
+
+            'success'=>true,
+
+            'data'=>$result
+
+        ]);
+
+    }
+
+
 
     private function convert_to_text(string $url): array
     {
-//        try {
-//            $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-//                'token' => env('EBOO_OCR_TOKEN'),
-//                'command' => 'addfile',
-//                'filelink' => $url,
-//            ]);
-//            $ocrdata = json_decode($ocrResponse->body());
-//
-//            if (!isset($ocrdata->FileToken)) {
-//                return [false,'فایل توکن ایجاد نشد'];
-//            } else {
-//                $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-//                    'token' => env('EBOO_OCR_TOKEN'),
-//                    'command' => 'convert',
-//                    'output' => 'txtraw',
-//                    'filetoken' => $ocrdata->FileToken,
-//                    'method' => 4,
-//                ]);
-//                $ocrText = $ocrResponse2->body();
-//                return [true,$ocrText];
-//            }
-//        }catch (Exception $e){
-//            return [false,$e->getMessage()];
-//        }
 
-        return [true,'نامه به میر فنرسکیان برای وام گرفتن برای فلانی'];
+        try {
+
+
+            $ocrResponse = Http::timeout(30)
+                ->asForm()
+                ->post(
+                    'https://www.eboo.ir/api/ocr/getway',
+                    [
+                        'token'=>env('EBOO_OCR_TOKEN'),
+                        'command'=>'addfile',
+                        'filelink'=>$url,
+                    ]
+                );
+
+
+            $ocrdata = json_decode(
+                $ocrResponse->body()
+            );
+
+
+            if(!isset($ocrdata->FileToken)){
+
+                return [
+                    false,
+                    'فایل توکن ایجاد نشد'
+                ];
+
+            }
+
+
+
+            $ocrResponse2 = Http::timeout(60)
+                ->asForm()
+                ->post(
+                    'https://www.eboo.ir/api/ocr/getway',
+                    [
+                        'token'=>env('EBOO_OCR_TOKEN'),
+                        'command'=>'convert',
+                        'output'=>'txtraw',
+                        'filetoken'=>$ocrdata->FileToken,
+                        'method'=>4,
+                    ]
+                );
+
+
+            return [
+                true,
+                $ocrResponse2->body()
+            ];
+
+
+        }catch(Exception $e){
+
+            return [
+                false,
+                $e->getMessage()
+            ];
+
+        }
+
     }
+
+
 
     private function aiProcesses(string $text): ?array
     {
+
         try {
 
             $response = Http::timeout(60)
@@ -146,36 +257,32 @@ TEXT
                 ]);
 
 
-            if (!$response->successful()) {
 
-                Log::error('AI Error', [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
+            if(!$response->successful()){
+
+                Log::error(
+                    $response->body()
+                );
 
                 return null;
+
             }
 
 
-            $content = $response->json('choices.0.message.content');
+            return json_decode(
+                $response->json('choices.0.message.content'),
+                true
+            );
 
 
-            if (!$content) {
-                return null;
-            }
+        }catch(Exception $e){
 
-
-            // تبدیل خروجی AI به آرایه PHP
-            return json_decode($content, true);
-
-
-        } catch (\Throwable $e) {
-
-            Log::error('AI Exception', [
-                'message' => $e->getMessage()
-            ]);
+            Log::error($e->getMessage());
 
             return null;
+
         }
+
     }
+
 }

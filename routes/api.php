@@ -38,7 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/temp-file/upload', [\App\Services\TempFileService::class, 'upload']);
     Route::post('/minute_ps', [\App\Http\Controllers\MinuteTextPS::class, 'upload']);
-
+    Route::post('/minute_ps_text', [\App\Http\Controllers\MinuteTextPS::class, 'processText']);
 
     Route::get('/appendix-other-show/{path}', function ($path) {
         if (!Storage::disk('private_appendix_other')->exists($path)) {
