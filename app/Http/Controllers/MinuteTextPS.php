@@ -137,7 +137,7 @@ class MinuteTextPS extends Controller
         try {
 
 
-            $ocrResponse = Http::timeout(30)
+            $ocrResponse = Http::timeout(60)
                 ->asForm()
                 ->post(
                     'https://www.eboo.ir/api/ocr/getway',
