@@ -110,6 +110,6 @@ EOT
             ],
         ]);
 
-return $aiResponse->body();
+return $aiResponse->json('choices.0.message.content');
     }
 }
