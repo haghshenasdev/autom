@@ -40,8 +40,8 @@ class MinuteTextPS extends Controller
             $extension
         );
         $text = $this->convert_to_text(url('/temp-files/' . $filename));
-        if ($text){
-            $data = $this->aiProcesses($text);
+        if ($text[0]){
+            $data = $this->aiProcesses($text[1]);
 
             return response()->json([
                 'success' => false,
@@ -50,12 +50,12 @@ class MinuteTextPS extends Controller
         }else{
             return response()->json([
                 'success' => false,
-                'message' => "تبدیل فایل به متن انجام نشد",
+                'message' => "تبدیل فایل به متن انجام نشد" . $text[1],
             ],401);
         }
     }
 
-    private function convert_to_text(string $url): bool|string
+    private function convert_to_text(string $url): array
     {
         try {
             $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
@@ -66,7 +66,7 @@ class MinuteTextPS extends Controller
             $ocrdata = json_decode($ocrResponse->body());
 
             if (!isset($ocrdata->FileToken)) {
-                return false;
+                return [false,'فایل توکن ایجاد نشد'];
             } else {
                 $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                     'token' => env('EBOO_OCR_TOKEN'),
@@ -76,10 +76,10 @@ class MinuteTextPS extends Controller
                     'method' => 4,
                 ]);
                 $ocrText = $ocrResponse2->body();
-                return $ocrText;
+                return [true,$ocrText];
             }
         }catch (Exception $e){
-            return false;
+            return [false,$e->getMessage()];
         }
     }
 
