@@ -46,7 +46,7 @@ class MinuteTextPS extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => json_encode($data),
+                'data' => json_decode($data),
             ]);
         }else{
             return response()->json([
