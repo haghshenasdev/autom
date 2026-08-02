@@ -39,7 +39,7 @@ class MinuteTextPS extends Controller
             $content,
             $extension
         );
-        $text = $this->convert_to_text(url('/temp-files/' . $filename));
+        $text = $this->convert_to_text(url('/temp-download/' . $filename));
         if ($text[0]){
             $data = $this->aiProcesses($text[1]);
 
@@ -51,7 +51,7 @@ class MinuteTextPS extends Controller
             return response()->json([
                 'success' => false,
                 'message' => "تبدیل فایل به متن انجام نشد" . $text[1],
-                'temp_url' => url('/temp-files/' . $filename),
+                'temp_url' => url('/temp-download/' . $filename),
             ],401);
         }
     }
