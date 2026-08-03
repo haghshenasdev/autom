@@ -24,7 +24,7 @@ class CreateMinutesRequest extends FormRequest
         return [
             'title' => 'required|string',
             'text' => 'nullable|string',
-            'file' => 'required|string',
+            'file' => 'nullable|string',
             'date' => 'required',
             'task_id' => 'nullable',
             'organ_ids' => [
