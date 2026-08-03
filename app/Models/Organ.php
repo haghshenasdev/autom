@@ -8,10 +8,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Rupadana\ApiService\Contracts\HasAllowedFilters;
+use Rupadana\ApiService\Contracts\HasAllowedSorts;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\QueryBuilder\AllowedFilter;
+use Illuminate\Database\Eloquent\Builder;
 
-class Organ extends Model
+
+class Organ extends Model implements HasAllowedSorts,HasAllowedFilters
 {
     use HasFactory,LogsActivity;
 
@@ -79,5 +84,47 @@ class Organ extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults();
+    }
+
+    public static function getAllowedSorts(): array
+    {
+        return [
+            'id',
+            'subject',
+            'status',
+            'kind',
+            'created_at',
+            'updated_at',
+        ];
+    }
+
+    public static function getAllowedFilters(): array
+    {
+        return [
+            'id',
+            'subject',
+            'description',
+            'status',
+            'kind',
+            'created_at',
+            'updated_at',
+            AllowedFilter::callback(
+                'search',
+                function (Builder $query, $value) {
+
+                    $query->where(function ($q) use ($value) {
+
+                        if (is_numeric($value)) {
+                            $q->orWhere('id', $value);
+                        }
+
+                        $q->orWhere('subject', 'LIKE', "%{$value}%")
+                            ->orWhere('description', 'LIKE', "%{$value}%");
+
+                    });
+
+                }
+            ),
+        ];
     }
 }
