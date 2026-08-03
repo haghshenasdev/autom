@@ -29,25 +29,28 @@ class CreateHandler extends Handlers {
     {
         $model = new (static::getModel());
 
+
+        $data = $request->validated();
+
+
         /*
         |--------------------------------------------------------------------------
-        | مقداردهی اطلاعات اصلی
+        | کاربر جاری به عنوان نویسنده
         |--------------------------------------------------------------------------
         */
 
-        $data = $request->all();
-
-        // کاربر لاگین شده به عنوان نویسنده
         $data['typer_id'] = auth()->id();
 
+
         $model->fill($data);
+
 
         $model->save();
 
 
         /*
         |--------------------------------------------------------------------------
-        | ذخیره امضا کنندگان
+        | امضا کنندگان
         |--------------------------------------------------------------------------
         */
 
@@ -62,13 +65,30 @@ class CreateHandler extends Handlers {
 
         /*
         |--------------------------------------------------------------------------
-        | ذخیره فایل
+        | دسته بندی
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->has('group_ids')) {
+
+            $model->group()->sync(
+                $request->input('group_ids', [])
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | فایل
         |--------------------------------------------------------------------------
         */
 
         if ($request->hasFile('upload_file')) {
 
+
             $file = $request->file('upload_file');
+
 
             $extension = $file->getClientOriginalExtension();
 
@@ -78,19 +98,20 @@ class CreateHandler extends Handlers {
 
             $file->storeAs(
                 $path,
-                $model->id . '.' . $extension,
+                $model->id.'.'.$extension,
                 'private_appendix_other'
             );
 
 
             $model->file = $extension;
 
+
             $model->saveQuietly();
         }
 
 
         return static::sendSuccessResponse(
-            $model,
+            $model->fresh(),
             "Successfully Create Resource"
         );
     }
