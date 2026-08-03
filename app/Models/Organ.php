@@ -90,11 +90,8 @@ class Organ extends Model implements HasAllowedSorts,HasAllowedFilters
     {
         return [
             'id',
-            'subject',
-            'status',
-            'kind',
-            'created_at',
-            'updated_at',
+            'name',
+            'organ_type_id',
         ];
     }
 
@@ -102,12 +99,9 @@ class Organ extends Model implements HasAllowedSorts,HasAllowedFilters
     {
         return [
             'id',
-            'subject',
+            'name',
+            'organ_type_id',
             'description',
-            'status',
-            'kind',
-            'created_at',
-            'updated_at',
             AllowedFilter::callback(
                 'search',
                 function (Builder $query, $value) {
@@ -118,7 +112,7 @@ class Organ extends Model implements HasAllowedSorts,HasAllowedFilters
                             $q->orWhere('id', $value);
                         }
 
-                        $q->orWhere('subject', 'LIKE', "%{$value}%")
+                        $q->orWhere('name', 'LIKE', "%{$value}%")
                             ->orWhere('description', 'LIKE', "%{$value}%");
 
                     });
