@@ -101,7 +101,6 @@ class Organ extends Model implements HasAllowedSorts,HasAllowedFilters
             'id',
             'name',
             'organ_type_id',
-            'description',
             AllowedFilter::callback(
                 'search',
                 function (Builder $query, $value) {
@@ -112,8 +111,7 @@ class Organ extends Model implements HasAllowedSorts,HasAllowedFilters
                             $q->orWhere('id', $value);
                         }
 
-                        $q->orWhere('name', 'LIKE', "%{$value}%")
-                            ->orWhere('description', 'LIKE', "%{$value}%");
+                        $q->orWhere('name', 'LIKE', "%{$value}%");
 
                     });
 
