@@ -22,12 +22,25 @@ class CreateMinutesRequest extends FormRequest
     public function rules(): array
     {
         return [
-			'title' => 'required|string',
-			'text' => 'required|string',
-			'file' => 'required|string',
-			'date' => 'required',
-			'typer_id' => 'required',
-			'task_id' => 'required'
+            'title' => 'required|string',
+            'text' => 'nullable|string',
+            'file' => 'required|string',
+            'date' => 'required',
+            'task_id' => 'nullable',
+            'organ_ids' => [
+                'nullable',
+                'array',
+            ],
+
+            'organ_ids.*' => [
+                'integer',
+                'exists:organs,id',
+            ],
+            'upload_file' => [
+                'nullable',
+                'file',
+                'max:20480'
+            ],
 		];
     }
 }

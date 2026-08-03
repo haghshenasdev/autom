@@ -29,10 +29,69 @@ class CreateHandler extends Handlers {
     {
         $model = new (static::getModel());
 
-        $model->fill($request->all());
+        /*
+        |--------------------------------------------------------------------------
+        | مقداردهی اطلاعات اصلی
+        |--------------------------------------------------------------------------
+        */
+
+        $data = $request->all();
+
+        // کاربر لاگین شده به عنوان نویسنده
+        $data['typer_id'] = auth()->id();
+
+        $model->fill($data);
 
         $model->save();
 
-        return static::sendSuccessResponse($model, "Successfully Create Resource");
+
+        /*
+        |--------------------------------------------------------------------------
+        | ذخیره امضا کنندگان
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->has('organ_ids')) {
+
+            $model->organ()->sync(
+                $request->input('organ_ids', [])
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ذخیره فایل
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->hasFile('upload_file')) {
+
+            $file = $request->file('upload_file');
+
+            $extension = $file->getClientOriginalExtension();
+
+
+            $path = 'minutes/'.$model->id;
+
+
+            $file->storeAs(
+                $path,
+                $model->id . '.' . $extension,
+                'private_appendix_other'
+            );
+
+
+            $model->file = $extension;
+
+            $model->saveQuietly();
+        }
+
+
+        return static::sendSuccessResponse(
+            $model,
+            "Successfully Create Resource"
+        );
     }
 }
