@@ -28,7 +28,15 @@ class UpdateMinutesRequest extends FormRequest
 			'date' => 'required',
 			'typer_id' => 'required',
             'task_id' => 'nullable',
-            'organ_ids' => 'nullable',
+            'organ_ids' => [
+                'nullable',
+                'array',
+            ],
+
+            'organ_ids.*' => [
+                'integer',
+                'exists:organs,id',
+            ],
             'upload_file' => [
                 'nullable',
                 'file',
