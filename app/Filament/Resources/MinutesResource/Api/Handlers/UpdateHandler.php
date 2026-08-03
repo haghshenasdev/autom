@@ -43,8 +43,12 @@ class UpdateHandler extends Handlers {
       |--------------------------------------------------------------------------
       */
 
-        if ($request->input('organ_ids') != null) {
-            $model->organ->attach($request->input('organ_ids'));
+        if ($request->has('organ_ids')) {
+
+            $model->organ()->sync(
+                $request->input('organ_ids', [])
+            );
+
         }
         if ($request->hasFile('upload_file')) {
 
