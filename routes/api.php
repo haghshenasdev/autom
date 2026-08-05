@@ -1,5 +1,6 @@
 <?php
 
+use App\Helpers\FileHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -48,7 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
         $content = Storage::disk('private_appendix_other')->get($path);
 
         return response($content, 200)
-            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 
@@ -60,7 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         $content = Storage::disk('private')->get($path);
 
         return response($content, 200)
-            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 });
