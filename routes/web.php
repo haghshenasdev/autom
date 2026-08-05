@@ -17,13 +17,6 @@ use Illuminate\Support\Facades\Storage;
 |
 */
 
-
- Route::get('/clear-all-cache', function () {
-     Artisan::call('optimize:clear');
-
-     return nl2br(Artisan::output());
- });
-
 Route::get('/optimize-app', function () {
 
     $commands = [
@@ -43,6 +36,12 @@ Route::get('/optimize-app', function () {
 
     return response("<pre>" . implode("\n", $output) . "</pre>");
 });
+
+ Route::get('/clear-all-cache', function () {
+     Artisan::call('optimize:clear');
+
+     return nl2br(Artisan::output());
+ });
 
 Route::get('/', function () {
     return redirect('admin');
