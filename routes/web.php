@@ -1,5 +1,6 @@
 <?php
 
+use App\Helpers\FileHelper;
 use App\Services\AiKeywordClassifier;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -83,7 +84,7 @@ Route::middleware('auth')->group(function () {
         $content = Storage::disk('private')->get($path);
 
         return response($content, 200)
-            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 
@@ -95,7 +96,7 @@ Route::middleware('auth')->group(function () {
         $content = Storage::disk('private2')->get($path);
 
         return response($content, 200)
-            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 
@@ -107,7 +108,7 @@ Route::middleware('auth')->group(function () {
         $content = Storage::disk('profile-photos')->get($path);
 
         return response($content, 200)
-            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 
@@ -119,7 +120,7 @@ Route::middleware('auth')->group(function () {
         $content = Storage::disk('private2')->get($path);
 
         return response($content, 200)
-            ->header('Content-Type', getMimeTypeFromExtension($path));
+            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path));
     })->where('path', '.*');
 
     Route::get('/appendix-other-show/{path}', function ($path) {
@@ -130,37 +131,9 @@ Route::middleware('auth')->group(function () {
         $content = Storage::disk('private_appendix_other')->get($path);
 
         return response($content, 200)
-            ->header('Content-Type', getMimeTypeFromExtension($path))
+            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
-
-    function getMimeTypeFromExtension($filename): string
-    {
-        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-        $mimeTypes = [
-            'jpg'  => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png'  => 'image/png',
-            'gif'  => 'image/gif',
-            'bmp'  => 'image/bmp',
-            'webp' => 'image/webp',
-            'pdf'  => 'application/pdf',
-            'txt'  => 'text/plain',
-            'csv'  => 'text/csv',
-            'doc'  => 'application/msword',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls'  => 'application/vnd.ms-excel',
-            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'mp3'  => 'audio/mpeg',
-            'mp4'  => 'video/mp4',
-            'zip'  => 'application/zip',
-            'rar'  => 'application/vnd.rar',
-            // می‌تونی پسوندهای بیشتری اضافه کنی
-        ];
-
-        return $mimeTypes[$extension] ?? 'application/octet-stream';
-    }
 });
 Route::get('/login',function (){
     return redirect('admin');
