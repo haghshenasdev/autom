@@ -19,22 +19,10 @@ use Illuminate\Support\Facades\Storage;
 
 Route::get('/optimize-app', function () {
 
-    $commands = [
-        'config:cache',
-        'route:cache',
-        'view:cache',
-        'event:cache',
-    ];
+    Artisan::call('optimize:clear');
+    Artisan::call('optimize');
 
-    $output = [];
-
-    foreach ($commands as $command) {
-        Artisan::call($command);
-        $output[] = "===== {$command} =====";
-        $output[] = Artisan::output();
-    }
-
-    return response("<pre>" . implode("\n", $output) . "</pre>");
+    return '<pre>' . Artisan::output() . '</pre>';
 });
 
  Route::get('/clear-all-cache', function () {
