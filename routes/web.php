@@ -18,11 +18,31 @@ use Illuminate\Support\Facades\Storage;
 */
 
 
-// Route::get('/clear-all-cache', function () {
-//     Artisan::call('optimize:clear');
+ Route::get('/clear-all-cache', function () {
+     Artisan::call('optimize:clear');
 
-//     return nl2br(Artisan::output());
-// });
+     return nl2br(Artisan::output());
+ });
+
+Route::get('/optimize-app', function () {
+
+    $commands = [
+        'config:cache',
+        'route:cache',
+        'view:cache',
+        'event:cache',
+    ];
+
+    $output = [];
+
+    foreach ($commands as $command) {
+        Artisan::call($command);
+        $output[] = "===== {$command} =====";
+        $output[] = Artisan::output();
+    }
+
+    return response("<pre>" . implode("\n", $output) . "</pre>");
+});
 
 Route::get('/', function () {
     return redirect('admin');
