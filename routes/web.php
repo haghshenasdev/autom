@@ -32,6 +32,12 @@ Route::get('/optimize-app', function () {
      return nl2br(Artisan::output());
  });
 
+Route::get('/rl', function () {
+    Artisan::call('route:list');
+
+    return nl2br(Artisan::output());
+});
+
 Route::get('/', function () {
     return redirect('admin');
 });
