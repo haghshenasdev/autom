@@ -23,15 +23,15 @@ class CreateLetterRequest extends FormRequest
     {
         return [
             'subject' => 'required|string',
-            'description' => 'string',
-            'summary' => 'string',
-            'file' => 'string',
-            'mokatebe' => 'string',
+            'description' => 'nullable|string',
+            'summary' => 'nullable|string',
+            'file' => 'nullable|string',
+            'mokatebe' => 'nullable|string',
             'kind' => 'required',
             'type_id' => 'nullable',
             'status' => 'nullable|integer',
             'organ_id' => 'nullable',
-            'daftar_id' => 'required|integer',
+            'daftar_id' => 'nullable|integer',
             'peiroow_letter_id' => 'nullable|integer'
         ];
     }
