@@ -33,7 +33,10 @@ Route::get('/optimize-app', function () {
  });
 
 Route::get('/rl', function () {
-    Artisan::call('route:list');
+//    Artisan::call('config:cache');
+    Artisan::call('route:cache');
+    Artisan::call('view:cache');
+    Artisan::call('event:cache');
 
     return nl2br(Artisan::output());
 });
