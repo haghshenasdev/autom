@@ -30,7 +30,7 @@ class CreateLetterRequest extends FormRequest
             'kind' => 'required',
             'type_id' => 'nullable',
             'status' => 'nullable|integer',
-            'organ_id' => 'nullable',
+            'organ_id' => 'nullable|integer',
             'daftar_id' => 'nullable|integer',
             'peiroow_letter_id' => 'nullable|integer'
         ];
