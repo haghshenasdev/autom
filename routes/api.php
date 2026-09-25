@@ -1,67 +1,36 @@
 <?php
 
-use App\Helpers\FileHelper;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MobileApiController;
 
-use App\Http\Controllers\Api\ProfileController;
-use Illuminate\Support\Facades\Storage;
-
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
-
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::prefix('auth')->group(function () {
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:api');
 });
 
-
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('me', [AuthController::class, 'me']);
+    Route::post('logout', [AuthController::class, 'logout']);
+    Route::post('password', [AuthController::class, 'password']);
 
-    Route::get('/me', [ProfileController::class, 'me']);
+    Route::prefix('mobile/v1')->group(function () {
+        Route::get('permissions', [MobileApiController::class, 'permissions']);
 
-    Route::get(
-        '/me/avatar',
-        [ProfileController::class, 'avatar']
-    );
+        Route::get('cartable', [MobileApiController::class, 'cartable']);
+        Route::patch('cartable/{id}', [MobileApiController::class, 'cartableUpdate']);
 
-    Route::get(
-        '/get_avatar/{filename}',
-        [ProfileController::class, 'get_avatar']
-    );
+        Route::get('referrals', [MobileApiController::class, 'referralIndex']);
+        Route::post('referrals', [MobileApiController::class, 'referralStore']);
+        Route::patch('referrals/{id}', [MobileApiController::class, 'referralUpdate']);
 
-    Route::post('/temp-file/upload', [\App\Services\TempFileService::class, 'upload']);
-    Route::post('/minute_ps', [\App\Http\Controllers\MinuteTextPS::class, 'upload']);
-    Route::post('/minute_ps_text', [\App\Http\Controllers\MinuteTextPS::class, 'processText']);
+        Route::get('letters/{id}/timeline', [MobileApiController::class, 'timeline']);
 
-    Route::get('/appendix-other-show/{path}', function ($path) {
-        if (!Storage::disk('private_appendix_other')->exists($path)) {
-            abort(404);
-        }
+        Route::get('{resource}/reference', [MobileApiController::class, 'reference']);
 
-        $content = Storage::disk('private_appendix_other')->get($path);
-
-        return response($content, 200)
-            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
-            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
-    })->where('path', '.*');
-
-    Route::get('/private-show/{path}', function ($path) {
-        if (!Storage::disk('private')->exists($path)) {
-            abort(404);
-        }
-
-        $content = Storage::disk('private')->get($path);
-
-        return response($content, 200)
-            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
-            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
-    })->where('path', '.*');
+        Route::get('{resource}', [MobileApiController::class, 'index']);
+        Route::post('{resource}', [MobileApiController::class, 'store']);
+        Route::get('{resource}/{id}', [MobileApiController::class, 'show']);
+        Route::match(['put','patch','post'], '{resource}/{id}', [MobileApiController::class, 'update']);
+        Route::delete('{resource}/{id}', [MobileApiController::class, 'destroy']);
+    });
 });
