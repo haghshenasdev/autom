@@ -48,6 +48,7 @@ use App\Models\Titleholder;
 use App\Models\Type;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -532,6 +533,43 @@ class MobileApiController extends Controller
 
     private function applyQuery($query, string $model, Request $request)
     {
+        // فیلترهای مخصوص کارپوشه موبایل برای فعالیت‌های مسئول کاربر.
+        // شناسه کاربر از سرور گرفته می‌شود و Flutter لازم نیست ID کاربر را ارسال کند.
+        if ($model === Task::class && $request->boolean('mine')) {
+            $query->where('Responsible_id', $request->user()->id);
+        }
+
+        if ($model === Task::class && $request->filled('due')) {
+            $due = (string) $request->query('due');
+
+            if ($due === 'overdue') {
+                $query->whereNotNull('ended_at')
+                    ->where('ended_at', '<', Carbon::now())
+                    ->where(function ($q) {
+                        $q->whereNull('completed')->orWhere('completed', '!=', 1);
+                    });
+            } elseif ($due === 'today') {
+                $query->whereNotNull('ended_at')
+                    ->whereDate('ended_at', Carbon::today())
+                    ->where(function ($q) {
+                        $q->whereNull('completed')->orWhere('completed', '!=', 1);
+                    });
+            } elseif ($due === 'upcoming') {
+                $query->whereNotNull('ended_at')
+                    ->where('ended_at', '>', Carbon::now())
+                    ->where(function ($q) {
+                        $q->whereNull('completed')->orWhere('completed', '!=', 1);
+                    });
+            } elseif ($due === 'completed') {
+                $query->where('completed', 1);
+            } elseif ($due === 'without_deadline') {
+                $query->whereNull('ended_at')
+                    ->where(function ($q) {
+                        $q->whereNull('completed')->orWhere('completed', '!=', 1);
+                    });
+            }
+        }
+
         $search = trim((string)$request->query('search', $request->input('filter.search', '')));
         if ($search !== '') {
             $query->where(function($q) use ($search, $model) {
