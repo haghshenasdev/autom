@@ -151,6 +151,13 @@ class MobileApiController extends Controller
 
         $item->load($this->safeIncludes($model, $this->defaultIncludes($resource)));
 
+        if ($item instanceof Project) {
+            $item->load([
+                'letters',
+                'tasks.minutes',
+            ]);
+        }
+
         return response()->json(['data' => $this->transform($item, $resource)]);
     }
 
@@ -202,11 +209,135 @@ class MobileApiController extends Controller
 
     public function timeline(Request $request, int $id)
     {
-        $letter = LetterResource::getEloquentQuery()->with(['Answer','referrals.by_users','referrals.users','activities.causer','user'])->findOrFail($id);
+        $letter = LetterResource::getEloquentQuery()
+            ->with(['Answer', 'referrals.by_users', 'referrals.users', 'referrals.activities.causer', 'activities.causer', 'user'])
+            ->findOrFail($id);
+
         $this->ensurePermission($request->user(), 'view_letter', $letter);
 
         return response()->json([
             'data' => collect($letter->timeline())->values(),
+        ]);
+    }
+
+    public function files(Request $request, string $resource, int $id)
+    {
+        $allowed = ['letters', 'minutes', 'tasks'];
+        abort_unless(in_array($resource, $allowed, true), 404);
+
+        if ($resource === 'letters') {
+            $item = LetterResource::getEloquentQuery()->findOrFail($id);
+            $this->ensurePermission($request->user(), 'view_letter', $item);
+            $files = [];
+
+            if ($item->file) {
+                $files[] = [
+                    'id' => 'main',
+                    'title' => 'فایل اصلی نامه',
+                    'extension' => strtolower((string)$item->file),
+                    'url' => url("/api/mobile/v1/files/letters/{$id}/main"),
+                ];
+            }
+
+            foreach ($item->Appendix as $appendix) {
+                if (!$appendix->file) continue;
+                $files[] = [
+                    'id' => (string)$appendix->id,
+                    'title' => $appendix->title ?: 'پیوست',
+                    'extension' => strtolower((string)$appendix->file),
+                    'url' => url("/api/mobile/v1/files/letters/{$id}/appendix-{$appendix->id}"),
+                ];
+            }
+
+            return response()->json(['data' => $files]);
+        }
+
+        if ($resource === 'minutes') {
+            $item = MinutesResource::getEloquentQuery()->with('appendix_others')->findOrFail($id);
+            $this->ensurePermission($request->user(), 'view_minutes', $item);
+            return response()->json(['data' => $this->appendixFiles($item, 'minutes', $id)]);
+        }
+
+        $item = TaskResource::getEloquentQuery()->with('appendix_others')->findOrFail($id);
+        $this->ensurePermission($request->user(), 'view_task', $item);
+        return response()->json(['data' => $this->appendixFiles($item, 'tasks', $id)]);
+    }
+
+    public function file(Request $request, string $resource, int $id, string $fileKey)
+    {
+        abort_unless(in_array($resource, ['letters', 'minutes', 'tasks'], true), 404);
+
+        if ($resource === 'letters') {
+            $item = LetterResource::getEloquentQuery()->findOrFail($id);
+            $this->ensurePermission($request->user(), 'view_letter', $item);
+
+            if ($fileKey === 'main' && $item->file) {
+                return $this->binaryFromDisk('private', $item->getFilePath());
+            }
+
+            if (str_starts_with($fileKey, 'appendix-')) {
+                $appendixId = (int) str_replace('appendix-', '', $fileKey);
+                $appendix = $item->Appendix()->findOrFail($appendixId);
+                $this->ensurePermission($request->user(), 'view_letter', $item);
+                return $this->binaryFromDisk('private', $appendix->getFilePath());
+            }
+
+            abort(404);
+        }
+
+        $model = $resource === 'minutes'
+            ? MinutesResource::getEloquentQuery()->with('appendix_others')->findOrFail($id)
+            : TaskResource::getEloquentQuery()->with('appendix_others')->findOrFail($id);
+
+        $this->ensurePermission($request->user(), "view_" . ($resource === 'minutes' ? 'minutes' : 'task'), $model);
+
+        if ($fileKey === 'main' && $model->file) {
+            $disk = $resource === 'minutes' ? 'private_appendix_other' : 'private';
+            return $this->binaryFromDisk($disk, $model->getFilePath());
+        }
+
+        if (str_starts_with($fileKey, 'appendix-')) {
+            $appendixId = (int) str_replace('appendix-', '', $fileKey);
+            $appendix = $model->appendix_others()->findOrFail($appendixId);
+            return $this->binaryFromDisk('private', $appendix->getFilePath());
+        }
+
+        abort(404);
+    }
+
+    private function appendixFiles(Model $item, string $resource, int $id): array
+    {
+        $files = [];
+
+        if ($item->file && method_exists($item, 'getFilePath')) {
+            $files[] = [
+                'id' => 'main',
+                'title' => 'فایل اصلی',
+                'extension' => strtolower((string)$item->file),
+                'url' => url("/api/mobile/v1/files/{$resource}/{$id}/main"),
+            ];
+        }
+
+        foreach (($item->appendix_others ?? collect()) as $appendix) {
+            if (!$appendix->file) continue;
+            $files[] = [
+                'id' => (string)$appendix->id,
+                'title' => $appendix->title ?: 'پیوست',
+                'extension' => strtolower((string)$appendix->file),
+                'url' => url("/api/mobile/v1/files/{$resource}/{$id}/appendix-{$appendix->id}"),
+            ];
+        }
+
+        return $files;
+    }
+
+    private function binaryFromDisk(string $disk, ?string $path)
+    {
+        abort_if(!$path || !Storage::disk($disk)->exists($path), 404);
+        return response(Storage::disk($disk)->get($path), 200, [
+            'Content-Type' => Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream',
+            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
+            'Cache-Control' => 'private, max-age=3600',
         ]);
     }
 
@@ -393,7 +524,7 @@ class MobileApiController extends Controller
             'letters' => ['user','type','organ','daftar','customers','organs_owner','users','projects'],
             'minutes' => ['typer','task_creator','organ','group'],
             'tasks' => ['creator','responsible','organ','city','minutes','project','task_group','appendix_others'],
-            'projects' => ['user','organ','city','group'],
+            'projects' => ['user','organ','city','group','tasks','letters'],
             'referrals' => ['letter','users','by_users'],
             default => [],
         };
@@ -511,14 +642,47 @@ class MobileApiController extends Controller
 
         if ($item instanceof Letter) {
             $data['kind_title'] = Letter::getKindLabel($item->kind);
+            $data['files'] = $this->appendixFiles($item, 'letters', $item->id);
             $data['status_title'] = Letter::getStatusLabel($item->status);
             $data['cartables'] = $item->relationLoaded('users') ? $item->users->map(fn($u)=>['id'=>$u->id,'name'=>$u->name,'avatar_url'=>$u->avatar_url])->values() : [];
         } elseif ($item instanceof Task) {
             $data['status_title'] = Task::getStatusLabel($item->status);
-            $data['status_color'] = Task::getStatusColor($item->status);
+            $data['files'] = $this->appendixFiles($item, 'tasks', $item->id);
+            $data['status_color'] = Task::getStatusColor(Task::getStatusLabel($item->status));
         } elseif ($item instanceof Project) {
             $data['status_title'] = Project::getStatusLabel($item->status);
-            $data['status_color'] = Project::getStatusColor($item->status);
+            $data['status_color'] = Project::getStatusColor(Project::getStatusLabel($item->status));
+
+            if ($item->relationLoaded('letters')) {
+                $data['related_letters'] = $item->letters->map(fn($letter) => [
+                    'id' => $letter->id,
+                    'subject' => $letter->subject,
+                    'description' => $letter->description,
+                    'file' => $letter->file,
+                    'created_at' => $letter->created_at,
+                ])->values();
+            } else {
+                $data['related_letters'] = [];
+            }
+
+            if ($item->relationLoaded('tasks')) {
+                $data['related_tasks'] = $item->tasks->map(fn($task) => [
+                    'id' => $task->id,
+                    'name' => $task->name,
+                    'description' => $task->description,
+                    'completed' => (bool)$task->completed,
+                    'progress' => $task->progress,
+                    'minutes' => $task->relationLoaded('minutes') && $task->minutes ? [
+                        'id' => $task->minutes->id,
+                        'title' => $task->minutes->title,
+                        'date' => $task->minutes->date,
+                    ] : null,
+                ])->values();
+            } else {
+                $data['related_tasks'] = [];
+            }
+        } elseif ($item instanceof Minutes) {
+            $data['files'] = $this->appendixFiles($item, 'minutes', $item->id);
         } elseif ($item instanceof User) {
             $data['avatar_url'] = $item->getFilamentAvatarUrl();
             $data['roles'] = $item->getRoleNames()->values();

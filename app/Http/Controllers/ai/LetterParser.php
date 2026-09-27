@@ -275,11 +275,39 @@ EOT],
             ],
         ]);
 
+        if (!$response->successful()) {
+            return [
+                'subject' => null,
+                'description' => $text,
+                'summary' => '',
+                'mokatebe' => null,
+                'kind' => 1,
+                'organ_id' => null,
+                'organ_owners' => [],
+                'customer_owners' => [],
+                'date' => null,
+            ];
+        }
+
         $content = $response->json('choices.0.message.content');
-        $content = str_replace(['```', 'json', '\n'], '', $content);
+        $content = is_string($content)
+            ? preg_replace('/^```(?:json)?|```$/u', '', trim($content))
+            : '';
 
         $dataLetter = json_decode($content, true);
-//                    dd($dataLetter,$content);
+        if (!is_array($dataLetter)) {
+            return [
+                'subject' => null,
+                'description' => $text,
+                'summary' => '',
+                'mokatebe' => null,
+                'kind' => 1,
+                'organ_id' => null,
+                'organ_owners' => [],
+                'customer_owners' => [],
+                'date' => null,
+            ];
+        }
 
         // --- پردازش ارگان ---
         $organId = null;
@@ -317,7 +345,7 @@ EOT],
         // پر کردن فرم زیرین
         return [
             'subject' => $dataLetter['title'] ?? null,
-            'created_at' => !empty($dataLetter['date']),
+            'date' => $dataLetter['date'] ?? null,
             'description' => $dataLetter['description'] ?? $text,
             'summary' => implode("\n", $dataLetter['refrals'] ?? []),
             'mokatebe' => $dataLetter['mokatebe'] ?? null,
@@ -353,7 +381,7 @@ EOT],
 
         // نگاشت کلیدها: title = subject ، title_date = created_at
         $result['title'] = $result['subject'] ?? null;
-        $result['title_date'] = $result['created_at'] ?? null;
+        $result['title_date'] = $result['date'] ?? ($result['title_date'] ?? null);
 
         return $result;
     }

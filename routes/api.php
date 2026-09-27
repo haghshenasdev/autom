@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileApiController;
+use App\Http\Controllers\Api\MobileAiController;
+use App\Http\Controllers\Api\ProfileController;
 
 Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:api');
@@ -12,9 +14,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('password', [AuthController::class, 'password']);
+    Route::get('profile', [ProfileController::class, 'me']);
+    Route::get('profile/avatar', [ProfileController::class, 'avatar']);
+    Route::get('get_avatar/{filename}', [ProfileController::class, 'get_avatar'])->where('filename', '.*');
 
     Route::prefix('mobile/v1')->group(function () {
         Route::get('permissions', [MobileApiController::class, 'permissions']);
+        Route::post('ai/minutes', [MobileAiController::class, 'minute']);
+        Route::post('ai/letters', [MobileAiController::class, 'letter']);
+
+        Route::get('files/{resource}/{id}', [MobileApiController::class, 'files']);
+        Route::get('files/{resource}/{id}/{fileKey}', [MobileApiController::class, 'file']);
 
         Route::get('cartable', [MobileApiController::class, 'cartable']);
         Route::patch('cartable/{id}', [MobileApiController::class, 'cartableUpdate']);

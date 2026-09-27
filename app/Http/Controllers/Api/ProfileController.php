@@ -23,7 +23,7 @@ class ProfileController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'avatar' => $user->avatar_url,
+                'avatar' => $user->avatar_url ? url('/api/mobile/v1/profile/avatar') : null,
             ],
         ]);
     }

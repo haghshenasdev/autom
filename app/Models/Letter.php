@@ -158,7 +158,7 @@ class Letter extends Model implements HasAllowedSorts,HasAllowedFilters
             $events->push([
                 'type' => 'referral',
                 'title' => 'ارجاع شد',
-                'description' => 'توسط ' . $referral->by_users->name . ' به ' . $referral->users->name . ' ارجاع شد ',
+                'description' => 'توسط ' . ($referral->by_users?->name ?? 'سیستم') . ' به ' . ($referral->users?->name ?? 'کاربر حذف‌شده') . ' ارجاع شد ',
                 'created_at' => $referral->created_at,
                 'icon' => 'heroicon-o-arrow-path',
                 'color' => 'warning',
@@ -183,7 +183,7 @@ class Letter extends Model implements HasAllowedSorts,HasAllowedFilters
 
                 $events->push([
                     'type' => 'referral_activity',
-                    'title' => 'تغییر وضعیت ارجاع' . ' به ' . ($referral->users->name ?? '---'),
+                    'title' => 'تغییر وضعیت ارجاع' . ' به ' . ($referral->users?->name ?? '---'),
                     'description' => $activity->description,
                     'created_at' => $activity->created_at,
                     'icon' => 'heroicon-o-adjustments-horizontal',
@@ -245,9 +245,9 @@ class Letter extends Model implements HasAllowedSorts,HasAllowedFilters
                 return $value == 1 ? 'بررسی شده' : 'بررسی نشده';
             case 'to_user_id':
             case 'by_user_id':
-                return User::query()->find($value)->name ?? $value;
+                return User::query()->find($value)?->name ?? $value;
             case 'organ_id':
-                return Organ::query()->find($value)->name ?? $value;
+                return Organ::query()->find($value)?->name ?? $value;
             default:
                 return $value;
         }
