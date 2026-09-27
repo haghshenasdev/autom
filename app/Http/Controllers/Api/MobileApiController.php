@@ -152,13 +152,6 @@ class MobileApiController extends Controller
 
         $item->load($this->safeIncludes($model, $this->defaultIncludes($resource)));
 
-        if ($item instanceof Project) {
-            $item->load([
-                'letters',
-                'tasks.minutes',
-            ]);
-        }
-
         return response()->json(['data' => $this->transform($item, $resource)]);
     }
 
@@ -280,7 +273,7 @@ class MobileApiController extends Controller
                 $appendixId = (int) str_replace('appendix-', '', $fileKey);
                 $appendix = $item->Appendix()->findOrFail($appendixId);
                 $this->ensurePermission($request->user(), 'view_letter', $item);
-                return $this->binaryFromDisk('private', $appendix->getFilePath());
+                return $this->binaryFromDisk('private_appendix_other', $appendix->getFilePath());
             }
 
             abort(404);
@@ -300,7 +293,7 @@ class MobileApiController extends Controller
         if (str_starts_with($fileKey, 'appendix-')) {
             $appendixId = (int) str_replace('appendix-', '', $fileKey);
             $appendix = $model->appendix_others()->findOrFail($appendixId);
-            return $this->binaryFromDisk('private', $appendix->getFilePath());
+            return $this->binaryFromDisk('private_appendix_other', $appendix->getFilePath());
         }
 
         abort(404);
@@ -325,11 +318,29 @@ class MobileApiController extends Controller
                 'id' => (string)$appendix->id,
                 'title' => $appendix->title ?: 'پیوست',
                 'extension' => strtolower((string)$appendix->file),
+                'mime' => $this->mimeFromExtension((string)$appendix->file),
                 'url' => url("/api/mobile/v1/files/{$resource}/{$id}/appendix-{$appendix->id}"),
             ];
         }
 
         return $files;
+    }
+
+    private function mimeFromExtension(string $extension): string
+    {
+        return match (strtolower(ltrim($extension, '.'))) {
+            'jpg','jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'txt' => 'text/plain',
+            default => 'application/octet-stream',
+        };
     }
 
     private function binaryFromDisk(string $disk, ?string $path)
@@ -479,8 +490,13 @@ class MobileApiController extends Controller
     public function reference(Request $request, string $resource)
     {
         [$model, $filamentResource, $permission] = $this->definition($resource);
-        if ($resource === 'users' && $request->user()->can('create_letter')) {
-            // Letter creators need the user picker used by Filament's cartable field.
+        if ($resource === 'users' && (
+            $request->user()->can('create_letter') ||
+            $request->user()->can('view_any_task') ||
+            $request->user()->can('view_any_minutes') ||
+            $request->user()->can('view_any_referral')
+        )) {
+            // Reference lists are limited to id/name and are used by mobile filters.
         } else {
             $this->ensurePermission($request->user(), "view_any_{$permission}");
         }
@@ -499,6 +515,372 @@ class MobileApiController extends Controller
             'data'=>$q->orderBy($labelField)->limit(min(max((int)$request->query('limit',30),1),100))
                 ->get()->map(fn($x)=>['id'=>$x->id,'name'=>$x->name ?? $x->subject ?? $x->title ?? ('#'.$x->id)])->values(),
         ]);
+    }
+
+
+    /**
+     * Paginated children of a project/order.
+     *
+     * type: letters | tasks | minutes | approves
+     */
+    public function projectChildren(Request $request, int $id)
+    {
+        $project = ProjectResource::getEloquentQuery()->findOrFail($id);
+        $this->ensurePermission($request->user(), 'view_project', $project);
+
+        $type = (string) $request->query('type', 'letters');
+        $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
+
+        if ($type === 'letters') {
+            $page = $project->letters()
+                ->with(['organ', 'projects'])
+                ->latest('letters.id')
+                ->paginate($perPage);
+
+            return $this->childrenResponse($page, fn ($letter) => [
+                'id' => $letter->id,
+                'title' => $letter->subject,
+                'description' => $letter->description,
+                'created_at' => $letter->created_at,
+                'file' => $letter->file,
+                'kind' => $letter->kind,
+                'organ' => $letter->organ ? ['id' => $letter->organ->id, 'name' => $letter->organ->name] : null,
+                'files' => $this->appendixFiles($letter, 'letters', $letter->id),
+            ]);
+        }
+
+        if ($type === 'tasks') {
+            $page = $project->tasks()
+                ->with(['responsible', 'city', 'minutes', 'appendix_others'])
+                ->latest('tasks.id')
+                ->paginate($perPage);
+
+            return $this->childrenResponse($page, fn ($task) => [
+                'id' => $task->id,
+                'title' => $task->name,
+                'description' => $task->description,
+                'created_at' => $task->created_at,
+                'started_at' => $task->started_at,
+                'ended_at' => $task->ended_at,
+                'completed_at' => $task->completed_at,
+                'completed' => (bool) $task->completed,
+                'progress' => $task->progress,
+                'status' => $task->status,
+                'status_title' => Task::getStatusLabel($task->status),
+                'responsible' => $task->responsible ? ['id' => $task->responsible->id, 'name' => $task->responsible->name] : null,
+                'city' => $task->city ? ['id' => $task->city->id, 'name' => $task->city->name] : null,
+                'minutes' => $task->minutes ? [
+                    'id' => $task->minutes->id,
+                    'title' => $task->minutes->title,
+                    'date' => $task->minutes->date,
+                ] : null,
+                'files' => $this->appendixFiles($task, 'tasks', $task->id),
+            ]);
+        }
+
+        if ($type === 'minutes') {
+            $page = Minutes::query()
+                ->whereHas('tasks', fn ($q) => $q->whereIn(
+                    'tasks.id',
+                    $project->tasks()->select('tasks.id')
+                ))
+                ->with(['typer', 'group', 'appendix_others'])
+                ->select('minutes.*')
+                ->distinct()
+                ->latest('minutes.id')
+                ->paginate($perPage);
+
+            return $this->childrenResponse($page, fn ($minute) => [
+                'id' => $minute->id,
+                'title' => $minute->title,
+                'text' => $minute->text,
+                'date' => $minute->date,
+                'typer' => $minute->typer ? ['id' => $minute->typer->id, 'name' => $minute->typer->name] : null,
+                'files' => $this->appendixFiles($minute, 'minutes', $minute->id),
+            ]);
+        }
+
+        if ($type === 'approves') {
+            $page = Approve::query()
+                ->whereHas('project', fn ($q) => $q->where('projects.id', $project->id))
+                ->latest('approves.id')
+                ->paginate($perPage);
+
+            return $this->childrenResponse($page, fn ($approve) => $approve->toArray());
+        }
+
+        abort(422, 'نوع زیرمجموعه دستورکار نامعتبر است.');
+    }
+
+    private function childrenResponse($page, callable $mapper)
+    {
+        return response()->json([
+            'data' => collect($page->items())->map($mapper)->values(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Dashboard-style statistics for one project/order.
+     * The calculations mirror the important Filament widgets.
+     */
+    public function projectReport(Request $request, int $id)
+    {
+        $project = ProjectResource::getEloquentQuery()->findOrFail($id);
+        $this->ensurePermission($request->user(), 'view_project', $project);
+
+        $tasks = $project->tasks();
+        $letters = $project->letters();
+
+        $totalTasks = (clone $tasks)->count();
+        $completedTasks = (clone $tasks)->where('completed', 1)->count();
+        $openTasks = max(0, $totalTasks - $completedTasks);
+
+        $onTime = 0;
+        $delayed = 0;
+        foreach ((clone $tasks)->whereNotNull('started_at')->whereNotNull('ended_at')->get(['started_at', 'ended_at']) as $task) {
+            $days = Carbon::parse($task->started_at)->diffInDays(Carbon::parse($task->ended_at));
+            $days <= 5 ? $onTime++ : $delayed++;
+        }
+
+        $byCity = (clone $tasks)->with('city')->get()->groupBy(fn ($t) => optional($t->city)->name ?: 'بدون شهر')
+            ->map(fn ($items) => [
+                'total' => $items->count(),
+                'completed' => $items->where('completed', 1)->count(),
+            ])->sortByDesc('total')->values();
+
+        $monthly = collect();
+        for ($i = 1; $i <= 12; $i++) {
+            $monthly->push([
+                'month' => $i,
+                'name' => ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'][$i - 1],
+                'count' => 0,
+                'completed' => 0,
+            ]);
+        }
+        foreach ((clone $tasks)->get(['created_at', 'completed']) as $task) {
+            if (!$task->created_at) continue;
+            $m = \Morilog\Jalali\Jalalian::fromDateTime($task->created_at)->getMonth();
+            $monthly[$m - 1]['count']++;
+            if ((bool) $task->completed) $monthly[$m - 1]['completed']++;
+        }
+
+        return response()->json([
+            'data' => [
+                'project' => [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'status' => $project->status,
+                    'status_title' => is_numeric($project->status) ? Project::getStatusLabel((int)$project->status) : 'بدون وضعیت',
+                ],
+                'stats' => [
+                    'tasks_total' => $totalTasks,
+                    'tasks_completed' => $completedTasks,
+                    'tasks_open' => $openTasks,
+                    'letters_total' => (clone $letters)->count(),
+                    'minutes_total' => Minutes::whereHas('tasks', fn ($q) => $q->whereIn('tasks.id', $project->tasks()->select('tasks.id')))->count(),
+                    'on_time' => $onTime,
+                    'delayed' => $delayed,
+                ],
+                'monthly_tasks' => $monthly->values(),
+                'cities' => $byCity,
+            ],
+        ]);
+    }
+
+    /**
+     * Material-friendly report API for the Flutter Reports page.
+     * resource: letters | minutes | tasks | projects
+     */
+    public function reports(Request $request, string $resource)
+    {
+        abort_unless(in_array($resource, ['letters','minutes','tasks','projects'], true), 404);
+
+        [$model, $filamentResource, $permission] = $this->definition($resource);
+        $this->ensurePermission($request->user(), "view_any_{$permission}");
+
+        $query = $filamentResource::getEloquentQuery();
+        $year = $request->query('year');
+        if ($year) {
+            try {
+                $start = \Morilog\Jalali\Jalalian::fromFormat('Y-m-d', "{$year}-01-01")->toCarbon()->startOfDay();
+                $end = \Morilog\Jalali\Jalalian::fromFormat('Y-m-d', "{$year}-12-29")->toCarbon()->endOfDay();
+                $query->whereBetween('created_at', [$start, $end]);
+            } catch (\Throwable $e) {
+                abort(422, 'سال شمسی نامعتبر است.');
+            }
+        }
+
+        $items = $query->get();
+
+        $status = $items->groupBy(fn ($x) => (string) ($x->status ?? 'none'))
+            ->map(fn ($v, $key) => [
+                'key' => $key,
+                'label' => $model === Task::class
+                    ? (is_numeric($key) ? Task::getStatusLabel((int)$key) : 'بدون وضعیت')
+                    : ($model === Letter::class
+                        ? (is_numeric($key) ? Letter::getStatusLabel((int)$key) : 'بدون وضعیت')
+                        : $key),
+                'count' => $v->count(),
+            ])->values();
+
+        $monthly = collect();
+        for ($i = 1; $i <= 12; $i++) {
+            $monthly->push([
+                'month' => $i,
+                'name' => ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'][$i - 1],
+                'count' => 0,
+            ]);
+        }
+        foreach ($items as $item) {
+            if (!$item->created_at) continue;
+            $m = \Morilog\Jalali\Jalalian::fromDateTime($item->created_at)->getMonth();
+            $monthly[$m - 1]['count']++;
+        }
+
+        $groups = collect();
+        $delay = ['on_time' => 0, 'delayed' => 0];
+        $cities = collect();
+        $gantt = collect();
+
+        if ($model === Task::class) {
+            foreach ($items as $task) {
+                if ($task->started_at && $task->ended_at) {
+                    $days = Carbon::parse($task->started_at)->diffInDays(Carbon::parse($task->ended_at));
+                    if ($days <= 5) $delay['on_time']++; else $delay['delayed']++;
+                }
+            }
+
+            $cityIds = $items->pluck('city_id')->filter()->unique()->values();
+            $cityNames = City::whereIn('id', $cityIds)->pluck('name', 'id');
+            $cities = $items->groupBy('city_id')->map(function ($rows, $cityId) use ($cityNames) {
+                if (!$cityId) return ['name'=>'بدون شهر','total'=>$rows->count(),'completed'=>$rows->where('completed',1)->count()];
+                return ['name'=>$cityNames[$cityId] ?? 'بدون شهر','total'=>$rows->count(),'completed'=>$rows->where('completed',1)->count()];
+            })->values();
+
+            $gantt = $items->filter(fn($t) => $t->started_at && $t->ended_at)
+                ->map(fn($t) => [
+                    'id'=>$t->id,'name'=>$t->name,
+                    'started_at'=>$t->started_at,'ended_at'=>$t->ended_at,
+                    'days'=>Carbon::parse($t->started_at)->diffInDays(Carbon::parse($t->ended_at)),
+                ])->values();
+
+            $groups = TaskGroup::query()->withCount(['tasks' => function ($q) use ($year) {
+                if ($year) {
+                    $start = \Morilog\Jalali\Jalalian::fromFormat('Y-m-d', "{$year}-01-01")->toCarbon()->startOfDay();
+                    $end = \Morilog\Jalali\Jalalian::fromFormat('Y-m-d', "{$year}-12-29")->toCarbon()->endOfDay();
+                    $q->whereBetween('tasks.created_at', [$start, $end]);
+                }
+            }])->get(['id','name'])->filter(fn ($g) => $g->tasks_count > 0)
+              ->map(fn ($g) => ['id'=>$g->id,'name'=>$g->name,'count'=>$g->tasks_count])->values();
+        }
+
+        return response()->json([
+            'data' => [
+                'resource' => $resource,
+                'year' => $year ? (int) $year : null,
+                'total' => $items->count(),
+                'completed' => $model === Task::class ? $items->where('completed', 1)->count() : null,
+                'status' => $status,
+                'monthly' => $monthly,
+                'groups' => $groups,
+                'delay' => $delay,
+                'cities' => $cities,
+                'gantt' => $gantt,
+            ],
+        ]);
+    }
+
+    /**
+     * Jalali activity calendar.
+     */
+    public function calendar(Request $request)
+    {
+        $this->ensurePermission($request->user(), 'view_any_task');
+
+        $year = (int) ($request->query('year') ?: \Morilog\Jalali\Jalalian::now()->getYear());
+        $month = (int) ($request->query('month') ?: \Morilog\Jalali\Jalalian::now()->getMonth());
+
+        $start = \Morilog\Jalali\Jalalian::fromFormat('Y-m-d', sprintf('%04d-%02d-01', $year, $month))->toCarbon()->startOfDay();
+        $endDay = $month <= 6 ? 31 : ($month <= 11 ? 30 : 29);
+        try {
+            $end = \Morilog\Jalali\Jalalian::fromFormat('Y-m-d', sprintf('%04d-%02d-%02d', $year, $month, $endDay))->toCarbon()->endOfDay();
+        } catch (\Throwable $e) {
+            $end = $start->copy()->addMonth()->subSecond();
+        }
+
+        $query = Task::query()->with(['responsible','city','project']);
+        if (!$request->user()->can('restore_any_task')) {
+            $query->where('Responsible_id', $request->user()->id);
+        }
+        $tasks = $query->where(function ($q) use ($start, $end) {
+            $q->whereBetween('started_at', [$start, $end])
+              ->orWhereBetween('ended_at', [$start, $end])
+              ->orWhereBetween('completed_at', [$start, $end]);
+        })->get();
+
+        $events = $tasks->map(function ($task) {
+            $date = $task->ended_at ?: $task->started_at ?: $task->completed_at;
+            $j = \Morilog\Jalali\Jalalian::fromDateTime($date);
+            return [
+                'id' => $task->id,
+                'title' => $task->name,
+                'date' => $date,
+                'jalali' => ['year'=>$j->getYear(),'month'=>$j->getMonth(),'day'=>$j->getDay()],
+                'completed' => (bool)$task->completed,
+                'progress' => $task->progress,
+                'responsible' => $task->responsible ? ['id'=>$task->responsible->id,'name'=>$task->responsible->name] : null,
+                'city' => $task->city ? ['id'=>$task->city->id,'name'=>$task->city->name] : null,
+            ];
+        })->values();
+
+        return response()->json([
+            'data' => [
+                'year' => $year,
+                'month' => $month,
+                'month_name' => ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'][$month - 1],
+                'days' => $endDay,
+                'events' => $events,
+            ],
+        ]);
+    }
+
+    /**
+     * User notifications for the mobile announcements page.
+     */
+    public function notifications(Request $request)
+    {
+        $user = $request->user();
+        $notifications = $user->notifications()->latest()->paginate(min(max((int)$request->query('per_page',20),1),100));
+
+        return response()->json([
+            'data' => collect($notifications->items())->map(fn ($n) => [
+                'id' => $n->id,
+                'title' => $n->data['title'] ?? $n->data['message'] ?? 'اعلان',
+                'message' => $n->data['message'] ?? $n->data['body'] ?? '',
+                'type' => $n->data['type'] ?? null,
+                'read_at' => $n->read_at,
+                'created_at' => $n->created_at,
+            ])->values(),
+            'meta' => [
+                'current_page'=>$notifications->currentPage(),
+                'last_page'=>$notifications->lastPage(),
+                'per_page'=>$notifications->perPage(),
+                'total'=>$notifications->total(),
+            ],
+        ]);
+    }
+
+    public function notificationRead(Request $request, string $id)
+    {
+        $notification = $request->user()->notifications()->findOrFail($id);
+        $notification->markAsRead();
+        return response()->json(['message'=>'اعلان خوانده شد.']);
     }
 
     private function definition(string $resource): array
@@ -525,7 +907,7 @@ class MobileApiController extends Controller
             'letters' => ['user','type','organ','daftar','customers','organs_owner','users','projects'],
             'minutes' => ['typer','task_creator','organ','group'],
             'tasks' => ['creator','responsible','organ','city','minutes','project','task_group','appendix_others'],
-            'projects' => ['user','organ','city','group','tasks','letters'],
+            'projects' => ['user','organ','city','group'],
             'referrals' => ['letter','users','by_users'],
             default => [],
         };
@@ -595,10 +977,58 @@ class MobileApiController extends Controller
         foreach ((array)$request->query('filter',[]) as $field=>$value) {
             if ($value === null || $value === '') continue;
             if ($field === 'search') continue;
+
+            $valueList = is_array($value) ? array_values(array_filter(array_map('intval', $value))) : array_values(array_filter(array_map('intval', explode(',', (string)$value))));
+
+            if ($model === Letter::class && $field === 'project_id') {
+                $query->whereHas('projects', fn($q) => $q->whereIn('projects.id', $valueList));
+                continue;
+            }
+            if ($model === Letter::class && $field === 'organ_id') {
+                $query->where('organ_id', $valueList[0] ?? 0);
+                continue;
+            }
+            if ($model === Letter::class && $field === 'type_id') {
+                $query->where('type_id', $valueList[0] ?? 0);
+                continue;
+            }
+            if ($model === Minutes::class && $field === 'task_id') {
+                $query->where('task_id', $valueList[0] ?? 0);
+                continue;
+            }
+            if ($model === Minutes::class && $field === 'project_id') {
+                $query->whereHas('tasks.project', fn($q) => $q->whereIn('projects.id', $valueList));
+                continue;
+            }
+            if ($model === Minutes::class && $field === 'organ_id') {
+                $query->whereHas('organ', fn($q) => $q->whereIn('organs.id', $valueList));
+                continue;
+            }
+            if ($model === Task::class && $field === 'project_id') {
+                $query->whereHas('project', fn($q) => $q->whereIn('projects.id', $valueList));
+                continue;
+            }
+            if ($model === Task::class && $field === 'city_id') {
+                $query->where('city_id', $valueList[0] ?? 0);
+                continue;
+            }
+            if ($model === Task::class && $field === 'Responsible_id') {
+                $query->where('Responsible_id', $valueList[0] ?? 0);
+                continue;
+            }
+            if ($model === Task::class && $field === 'organ_id') {
+                $query->where('organ_id', $valueList[0] ?? 0);
+                continue;
+            }
             $allowedFilters = method_exists($model,'getAllowedFilters') ? $model::getAllowedFilters() : [];
             // Direct scalar filters are safe only when they are declared by the model.
             if (in_array($field,$allowedFilters,true)) {
-                $query->where($field,$value);
+                if (is_string($value) && preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $value)
+                    && in_array($field, ['created_at','updated_at','date','started_at','ended_at','completed_at'], true)) {
+                    $query->whereDate($field, $value);
+                } else {
+                    $query->where($field,$value);
+                }
             }
         }
         return $query;

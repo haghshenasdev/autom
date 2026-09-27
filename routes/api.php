@@ -34,6 +34,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('referrals/{id}', [MobileApiController::class, 'referralUpdate']);
 
         Route::get('letters/{id}/timeline', [MobileApiController::class, 'timeline']);
+        Route::get('projects/{id}/children', [MobileApiController::class, 'projectChildren']);
+        Route::get('projects/{id}/report', [MobileApiController::class, 'projectReport']);
+        Route::get('reports/{resource}', [MobileApiController::class, 'reports']);
+        Route::get('calendar/tasks', [MobileApiController::class, 'calendar']);
+        Route::get('notifications', [MobileApiController::class, 'notifications']);
+        Route::patch('notifications/{id}/read', [MobileApiController::class, 'notificationRead']);
 
         Route::get('{resource}/reference', [MobileApiController::class, 'reference']);
 
