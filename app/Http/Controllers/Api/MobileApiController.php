@@ -490,33 +490,71 @@ class MobileApiController extends Controller
     public function reference(Request $request, string $resource)
     {
         [$model, $filamentResource, $permission] = $this->definition($resource);
+
         if ($resource === 'users' && (
             $request->user()->can('create_letter') ||
             $request->user()->can('view_any_task') ||
             $request->user()->can('view_any_minutes') ||
             $request->user()->can('view_any_referral')
         )) {
-            // Reference lists are limited to id/name and are used by mobile filters.
+            // Users are available to mobile reference selectors when the
+            // current user can work with at least one relevant resource.
         } else {
             $this->ensurePermission($request->user(), "view_any_{$permission}");
         }
 
         $q = $filamentResource::getEloquentQuery();
-        $search = trim((string)$request->query('search', $request->input('filter.search', '')));
+
+        $search = trim((string) $request->query(
+            'search',
+            $request->input('filter.search', '')
+        ));
+
         $table = (new $model)->getTable();
-        $labelField = Schema::hasColumn($table,'name') ? 'name' : (Schema::hasColumn($table,'subject') ? 'subject' : (Schema::hasColumn($table,'title') ? 'title' : 'id'));
+
+        $labelField = Schema::hasColumn($table, 'name')
+            ? 'name'
+            : (Schema::hasColumn($table, 'subject')
+                ? 'subject'
+                : (Schema::hasColumn($table, 'title') ? 'title' : 'id'));
+
         if ($search !== '') {
-            $q->where(function($x) use ($search, $labelField) {
-                $x->where($labelField,'like',"%{$search}%");
-                if (is_numeric($search)) $x->orWhere('id',(int)$search);
+            $q->where(function ($x) use ($search, $labelField) {
+                $x->where($labelField, 'like', "%{$search}%");
+
+                if (is_numeric($search)) {
+                    $x->orWhere('id', (int) $search);
+                }
             });
         }
+
+        $perPage = min(
+            max((int) $request->query('per_page', $request->query('limit', 30)), 1),
+            100
+        );
+
+        $page = $q
+            ->orderBy($labelField)
+            ->paginate($perPage);
+
         return response()->json([
-            'data'=>$q->orderBy($labelField)->limit(min(max((int)$request->query('limit',30),1),100))
-                ->get()->map(fn($x)=>['id'=>$x->id,'name'=>$x->name ?? $x->subject ?? $x->title ?? ('#'.$x->id)])->values(),
+            'data' => collect($page->items())
+                ->map(fn ($x) => [
+                    'id' => $x->id,
+                    'name' => $x->name
+                        ?? $x->subject
+                        ?? $x->title
+                        ?? ('#' . $x->id),
+                ])
+                ->values(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
         ]);
     }
-
 
     /**
      * Paginated children of a project/order.
@@ -664,10 +702,23 @@ class MobileApiController extends Controller
             ]);
         }
         foreach ((clone $tasks)->get(['created_at', 'completed']) as $task) {
-            if (!$task->created_at) continue;
+            if (!$task->created_at) {
+                continue;
+            }
+
             $m = \Morilog\Jalali\Jalalian::fromDateTime($task->created_at)->getMonth();
-            $monthly[$m - 1]['count']++;
-            if ((bool) $task->completed) $monthly[$m - 1]['completed']++;
+            $index = max(0, min(11, $m - 1));
+            $row = $monthly->get($index);
+
+            if (is_array($row)) {
+                $row['count'] = (int) ($row['count'] ?? 0) + 1;
+
+                if ((bool) $task->completed) {
+                    $row['completed'] = (int) ($row['completed'] ?? 0) + 1;
+                }
+
+                $monthly->put($index, $row);
+            }
         }
 
         return response()->json([
@@ -738,9 +789,18 @@ class MobileApiController extends Controller
             ]);
         }
         foreach ($items as $item) {
-            if (!$item->created_at) continue;
+            if (!$item->created_at) {
+                continue;
+            }
+
             $m = \Morilog\Jalali\Jalalian::fromDateTime($item->created_at)->getMonth();
-            $monthly[$m - 1]['count']++;
+            $index = max(0, min(11, $m - 1));
+            $row = $monthly->get($index);
+
+            if (is_array($row)) {
+                $row['count'] = (int) ($row['count'] ?? 0) + 1;
+                $monthly->put($index, $row);
+            }
         }
 
         $groups = collect();
@@ -801,49 +861,182 @@ class MobileApiController extends Controller
      */
     public function calendar(Request $request)
     {
-        $this->ensurePermission($request->user(), 'view_any_task');
+        $user = $request->user();
 
-        $year = (int) ($request->query('year') ?: \Morilog\Jalali\Jalalian::now()->getYear());
-        $month = (int) ($request->query('month') ?: \Morilog\Jalali\Jalalian::now()->getMonth());
+        $type = (string) $request->query('type', 'all');
+        abort_unless(
+            in_array($type, ['all', 'tasks', 'letters', 'minutes'], true),
+            422,
+            'نوع تقویم نامعتبر است.'
+        );
 
-        $start = \Morilog\Jalali\Jalalian::fromFormat('Y-m-d', sprintf('%04d-%02d-01', $year, $month))->toCarbon()->startOfDay();
-        $endDay = $month <= 6 ? 31 : ($month <= 11 ? 30 : 29);
+        $year = (int) ($request->query('year')
+            ?: \Morilog\Jalali\Jalalian::now()->getYear());
+
+        $month = (int) ($request->query('month')
+            ?: \Morilog\Jalali\Jalalian::now()->getMonth());
+
+        abort_unless($month >= 1 && $month <= 12, 422, 'ماه نامعتبر است.');
+
+        $start = \Morilog\Jalali\Jalalian::fromFormat(
+            'Y-m-d',
+            sprintf('%04d-%02d-01', $year, $month)
+        )->toCarbon()->startOfDay();
+
+        $endDay = $month <= 6
+            ? 31
+            : ($month <= 11 ? 30 : 29);
+
         try {
-            $end = \Morilog\Jalali\Jalalian::fromFormat('Y-m-d', sprintf('%04d-%02d-%02d', $year, $month, $endDay))->toCarbon()->endOfDay();
+            $end = \Morilog\Jalali\Jalalian::fromFormat(
+                'Y-m-d',
+                sprintf('%04d-%02d-%02d', $year, $month, $endDay)
+            )->toCarbon()->endOfDay();
         } catch (\Throwable $e) {
             $end = $start->copy()->addMonth()->subSecond();
         }
 
-        $query = Task::query()->with(['responsible','city','project']);
-        if (!$request->user()->can('restore_any_task')) {
-            $query->where('Responsible_id', $request->user()->id);
-        }
-        $tasks = $query->where(function ($q) use ($start, $end) {
-            $q->whereBetween('started_at', [$start, $end])
-              ->orWhereBetween('ended_at', [$start, $end])
-              ->orWhereBetween('completed_at', [$start, $end]);
-        })->get();
+        $events = collect();
 
-        $events = $tasks->map(function ($task) {
-            $date = $task->ended_at ?: $task->started_at ?: $task->completed_at;
-            $j = \Morilog\Jalali\Jalalian::fromDateTime($date);
-            return [
-                'id' => $task->id,
-                'title' => $task->name,
-                'date' => $date,
-                'jalali' => ['year'=>$j->getYear(),'month'=>$j->getMonth(),'day'=>$j->getDay()],
-                'completed' => (bool)$task->completed,
-                'progress' => $task->progress,
-                'responsible' => $task->responsible ? ['id'=>$task->responsible->id,'name'=>$task->responsible->name] : null,
-                'city' => $task->city ? ['id'=>$task->city->id,'name'=>$task->city->name] : null,
-            ];
-        })->values();
+        if ($type === 'all' || $type === 'tasks') {
+            $query = Task::query()->with(['responsible', 'city', 'project']);
+
+            if (!$user->can('restore_any_task')) {
+                $query->where('Responsible_id', $user->id);
+            }
+
+            $tasks = $query
+                ->where(function ($q) use ($start, $end) {
+                    $q->whereBetween('started_at', [$start, $end])
+                        ->orWhereBetween('ended_at', [$start, $end])
+                        ->orWhereBetween('completed_at', [$start, $end]);
+                })
+                ->get();
+
+            foreach ($tasks as $task) {
+                $date = $task->ended_at ?: $task->started_at ?: $task->completed_at;
+                if (!$date) {
+                    continue;
+                }
+
+                $j = \Morilog\Jalali\Jalalian::fromDateTime($date);
+
+                $events->push([
+                    'id' => $task->id,
+                    'type' => 'task',
+                    'type_title' => 'فعالیت',
+                    'title' => $task->name,
+                    'date' => $date,
+                    'jalali' => [
+                        'year' => $j->getYear(),
+                        'month' => $j->getMonth(),
+                        'day' => $j->getDay(),
+                    ],
+                    'completed' => (bool) $task->completed,
+                    'progress' => $task->progress,
+                    'responsible' => $task->responsible
+                        ? [
+                            'id' => $task->responsible->id,
+                            'name' => $task->responsible->name,
+                        ]
+                        : null,
+                    'city' => $task->city
+                        ? [
+                            'id' => $task->city->id,
+                            'name' => $task->city->name,
+                        ]
+                        : null,
+                ]);
+            }
+        }
+
+        if ($type === 'all' || $type === 'letters') {
+            $query = LetterResource::getEloquentQuery();
+
+            $letters = $query
+                ->whereBetween('created_at', [$start, $end])
+                ->get(['id', 'subject', 'created_at', 'status']);
+
+            foreach ($letters as $letter) {
+                if (!$letter->created_at) {
+                    continue;
+                }
+
+                $j = \Morilog\Jalali\Jalalian::fromDateTime($letter->created_at);
+
+                $events->push([
+                    'id' => $letter->id,
+                    'type' => 'letter',
+                    'type_title' => 'نامه',
+                    'title' => $letter->subject ?: 'نامه بدون عنوان',
+                    'date' => $letter->created_at,
+                    'jalali' => [
+                        'year' => $j->getYear(),
+                        'month' => $j->getMonth(),
+                        'day' => $j->getDay(),
+                    ],
+                    'completed' => false,
+                    'progress' => null,
+                    'responsible' => null,
+                    'city' => null,
+                ]);
+            }
+        }
+
+        if ($type === 'all' || $type === 'minutes') {
+            $minutes = MinutesResource::getEloquentQuery()
+                ->whereBetween('date', [$start, $end])
+                ->get(['id', 'title', 'date']);
+
+            foreach ($minutes as $minute) {
+                if (!$minute->date) {
+                    continue;
+                }
+
+                $j = \Morilog\Jalali\Jalalian::fromDateTime($minute->date);
+
+                $events->push([
+                    'id' => $minute->id,
+                    'type' => 'minute',
+                    'type_title' => 'صورتجلسه',
+                    'title' => $minute->title ?: 'صورتجلسه بدون عنوان',
+                    'date' => $minute->date,
+                    'jalali' => [
+                        'year' => $j->getYear(),
+                        'month' => $j->getMonth(),
+                        'day' => $j->getDay(),
+                    ],
+                    'completed' => false,
+                    'progress' => null,
+                    'responsible' => null,
+                    'city' => null,
+                ]);
+            }
+        }
+
+        $events = $events
+            ->sortBy(fn ($event) => $event['date'])
+            ->values();
 
         return response()->json([
             'data' => [
                 'year' => $year,
                 'month' => $month,
-                'month_name' => ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'][$month - 1],
+                'type' => $type,
+                'month_name' => [
+                    'فروردین',
+                    'اردیبهشت',
+                    'خرداد',
+                    'تیر',
+                    'مرداد',
+                    'شهریور',
+                    'مهر',
+                    'آبان',
+                    'آذر',
+                    'دی',
+                    'بهمن',
+                    'اسفند',
+                ][$month - 1],
                 'days' => $endDay,
                 'events' => $events,
             ],
@@ -1163,14 +1356,42 @@ class MobileApiController extends Controller
     {
         /** @var UploadedFile|null $file */
         $file = $request->file('upload_file');
-        if (!$file) return;
 
-        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
+        if ($file) {
+            $this->storeSingleUploadedFile($item, $file, $resource);
+        }
+
+        if ($resource === 'tasks' && $item instanceof Task) {
+            $files = $request->file('upload_files', []);
+
+            if ($files instanceof UploadedFile) {
+                $files = [$files];
+            }
+
+            foreach ((array) $files as $uploaded) {
+                if ($uploaded instanceof UploadedFile) {
+                    $this->storeTaskAppendix($item, $uploaded);
+                }
+            }
+        }
+    }
+
+    private function storeSingleUploadedFile(Model $item, UploadedFile $file, string $resource): void
+    {
+        $extension = strtolower(
+            $file->getClientOriginalExtension()
+            ?: $file->extension()
+            ?: 'bin'
+        );
 
         if ($resource === 'letters' && $item instanceof Letter) {
             $filename = $item->id . '.' . $extension;
-            Storage::disk('private')->putFileAs((string)$item->id, $file, $filename);
-            $item->forceFill(['file'=>$extension])->saveQuietly();
+            Storage::disk('private')->putFileAs(
+                (string) $item->id,
+                $file,
+                $filename
+            );
+            $item->forceFill(['file' => $extension])->saveQuietly();
             return;
         }
 
@@ -1181,8 +1402,41 @@ class MobileApiController extends Controller
                 $file,
                 $filename
             );
-            $item->forceFill(['file'=>$extension])->saveQuietly();
+            $item->forceFill(['file' => $extension])->saveQuietly();
         }
+    }
+
+    private function storeTaskAppendix(Task $task, UploadedFile $file): void
+    {
+        $extension = strtolower(
+            $file->getClientOriginalExtension()
+            ?: $file->extension()
+            ?: 'bin'
+        );
+
+        $appendix = new AppendixOther();
+        $appendix->title = pathinfo(
+            $file->getClientOriginalName(),
+            PATHINFO_FILENAME
+        ) ?: 'پیوست فعالیت';
+        $appendix->description = null;
+        $appendix->file = $extension;
+        $appendix->appendix_other_type = Task::class;
+        $appendix->appendix_other_id = $task->id;
+        $appendix->saveQuietly();
+
+        $path = $appendix->getFilePath();
+
+        if (!$path) {
+            $appendix->deleteQuietly();
+            return;
+        }
+
+        Storage::disk('private_appendix_other')->putFileAs(
+            dirname($path),
+            $file,
+            basename($path)
+        );
     }
 
     private function referralTransform(Referral $r): array
