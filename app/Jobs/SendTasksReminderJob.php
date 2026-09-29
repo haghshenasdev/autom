@@ -88,6 +88,15 @@ class SendTasksReminderJob implements ShouldQueue
                 ->title('یادآور فعالیت ها')
                 ->body($message)
                 ->sendToDatabase($user);
+            $notification = $user->notifications()->latest()->first();
+            if ($notification && ($notification->data['title'] ?? null) === 'یادآور فعالیت ها'
+                && ($notification->data['body'] ?? null) === $message) {
+                $notification->forceFill(['data' => array_merge($notification->data ?? [], [
+                    'resource_type' => 'tasks',
+                    'resource_id' => (int) $tasks->first()->id,
+                    'resource_ids' => $tasks->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+                ])])->save();
+            }
         }
     }
 }

@@ -1052,18 +1052,17 @@ class MobileApiController extends Controller
         $notifications = $user->notifications()->latest()->paginate(min(max((int)$request->query('per_page',20),1),100));
 
         return response()->json([
-            'data' => collect($notifications->items())->map(function ($n) {
-                [$mobileType, $recordId] = $this->notificationTarget($n->data ?? []);
-                return [
-                    'id' => $n->id,
-                    'title' => $n->data['title'] ?? $n->data['message'] ?? 'اعلان',
-                    'message' => $n->data['message'] ?? $n->data['body'] ?? '',
-                    'type' => $mobileType,
-                    'record_id' => $recordId,
-                    'read_at' => $n->read_at,
-                    'created_at' => $n->created_at,
-                ];
-            })->values(),
+            'data' => collect($notifications->items())->map(fn ($n) => [
+                'id' => $n->id,
+                'title' => $n->data['title'] ?? $n->data['message'] ?? 'اعلان',
+                'message' => $n->data['message'] ?? $n->data['body'] ?? '',
+                'type' => $n->data['type'] ?? null,
+                'resource_type' => $n->data['resource_type'] ?? null,
+                'resource_id' => $n->data['resource_id'] ?? null,
+                'cartable_id' => $n->data['cartable_id'] ?? null,
+                'read_at' => $n->read_at,
+                'created_at' => $n->created_at,
+            ])->values(),
             'meta' => [
                 'current_page'=>$notifications->currentPage(),
                 'last_page'=>$notifications->lastPage(),
@@ -1079,55 +1078,23 @@ class MobileApiController extends Controller
         $user = $request->user();
         $notification = $user->notifications()->findOrFail($id);
         $data = is_array($notification->data) ? $notification->data : [];
-        [$type, $recordId] = $this->notificationTarget($data);
-
         $notification->markAsRead();
 
-        // نامه‌ای که از طریق اعلان باز می‌شود، اگر در کارتابل همین کاربر باشد
-        // همان لحظه نیز خوانده‌شده شود.
-        if ($type === 'letter' && $recordId) {
-            Cartable::where('user_id', $user->id)
-                ->where('letter_id', $recordId)
-                ->update(['checked' => true]);
-        }
-
-        return response()->json([
-            'message'=>'اعلان خوانده شد.',
-            'data'=>[
-                'type'=>$type,
-                'record_id'=>$recordId,
-                'unread_count'=>$user->unreadNotifications()->count(),
-            ],
-        ]);
-    }
-
-    private function notificationTarget(array $data): array
-    {
-        $type = $data['mobile_type'] ?? $data['type'] ?? null;
-        $recordId = isset($data['mobile_id']) ? (int) $data['mobile_id'] : null;
-
-        if ($type && $recordId) {
-            return [$type, $recordId];
-        }
-
-        // سازگاری با اعلان‌های قدیمی Filament که قبل از mobile_type ساخته شده‌اند.
-        $urls = [];
-        foreach ((array) ($data['actions'] ?? []) as $action) {
-            if (is_array($action) && !empty($action['url'])) {
-                $urls[] = (string) $action['url'];
+        // بازکردن اعلان نامه، اگر همان نامه در کارپوشه این کاربر باشد،
+        // وضعیت کارپوشه را نیز خوانده‌شده می‌کند.
+        $resourceType = $data['resource_type'] ?? null;
+        $resourceId = $data['resource_id'] ?? null;
+        if (in_array($resourceType, ['letters', 'letter'], true) && is_numeric($resourceId)) {
+            $cartableQuery = Cartable::query()
+                ->where('user_id', $user->id)
+                ->where('letter_id', (int) $resourceId);
+            if (!empty($data['cartable_id']) && is_numeric($data['cartable_id'])) {
+                $cartableQuery->where('id', (int) $data['cartable_id']);
             }
-        }
-        foreach ($urls as $url) {
-            if (preg_match('#/letters/(\d+)/edit#', $url, $m)) return ['letter', (int) $m[1]];
-            if (preg_match('#/tasks/(\d+)/edit#', $url, $m)) return ['task', (int) $m[1]];
-            if (preg_match('#/minutes/(\d+)/edit#', $url, $m)) return ['minute', (int) $m[1]];
+            $cartableQuery->update(['checked' => true]);
         }
 
-        $title = (string) ($data['title'] ?? '');
-        if (str_contains($title, 'نامه') || str_contains($title, 'ارجاع')) $type = 'letter';
-        if (str_contains($title, 'فعالیت')) $type = 'task';
-
-        return [$type, $recordId];
+        return response()->json(['message'=>'اعلان خوانده شد.']);
     }
 
     private function definition(string $resource): array

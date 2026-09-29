@@ -41,13 +41,13 @@ class SendReferralCreatedNotification
                 ->title('ارجاع جدید')
                 ->body($message)
                 ->sendToDatabase($user);
-
-            $notification = $user->notifications()->latest('created_at')->first();
-            if ($notification) {
-                $data = is_array($notification->data) ? $notification->data : [];
-                $data['mobile_type'] = 'letter';
-                $data['mobile_id'] = (int) $referral->letter_id;
-                $notification->forceFill(['data' => $data])->save();
+            $notification = $user->notifications()->latest()->first();
+            if ($notification && ($notification->data['title'] ?? null) === 'ارجاع جدید'
+                && ($notification->data['body'] ?? null) === $message) {
+                $notification->forceFill(['data' => array_merge($notification->data ?? [], [
+                    'resource_type' => 'letters',
+                    'resource_id' => (int) $referral->letter_id,
+                ])])->save();
             }
         }
 

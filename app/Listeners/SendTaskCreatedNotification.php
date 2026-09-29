@@ -42,13 +42,13 @@ class SendTaskCreatedNotification
                     ->title('فعالیت جدید')
                     ->body($message)
                     ->sendToDatabase($user);
-
-                $notification = $user->notifications()->latest('created_at')->first();
-                if ($notification) {
-                    $data = is_array($notification->data) ? $notification->data : [];
-                    $data['mobile_type'] = 'task';
-                    $data['mobile_id'] = (int) $task->id;
-                    $notification->forceFill(['data' => $data])->save();
+                $notification = $user->notifications()->latest()->first();
+                if ($notification && ($notification->data['title'] ?? null) === 'فعالیت جدید'
+                    && ($notification->data['body'] ?? null) === $message) {
+                    $notification->forceFill(['data' => array_merge($notification->data ?? [], [
+                        'resource_type' => 'tasks',
+                        'resource_id' => (int) $task->id,
+                    ])])->save();
                 }
             }
 

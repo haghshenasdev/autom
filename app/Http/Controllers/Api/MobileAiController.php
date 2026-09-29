@@ -7,12 +7,9 @@ use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\ai\LetterParser;
 use App\Http\Controllers\MinuteTextPS;
 use App\Models\Task;
-use App\Models\Project;
-use App\Models\TaskGroup;
-use App\Models\MinutesGroup;
-use App\Services\AiKeywordClassifier;
 use App\Models\City;
 use App\Models\Organ;
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -24,92 +21,83 @@ use Symfony\Component\HttpFoundation\Response;
 class MobileAiController extends Controller
 {
     /**
-     * تحلیل عنوان فقط با مدل‌های داخلی دیتابیس؛ بدون فراخوانی API هوش مصنوعی.
-     * خروجی برای فرم موبایل شامل شهر، ارگان، دستورکارها، دسته‌بندی‌ها و فعالیت‌های
-     * پیشنهادی است.
+     * تحلیل عنوان فقط با داده‌ها و واژه‌نامه‌های دیتابیس؛ بدون فراخوانی سرویس هوش مصنوعی.
      */
-    public function title(Request $request)
+    public function analyzeTitle(Request $request)
     {
         $data = $request->validate([
-            'text' => 'required|string|max:2000',
-            'resource' => 'nullable|in:letters,minutes,tasks',
+            'title' => 'required|string|max:1000',
+            'resource' => 'nullable|in:letters,minutes',
         ]);
 
-        $title = trim($data['text']);
+        $title = trim($data['title']);
         $resource = $data['resource'] ?? 'letters';
+        $requiredPermission = $resource === 'minutes' ? 'create_minutes' : 'create_letter';
+        abort_unless($request->user() && $request->user()->can($requiredPermission), 403, 'اجازه تحلیل عنوان برای این فرم را ندارید.');
 
+        $canViewProjects = $request->user()->can('view_any_project');
+        $canViewTasks = $request->user()->can('view_any_task');
         $predictor = new CategoryPredictor();
-        $prediction = $predictor->predictWithCityOrgan($title) ?? [
-            'categories' => [],
-            'city' => null,
-            'organ' => null,
-        ];
+        $keywords = array_values(array_unique($predictor->extractKeywords($title)));
 
-        $classifier = app(AiKeywordClassifier::class);
-        $classified = $classifier->classify(
-            $title,
-            0.10,
-            [Project::class, TaskGroup::class, MinutesGroup::class],
-            null,
-            5
-        );
+        // در این مسیر عمداً از predictWithCityOrgan استفاده نمی‌کنیم، چون فهرست
+        // واژه‌های مستثنا ممکن است خود عنوان نامه/جلسه را به‌طور کامل رد کند.
+        $scores = $predictor->predictCore($keywords, 5);
+        $categoryIds = $canViewProjects
+            ? array_values(array_map('intval', array_keys($scores)))
+            : [];
+        $cityId = $predictor->detectCity($keywords);
+        $organId = $predictor->detectOrgan($keywords);
 
-        $projects = collect($classified[Project::class] ?? [])->map(function ($item) {
-            $record = Project::find($item['model_id']);
-            return $record ? [
-                'id' => $record->id,
-                'name' => $record->name,
-                'percent' => $item['percent'],
-                'score' => $item['score'],
-            ] : null;
-        })->filter()->values()->all();
+        $projects = Project::query()
+            ->whereIn('id', $categoryIds)
+            ->get(['id', 'name'])
+            ->map(fn ($item) => ['id' => (int) $item->id, 'name' => (string) $item->name])
+            ->values();
 
-        $taskGroups = collect($classified[TaskGroup::class] ?? [])->map(function ($item) {
-            $record = TaskGroup::find($item['model_id']);
-            return $record ? [
-                'id' => $record->id,
-                'name' => $record->name,
-                'percent' => $item['percent'],
-                'score' => $item['score'],
-            ] : null;
-        })->filter()->values()->all();
+        // پیشنهادهای متنی از پروژه‌ها/دستورکارها؛ فقط پیشنهاد هستند و خودکار
+        // به رکورد متصل نمی‌شوند تا انتخاب نهایی دست کاربر بماند.
+        $projectQuery = Project::query();
+        $taskQuery = Task::query();
+        if (!$canViewProjects) $projectQuery->whereRaw('1 = 0');
+        if (!$canViewTasks) $taskQuery->whereRaw('1 = 0');
+        if ($keywords && $canViewProjects) {
+            $terms = array_slice($keywords, 0, 6);
+            $projectQuery->where(function ($query) use ($terms) {
+                foreach ($terms as $term) $query->orWhere('name', 'like', '%' . $term . '%');
+            });
+        }
+        if ($keywords && $canViewTasks) {
+            $terms = array_slice($keywords, 0, 6);
+            $taskQuery->where(function ($query) use ($terms) {
+                foreach ($terms as $term) $query->orWhere('name', 'like', '%' . $term . '%');
+            });
+        } else {
+            $taskQuery->whereRaw('1 = 0');
+        }
+        if (!$keywords || !$canViewProjects) $projectQuery->whereRaw('1 = 0');
 
-        $minuteGroups = collect($classified[MinutesGroup::class] ?? [])->map(function ($item) {
-            $record = MinutesGroup::find($item['model_id']);
-            return $record ? [
-                'id' => $record->id,
-                'name' => $record->name,
-                'percent' => $item['percent'],
-                'score' => $item['score'],
-            ] : null;
-        })->filter()->values()->all();
+        $suggestedProjects = $projectQuery->select('id', 'name')->limit(8)->get()
+            ->map(fn ($item) => ['id' => (int) $item->id, 'name' => (string) $item->name])
+            ->values();
+        $suggestedTasks = $taskQuery->select('id', 'name')->latest('id')->limit(8)->get()
+            ->map(fn ($item) => ['id' => (int) $item->id, 'name' => (string) $item->name])
+            ->values();
 
-        $tasks = Task::query()->select(['id', 'name'])->latest('id')->limit(100)->get()->map(function ($task) use ($predictor, $title) {
-            $score = count(array_intersect(
-                $predictor->extractKeywords($task->name),
-                $predictor->extractKeywords($title)
-            ));
-            return ['id' => $task->id, 'name' => $task->name, 'score' => $score];
-        })->filter(fn ($x) => $x['score'] > 0)->sortByDesc('score')->take(5)->values()->all();
+        // ابتدا دسته‌بندی‌های پیش‌بینی‌شده و سپس پیشنهادهای مشابه را ادغام می‌کنیم.
+        $projects = $projects->concat($suggestedProjects)->unique('id')->take(8)->values();
 
-        return response()->json([
-            'data' => [
-                'title' => $title,
-                'city_id' => $prediction['city'],
-                'city_name' => $prediction['city'] ? City::find($prediction['city'])?->name : null,
-                'organ_id' => $prediction['organ'],
-                'organ_name' => $prediction['organ'] ? Organ::find($prediction['organ'])?->name : null,
-                'project_ids' => collect($projects)->pluck('id')->all(),
-                'projects' => $projects,
-                'task_group_ids' => collect($taskGroups)->pluck('id')->all(),
-                'task_groups' => $taskGroups,
-                'minute_group_ids' => collect($minuteGroups)->pluck('id')->all(),
-                'minute_groups' => $minuteGroups,
-                'task_ids' => collect($tasks)->pluck('id')->all(),
-                'tasks' => $tasks,
-                'resource' => $resource,
-            ],
-        ]);
+        return response()->json(['data' => [
+            'title' => $title,
+            'city_id' => $cityId ? (int) $cityId : null,
+            'city_name' => $cityId ? City::find($cityId)?->name : null,
+            'organ_id' => $organId ? (int) $organId : null,
+            'organ_name' => $organId ? Organ::find($organId)?->name : null,
+            'category_ids' => $categoryIds,
+            'category_names' => $this->namesForIds($categoryIds),
+            'projects' => $projects,
+            'tasks' => $suggestedTasks,
+        ]]);
     }
 
     public function minute(Request $request)
@@ -126,7 +114,7 @@ class MobileAiController extends Controller
                 $text = trim($this->ocr($request->file('file')));
             } catch (\Throwable $e) {
                 Log::error('Mobile OCR failed', ['message' => $e->getMessage()]);
-                return response()->json(['message' => 'استخراج متن از فایل انجام نشد.'], 422);
+                return response()->json(['message' => 'استخراج متن از فایل انجام نشد: ' . $e->getMessage()], 422);
             }
         }
 
@@ -139,10 +127,13 @@ class MobileAiController extends Controller
         $title = $lines[0] ?? '';
 
         $predictor = new CategoryPredictor();
-        $prediction = $predictor->predictWithCityOrgan($title) ?? [
-            'categories' => [],
-            'city' => null,
-            'organ' => null,
+        $keywords = array_values(array_unique($predictor->extractKeywords($title)));
+        // عنوان‌های دارای واژه‌های عمومی مانند «جلسه» نیز باید تحلیل شوند؛
+        // فهرست blacklist برای این مسیر اعمال نمی‌شود.
+        $prediction = [
+            'categories' => array_map('intval', array_keys($predictor->predictCore($keywords, 5))),
+            'city' => $predictor->detectCity($keywords),
+            'organ' => $predictor->detectOrgan($keywords),
         ];
 
         return response()->json([
@@ -157,7 +148,7 @@ class MobileAiController extends Controller
                 'task_name' => $this->detectTaskName($title),
                 'city_name' => $prediction['city'] ? City::find($prediction['city'])?->name : null,
                 'organ_name' => $prediction['organ'] ? Organ::find($prediction['organ'])?->name : null,
-                'category_names' => Project::whereIn('id', $prediction['categories'] ?? [])->pluck('name')->values()->all(),
+                'category_names' => $this->namesForIds($prediction['categories'] ?? []),
             ],
         ]);
     }
@@ -176,7 +167,7 @@ class MobileAiController extends Controller
                 $text = trim($this->ocr($request->file('file')));
             } catch (\Throwable $e) {
                 Log::error('Mobile OCR failed', ['message' => $e->getMessage()]);
-                return response()->json(['message' => 'استخراج متن از فایل انجام نشد.'], 422);
+                return response()->json(['message' => 'استخراج متن از فایل انجام نشد: ' . $e->getMessage()], 422);
             }
         }
 
@@ -184,59 +175,54 @@ class MobileAiController extends Controller
             return response()->json(['message' => 'متن یا فایل برای تحلیل ارسال نشده است.'], 422);
         }
 
-        try {
-            $parser = new LetterParser();
-            $parsed = $parser->aiParse($text);
-        } catch (\Throwable $e) {
-            Log::error('Mobile letter AI failed', ['message' => $e->getMessage()]);
-            return response()->json(['message' => 'تحلیل نامه انجام نشد.'], 422);
+        $parser = new LetterParser();
+        $parsed = null;
+
+        // اگر کلید سرویس هوش مصنوعی تنظیم شده باشد ابتدا تحلیل قبلی را امتحان
+        // می‌کنیم؛ در صورت خطا یا خروجی ناقص، parser محلی/قواعدی اجرا می‌شود.
+        if (trim((string) env('GAPGPT_API_KEY')) !== '') {
+            try {
+                $parsed = $parser->aiParse($text);
+            } catch (\Throwable $e) {
+                Log::warning('Mobile letter AI unavailable; using local parser', ['message' => $e->getMessage()]);
+            }
         }
 
-        if (!is_array($parsed)) {
-            $parsed = [];
+        if (!is_array($parsed) || trim((string) ($parsed['subject'] ?? $parsed['title'] ?? '')) === '') {
+            try {
+                $parsed = $parser->parse($text);
+            } catch (\Throwable $e) {
+                Log::error('Mobile letter local parser failed', ['message' => $e->getMessage()]);
+                // حداقل عنوان و متن را از ورودی نگه می‌داریم تا ثبت فرم متوقف نشود.
+                $lines = array_values(array_filter(array_map('trim', preg_split('/\R/u', $text))));
+                $parsed = ['title' => $lines[0] ?? '', 'description' => $text];
+            }
         }
 
-        // اگر سرویس بیرونی در دسترس نبود، تحلیل پایه LetterParser محلی را
-        // نگه می‌داریم تا ثبت نامه متوقف نشود.
-        if (trim((string) ($parsed['subject'] ?? '')) === '') {
-            $local = (new LetterParser())->parse($text);
-            $parsed = [
-                'subject' => $local['title'] ?? '',
-                'description' => $local['description'] ?? $text,
-                'summary' => $local['summary'] ?? '',
-                'mokatebe' => $local['mokatebe'] ?? null,
-                'kind' => $local['kind'] ?? 1,
-                'organ_id' => $local['organ_id'] ?? null,
-                'organ_owners' => $local['organ_owners'] ?? [],
-                'customer_owners' => $local['customer_owners'] ?? [],
-                'date' => $local['title_date'] ?? null,
-            ];
-        }
-
-        $title = trim((string) ($parsed['subject'] ?? ''));
+        $title = trim((string) ($parsed['subject'] ?? $parsed['title'] ?? ''));
         $predictor = new CategoryPredictor();
-        $prediction = $predictor->predictWithCityOrgan($title) ?? [
-            'categories' => [],
-            'city' => null,
-            'organ' => null,
-        ];
+        $keywords = array_values(array_unique($predictor->extractKeywords($title)));
+        $scores = $predictor->predictCore($keywords, 5);
+        $categoryIds = array_values(array_map('intval', array_keys($scores)));
+        $cityId = $predictor->detectCity($keywords);
+        $predictedOrganId = $predictor->detectOrgan($keywords);
 
         return response()->json([
             'data' => [
-                'subject' => $parsed['subject'] ?? '',
+                'subject' => $title,
                 'description' => $parsed['description'] ?? $text,
                 'summary' => $parsed['summary'] ?? '',
                 'mokatebe' => $parsed['mokatebe'] ?? null,
                 'kind' => $parsed['kind'] ?? 1,
-                'date' => $this->normalizeDate($parsed['date'] ?? null),
-                'organ_id' => $parsed['organ_id'] ?? ($prediction['organ'] ?? null),
-                'organ_owner_ids' => $parsed['organ_owners'] ?? [],
-                'customer_owner_ids' => $parsed['customer_owners'] ?? [],
-                'city_id' => $prediction['city'] ?? null,
-                'category_ids' => $prediction['categories'] ?? [],
-                'city_name' => $prediction['city'] ? City::find($prediction['city'])?->name : null,
-                'organ_name' => $prediction['organ'] ? Organ::find($prediction['organ'])?->name : null,
-                'category_names' => Project::whereIn('id', $prediction['categories'] ?? [])->pluck('name')->values()->all(),
+                'date' => $this->normalizeDate($parsed['date'] ?? $parsed['title_date'] ?? null),
+                'organ_id' => $parsed['organ_id'] ?? $predictedOrganId,
+                'organ_owner_ids' => array_values(array_filter($parsed['organ_owners'] ?? [], fn ($id) => is_numeric($id))),
+                'customer_owner_ids' => array_values(array_filter($parsed['customer_owners'] ?? [], fn ($id) => is_numeric($id))),
+                'city_id' => $cityId ? (int) $cityId : null,
+                'category_ids' => $categoryIds,
+                'city_name' => $cityId ? City::find($cityId)?->name : null,
+                'organ_name' => ($parsed['organ_id'] ?? $predictedOrganId) ? Organ::find($parsed['organ_id'] ?? $predictedOrganId)?->name : null,
+                'category_names' => $this->namesForIds($categoryIds),
                 'raw_text' => $text,
             ],
         ]);
@@ -265,48 +251,60 @@ class MobileAiController extends Controller
 
     private function ocr(UploadedFile $file): string
     {
+        $ocrToken = trim((string) env('EBOO_OCR_TOKEN'));
+        if ($ocrToken === '') {
+            throw new \RuntimeException('کلید EBOO_OCR_TOKEN در تنظیمات سرور تعریف نشده است.');
+        }
+
         $content = file_get_contents($file->getRealPath());
+        if ($content === false || $content === '') {
+            throw new \RuntimeException('محتوای فایل ارسالی قابل خواندن نیست.');
+        }
         $ext = strtolower($file->getClientOriginalExtension() ?: 'bin');
         $temp = app(\App\Services\TempFileService::class)->save($content, $ext);
-
         $url = url('/temp-download/' . $temp);
 
         $response = Http::timeout(90)->asForm()->post(
             'https://www.eboo.ir/api/ocr/getway',
-            [
-                'token' => env('EBOO_OCR_TOKEN'),
-                'command' => 'addfile',
-                'filelink' => $url,
-            ]
+            ['token' => $ocrToken, 'command' => 'addfile', 'filelink' => $url]
         );
 
-        $token = $response->json('FileToken');
+        if (!$response->successful()) {
+            Log::warning('OCR addfile request failed', ['status' => $response->status(), 'body' => mb_substr($response->body(), 0, 500)]);
+            throw new \RuntimeException('سرویس OCR فایل را نپذیرفت؛ آدرس عمومی فایل و دسترسی سرویس را بررسی کنید.');
+        }
+
+        $token = $response->json('FileToken') ?? $response->json('filetoken');
         if (!$token) {
-            throw new \RuntimeException('سرویس OCR توکن فایل را برنگرداند.');
+            Log::warning('OCR addfile response did not include FileToken', ['body' => mb_substr($response->body(), 0, 500)]);
+            throw new \RuntimeException('سرویس OCR توکن فایل را برنگرداند؛ کلید OCR یا دسترسی فایل را بررسی کنید.');
         }
 
         $converted = Http::timeout(120)->asForm()->post(
             'https://www.eboo.ir/api/ocr/getway',
-            [
-                'token' => env('EBOO_OCR_TOKEN'),
-                'command' => 'convert',
-                'output' => 'txtraw',
-                'filetoken' => $token,
-                'method' => 4,
-            ]
+            ['token' => $ocrToken, 'command' => 'convert', 'output' => 'txtraw', 'filetoken' => $token, 'method' => 4]
         );
 
         if (!$converted->successful()) {
+            Log::warning('OCR conversion failed', ['status' => $converted->status(), 'body' => mb_substr($converted->body(), 0, 500)]);
             throw new \RuntimeException('سرویس OCR در تبدیل فایل خطا داد.');
         }
 
-        return (string) $converted->body();
+        $text = trim((string) $converted->body());
+        if ($text === '') {
+            throw new \RuntimeException('سرویس OCR متنی از فایل استخراج نکرد.');
+        }
+        return $text;
     }
 
     private function cleanMinuteText(string $text): string
     {
+        if (trim((string) env('GAPGPT_API_KEY')) === '') {
+            return $text;
+        }
+
         try {
-            $response = Http::timeout(90)->withHeaders([
+            $response = Http::timeout(25)->withHeaders([
                 'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
                 'Content-Type' => 'application/json',
             ])->post('https://api.gapgpt.app/v1/chat/completions', [
