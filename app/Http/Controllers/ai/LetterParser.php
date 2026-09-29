@@ -244,7 +244,7 @@ class LetterParser
     {
 
         // فراخوانی API هوش مصنوعی
-        $response = Http::withHeaders([
+        $response = Http::timeout(90)->withHeaders([
             'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
         ])->post('https://api.gapgpt.app/v1/chat/completions', [
             'model' => 'gpt-4o',

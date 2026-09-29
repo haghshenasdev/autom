@@ -110,15 +110,25 @@ Route::middleware('auth')->group(function () {
     })->where('path', '.*');
 
     Route::get('/profiles/{path}', function ($path) {
-        if (!Storage::disk('profile-photos')->exists($path)) {
-            abort(404);
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+        $candidates = array_values(array_unique([
+            $path,
+            preg_replace('#^profile-photos/#', '', $path),
+            basename($path),
+        ]));
+
+        $disk = Storage::disk('profile-photos');
+        foreach ($candidates as $candidate) {
+            if (!$candidate || !$disk->exists($candidate)) continue;
+
+            $content = $disk->get($candidate);
+            return response($content, 200)
+                ->header('Content-Type', $disk->mimeType($candidate) ?: FileHelper::getMimeTypeFromExtension($candidate))
+                ->header('Content-Disposition', 'inline; filename="' . basename($candidate) . '"')
+                ->header('Cache-Control', 'public, max-age=3600');
         }
 
-        $content = Storage::disk('profile-photos')->get($path);
-
-        return response($content, 200)
-            ->header('Content-Type', FileHelper::getMimeTypeFromExtension($path))
-            ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
+        abort(404);
     })->where('path', '.*');
 
     Route::get('/private-dl2/{path}', function ($path) {

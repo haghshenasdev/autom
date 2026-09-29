@@ -44,6 +44,14 @@ class SendAddedToCartableNotification
                         ->title('نامه جدید')
                         ->body($message)
                         ->sendToDatabase($user);
+
+                    $notification = $user->notifications()->latest('created_at')->first();
+                    if ($notification) {
+                        $data = is_array($notification->data) ? $notification->data : [];
+                        $data['mobile_type'] = 'letter';
+                        $data['mobile_id'] = (int) $cartable->letter_id;
+                        $notification->forceFill(['data' => $data])->save();
+                    }
                 }
             }
         }

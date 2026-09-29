@@ -41,6 +41,14 @@ class SendReferralCreatedNotification
                 ->title('ارجاع جدید')
                 ->body($message)
                 ->sendToDatabase($user);
+
+            $notification = $user->notifications()->latest('created_at')->first();
+            if ($notification) {
+                $data = is_array($notification->data) ? $notification->data : [];
+                $data['mobile_type'] = 'letter';
+                $data['mobile_id'] = (int) $referral->letter_id;
+                $notification->forceFill(['data' => $data])->save();
+            }
         }
 
 

@@ -35,7 +35,7 @@ class AuthController extends Controller
                 'id'=>$user->id,
                 'name'=>$user->name,
                 'email'=>$user->email,
-                'avatar'=>$user->avatar_url ? url('/api/mobile/v1/profile/avatar') : null,
+                'avatar'=>$user->avatar_url ? url('/profiles/' . ltrim(str_replace('\\', '/', $user->avatar_url), '/')) : null,
                 'roles'=>$user->getRoleNames()->values(),
                 'permissions'=>$user->getAllPermissions()->pluck('name')->values(),
             ],
@@ -48,7 +48,7 @@ class AuthController extends Controller
         return response()->json([
             'data'=>[
                 'id'=>$user->id,'name'=>$user->name,'email'=>$user->email,
-                'avatar'=>$user->avatar_url ? url('/api/mobile/v1/profile/avatar') : null,
+                'avatar'=>$user->avatar_url ? url('/profiles/' . ltrim(str_replace('\\', '/', $user->avatar_url), '/')) : null,
                 'roles'=>$user->getRoleNames()->values(),
                 'permissions'=>$user->getAllPermissions()->pluck('name')->values(),
             ],

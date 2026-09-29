@@ -7,6 +7,10 @@ use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\ai\LetterParser;
 use App\Http\Controllers\MinuteTextPS;
 use App\Models\Task;
+use App\Models\Project;
+use App\Models\TaskGroup;
+use App\Models\MinutesGroup;
+use App\Services\AiKeywordClassifier;
 use App\Models\City;
 use App\Models\Organ;
 use Illuminate\Http\Request;
@@ -19,6 +23,95 @@ use Symfony\Component\HttpFoundation\Response;
 
 class MobileAiController extends Controller
 {
+    /**
+     * تحلیل عنوان فقط با مدل‌های داخلی دیتابیس؛ بدون فراخوانی API هوش مصنوعی.
+     * خروجی برای فرم موبایل شامل شهر، ارگان، دستورکارها، دسته‌بندی‌ها و فعالیت‌های
+     * پیشنهادی است.
+     */
+    public function title(Request $request)
+    {
+        $data = $request->validate([
+            'text' => 'required|string|max:2000',
+            'resource' => 'nullable|in:letters,minutes,tasks',
+        ]);
+
+        $title = trim($data['text']);
+        $resource = $data['resource'] ?? 'letters';
+
+        $predictor = new CategoryPredictor();
+        $prediction = $predictor->predictWithCityOrgan($title) ?? [
+            'categories' => [],
+            'city' => null,
+            'organ' => null,
+        ];
+
+        $classifier = app(AiKeywordClassifier::class);
+        $classified = $classifier->classify(
+            $title,
+            0.10,
+            [Project::class, TaskGroup::class, MinutesGroup::class],
+            null,
+            5
+        );
+
+        $projects = collect($classified[Project::class] ?? [])->map(function ($item) {
+            $record = Project::find($item['model_id']);
+            return $record ? [
+                'id' => $record->id,
+                'name' => $record->name,
+                'percent' => $item['percent'],
+                'score' => $item['score'],
+            ] : null;
+        })->filter()->values()->all();
+
+        $taskGroups = collect($classified[TaskGroup::class] ?? [])->map(function ($item) {
+            $record = TaskGroup::find($item['model_id']);
+            return $record ? [
+                'id' => $record->id,
+                'name' => $record->name,
+                'percent' => $item['percent'],
+                'score' => $item['score'],
+            ] : null;
+        })->filter()->values()->all();
+
+        $minuteGroups = collect($classified[MinutesGroup::class] ?? [])->map(function ($item) {
+            $record = MinutesGroup::find($item['model_id']);
+            return $record ? [
+                'id' => $record->id,
+                'name' => $record->name,
+                'percent' => $item['percent'],
+                'score' => $item['score'],
+            ] : null;
+        })->filter()->values()->all();
+
+        $tasks = Task::query()->select(['id', 'name'])->latest('id')->limit(100)->get()->map(function ($task) use ($predictor, $title) {
+            $score = count(array_intersect(
+                $predictor->extractKeywords($task->name),
+                $predictor->extractKeywords($title)
+            ));
+            return ['id' => $task->id, 'name' => $task->name, 'score' => $score];
+        })->filter(fn ($x) => $x['score'] > 0)->sortByDesc('score')->take(5)->values()->all();
+
+        return response()->json([
+            'data' => [
+                'title' => $title,
+                'city_id' => $prediction['city'],
+                'city_name' => $prediction['city'] ? City::find($prediction['city'])?->name : null,
+                'organ_id' => $prediction['organ'],
+                'organ_name' => $prediction['organ'] ? Organ::find($prediction['organ'])?->name : null,
+                'project_ids' => collect($projects)->pluck('id')->all(),
+                'projects' => $projects,
+                'task_group_ids' => collect($taskGroups)->pluck('id')->all(),
+                'task_groups' => $taskGroups,
+                'minute_group_ids' => collect($minuteGroups)->pluck('id')->all(),
+                'minute_groups' => $minuteGroups,
+                'task_ids' => collect($tasks)->pluck('id')->all(),
+                'tasks' => $tasks,
+                'resource' => $resource,
+            ],
+        ]);
+    }
+
     public function minute(Request $request)
     {
         $request->validate([
@@ -64,7 +157,7 @@ class MobileAiController extends Controller
                 'task_name' => $this->detectTaskName($title),
                 'city_name' => $prediction['city'] ? City::find($prediction['city'])?->name : null,
                 'organ_name' => $prediction['organ'] ? Organ::find($prediction['organ'])?->name : null,
-                'category_names' => $this->namesForIds($prediction['categories'] ?? []),
+                'category_names' => Project::whereIn('id', $prediction['categories'] ?? [])->pluck('name')->values()->all(),
             ],
         ]);
     }
@@ -100,7 +193,24 @@ class MobileAiController extends Controller
         }
 
         if (!is_array($parsed)) {
-            return response()->json(['message' => 'تحلیل نامه توسط هوش مصنوعی انجام نشد.'], 422);
+            $parsed = [];
+        }
+
+        // اگر سرویس بیرونی در دسترس نبود، تحلیل پایه LetterParser محلی را
+        // نگه می‌داریم تا ثبت نامه متوقف نشود.
+        if (trim((string) ($parsed['subject'] ?? '')) === '') {
+            $local = (new LetterParser())->parse($text);
+            $parsed = [
+                'subject' => $local['title'] ?? '',
+                'description' => $local['description'] ?? $text,
+                'summary' => $local['summary'] ?? '',
+                'mokatebe' => $local['mokatebe'] ?? null,
+                'kind' => $local['kind'] ?? 1,
+                'organ_id' => $local['organ_id'] ?? null,
+                'organ_owners' => $local['organ_owners'] ?? [],
+                'customer_owners' => $local['customer_owners'] ?? [],
+                'date' => $local['title_date'] ?? null,
+            ];
         }
 
         $title = trim((string) ($parsed['subject'] ?? ''));
@@ -126,7 +236,7 @@ class MobileAiController extends Controller
                 'category_ids' => $prediction['categories'] ?? [],
                 'city_name' => $prediction['city'] ? City::find($prediction['city'])?->name : null,
                 'organ_name' => $prediction['organ'] ? Organ::find($prediction['organ'])?->name : null,
-                'category_names' => $this->namesForIds($prediction['categories'] ?? []),
+                'category_names' => Project::whereIn('id', $prediction['categories'] ?? [])->pluck('name')->values()->all(),
                 'raw_text' => $text,
             ],
         ]);

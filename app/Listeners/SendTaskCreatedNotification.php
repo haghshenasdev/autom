@@ -42,6 +42,14 @@ class SendTaskCreatedNotification
                     ->title('فعالیت جدید')
                     ->body($message)
                     ->sendToDatabase($user);
+
+                $notification = $user->notifications()->latest('created_at')->first();
+                if ($notification) {
+                    $data = is_array($notification->data) ? $notification->data : [];
+                    $data['mobile_type'] = 'task';
+                    $data['mobile_id'] = (int) $task->id;
+                    $notification->forceFill(['data' => $data])->save();
+                }
             }
 
         }

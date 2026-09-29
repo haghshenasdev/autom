@@ -21,6 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('mobile/v1')->group(function () {
         Route::get('permissions', [MobileApiController::class, 'permissions']);
         Route::post('ai/minutes', [MobileAiController::class, 'minute']);
+        Route::post('ai/title', [MobileAiController::class, 'title']);
         Route::post('ai/letters', [MobileAiController::class, 'letter']);
 
         Route::get('files/{resource}/{id}', [MobileApiController::class, 'files']);
