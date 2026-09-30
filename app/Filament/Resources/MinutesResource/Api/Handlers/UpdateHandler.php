@@ -50,6 +50,15 @@ class UpdateHandler extends Handlers {
             );
 
         }
+
+        if ($request->has('group_ids')) {
+            $model->group()->sync($request->input('group_ids', []));
+        }
+
+        if ($request->has('project_ids')) {
+            $model->projects()->sync($request->input('project_ids', []));
+        }
+
         if ($request->hasFile('upload_file')) {
 
 

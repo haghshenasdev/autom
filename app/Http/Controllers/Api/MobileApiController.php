@@ -67,12 +67,12 @@ class MobileApiController extends Controller
      */
     private const RESOURCES = [
         'letters' => [Letter::class, LetterResource::class, 'letter', ['user','type','organ','daftar','customers','organs_owner','users','projects','referrals','Answer']],
-        'minutes' => [Minutes::class, MinutesResource::class, 'minutes', ['typer','task_creator','organ','group','tasks','approves','appendix_others']],
+        'minutes' => [Minutes::class, MinutesResource::class, 'minutes', ['typer','task_creator','organ','group','projects','tasks','approves','appendix_others']],
         'tasks' => [Task::class, TaskResource::class, 'task', ['creator','responsible','organ','city','minutes','project','task_group','appendix_others']],
         'projects' => [Project::class, ProjectResource::class, 'project', ['user','organ','city','group','tasks','letters']],
-        'task-groups' => [TaskGroup::class, TaskGroupResource::class, 'task_group', ['parent','tasks']],
-        'project-groups' => [ProjectGroup::class, ProjectGroupResource::class, 'project_group', ['parent','projects']],
-        'minutes-groups' => [MinutesGroup::class, MinutesGroupResource::class, 'minutes_group', ['parent','minutes']],
+        'task-groups' => [TaskGroup::class, TaskGroupResource::class, 'task::group', ['parent','tasks']],
+        'project-groups' => [ProjectGroup::class, ProjectGroupResource::class, 'project::group', ['parent','projects']],
+        'minutes-groups' => [MinutesGroup::class, MinutesGroupResource::class, 'minutes::group', ['parent','minutes']],
         'organs' => [Organ::class, OrganResource::class, 'organ', ['organ_type','letters','projects','tasks']],
         'organ-types' => [OrganType::class, OrganTypeResource::class, 'organ_type', ['organs']],
         'cities' => [City::class, CityResource::class, 'city', ['projects','tasks','customers']],
@@ -1119,7 +1119,7 @@ class MobileApiController extends Controller
     {
         return match($resource) {
             'letters' => ['user','type','organ','daftar','customers','organs_owner','users','projects'],
-            'minutes' => ['typer','task_creator','organ','group'],
+            'minutes' => ['typer','task_creator','organ','group','projects','tasks'],
             'tasks' => ['creator','responsible','organ','city','minutes','project','task_group','appendix_others'],
             'projects' => ['user','organ','city','group'],
             'referrals' => ['letter','users','by_users'],
@@ -1211,7 +1211,10 @@ class MobileApiController extends Controller
                 continue;
             }
             if ($model === Minutes::class && $field === 'project_id') {
-                $query->whereHas('tasks.project', fn($q) => $q->whereIn('projects.id', $valueList));
+                $query->where(function ($q) use ($valueList) {
+                    $q->whereHas('projects', fn($p) => $p->whereIn('projects.id', $valueList))
+                      ->orWhereHas('tasks.project', fn($p) => $p->whereIn('projects.id', $valueList));
+                });
                 continue;
             }
             if ($model === Minutes::class && $field === 'organ_id') {
@@ -1280,6 +1283,12 @@ class MobileApiController extends Controller
             unset($data['user_id']);
         }
 
+        if ($resource === 'tasks' && array_key_exists('minutes_id', $data)) {
+            $data['minutes_id'] = ($data['minutes_id'] === '' || $data['minutes_id'] === null)
+                ? null
+                : (int) $data['minutes_id'];
+        }
+
         return $data + collect($request->all())->only([
             'customer_ids','organ_owner_ids','cartable_user_ids','project_ids','group_ids','organ_ids','role_names'
         ])->toArray();
@@ -1301,7 +1310,7 @@ class MobileApiController extends Controller
     {
         $map = [
             'letters' => ['customers'=>'customer_ids','organs_owner'=>'organ_owner_ids','users'=>'cartable_user_ids','projects'=>'project_ids'],
-            'minutes' => ['organ'=>'organ_ids','group'=>'group_ids'],
+            'minutes' => ['organ'=>'organ_ids','group'=>'group_ids','projects'=>'project_ids'],
             'tasks' => ['project'=>'project_ids','task_group'=>'group_ids'],
             'projects' => ['group'=>'group_ids'],
         ];
@@ -1365,6 +1374,22 @@ class MobileApiController extends Controller
             }
         } elseif ($item instanceof Minutes) {
             $data['files'] = $this->appendixFiles($item, 'minutes', $item->id);
+            $data['projects'] = $item->relationLoaded('projects')
+                ? $item->projects->map(fn ($project) => [
+                    'id' => (int) $project->id,
+                    'name' => (string) $project->name,
+                ])->values()
+                : [];
+            $data['tasks'] = $item->relationLoaded('tasks')
+                ? $item->tasks->map(fn ($task) => [
+                    'id' => (int) $task->id,
+                    'name' => (string) $task->name,
+                    'status' => $task->status,
+                    'progress' => $task->progress,
+                    'completed' => (bool) $task->completed,
+                    'minutes_id' => $task->minutes_id,
+                ])->values()
+                : [];
         } elseif ($item instanceof User) {
             $data['avatar_url'] = $item->getFilamentAvatarUrl();
             $data['roles'] = $item->getRoleNames()->values();
@@ -1417,6 +1442,15 @@ class MobileApiController extends Controller
         }
 
         if ($resource === 'minutes' && $item instanceof Minutes) {
+            $oldExtension = strtolower((string) $item->file);
+
+            if ($oldExtension !== '' && $oldExtension !== $extension) {
+                $oldPath = $item->getFilePath();
+                if ($oldPath) {
+                    Storage::disk('private_appendix_other')->delete($oldPath);
+                }
+            }
+
             $filename = $item->id . '.' . $extension;
             Storage::disk('private_appendix_other')->putFileAs(
                 'minutes/' . $item->id,

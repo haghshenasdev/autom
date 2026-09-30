@@ -36,6 +36,14 @@ class CreateMinutesRequest extends FormRequest
                 'integer',
                 'exists:organs,id',
             ],
+            'project_ids' => [
+                'nullable',
+                'array',
+            ],
+            'project_ids.*' => [
+                'integer',
+                'exists:projects,id',
+            ],
             'upload_file' => [
                 'nullable',
                 'file',

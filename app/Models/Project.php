@@ -59,6 +59,11 @@ class Project extends Model implements HasAllowedSorts,HasAllowedFilters
         return $this->belongsToMany(Letter::class, 'letter_project')->withPivot('summary');
     }
 
+    public function minutes()
+    {
+        return $this->belongsToMany(Minutes::class, 'minute_project', 'project_id', 'minute_id');
+    }
+
     public function group()
     {
         return $this->belongsToMany(ProjectGroup::class);

@@ -31,4 +31,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'eboo' => [
+        'ocr_token' => env('EBOO_OCR_TOKEN'),
+    ],
+
+    'gapgpt' => [
+        'api_key' => env('GAPGPT_API_KEY'),
+    ],
+
 ];

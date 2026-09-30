@@ -48,6 +48,16 @@ class Minutes extends Model implements  HasAllowedSorts,HasAllowedFilters
         return $this->belongsToMany(MinutesGroup::class);
     }
 
+    /**
+     * دستورکارهای مستقیم مرتبط با صورتجلسه.
+     * این رابطه مستقل از task_id است و اجازه می‌دهد یک صورتجلسه
+     * همزمان به چند دستورکار متصل باشد.
+     */
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class, 'minute_project', 'minute_id', 'project_id');
+    }
+
     public function organ()
     {
         return $this->belongsToMany(Organ::class,'minute_organ','minute_id','organ_id');
@@ -162,6 +172,16 @@ class Minutes extends Model implements  HasAllowedSorts,HasAllowedFilters
             SelectTree::make('group_id')->label('دسته بندی')
                 ->relationship('group', 'name', 'parent_id')
                 ->enableBranchNode()->createOptionForm(MinutesGroup::formSchema()),
+
+            Select::make('project_id')
+                ->label('دستورکارها')
+                ->relationship('projects', 'name')
+                ->multiple()
+                ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->name}")
+                ->searchable(['projects.id', 'projects.name'])
+                ->preload()
+                ->createOptionForm(Project::formSchema()),
+
             DateTimePicker::make('date')->default(Date::now())->jalali()->label('تاریخ')->required()->closeOnDateSelection(),
         ];
     }

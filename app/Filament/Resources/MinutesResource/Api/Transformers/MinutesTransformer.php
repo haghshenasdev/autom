@@ -60,6 +60,15 @@ class MinutesTransformer extends JsonResource
                 });
             }),
 
+            'projects' => $this->whenLoaded('projects', function () {
+                return $this->projects->map(function ($project) {
+                    return [
+                        'id' => $project->id,
+                        'name' => $project->name,
+                    ];
+                });
+            }),
+
             'created_at' => $this->created_at,
         ];
     }

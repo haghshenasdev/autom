@@ -77,6 +77,10 @@ class CreateHandler extends Handlers {
 
         }
 
+        if ($request->has('project_ids')) {
+            $model->projects()->sync($request->input('project_ids', []));
+        }
+
 
         /*
         |--------------------------------------------------------------------------

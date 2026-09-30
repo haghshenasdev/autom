@@ -180,7 +180,7 @@ class MobileAiController extends Controller
 
         // اگر کلید سرویس هوش مصنوعی تنظیم شده باشد ابتدا تحلیل قبلی را امتحان
         // می‌کنیم؛ در صورت خطا یا خروجی ناقص، parser محلی/قواعدی اجرا می‌شود.
-        if (trim((string) env('GAPGPT_API_KEY')) !== '') {
+        if (trim((string) config('services.gapgpt.api_key')) !== '') {
             try {
                 $parsed = $parser->aiParse($text);
             } catch (\Throwable $e) {
@@ -251,7 +251,7 @@ class MobileAiController extends Controller
 
     private function ocr(UploadedFile $file): string
     {
-        $ocrToken = trim((string) env('EBOO_OCR_TOKEN'));
+        $ocrToken = trim((string) config('services.eboo.ocr_token'));
         if ($ocrToken === '') {
             throw new \RuntimeException('کلید EBOO_OCR_TOKEN در تنظیمات سرور تعریف نشده است.');
         }
@@ -275,6 +275,14 @@ class MobileAiController extends Controller
         }
 
         $token = $response->json('FileToken') ?? $response->json('filetoken');
+        $status = strtolower((string) ($response->json('Status') ?? ''));
+        if ($status !== '' && !in_array($status, ['done', 'success', 'ok'], true) && !$token) {
+            Log::warning('OCR addfile rejected file', [
+                'status' => $response->json('Status'),
+                'body' => mb_substr($response->body(), 0, 500),
+            ]);
+            throw new \RuntimeException('EBOO فایل را رد کرد: ' . (string) ($response->json('Message') ?? $response->json('message') ?? $response->json('Error') ?? 'پاسخ نامعتبر'));
+        }
         if (!$token) {
             Log::warning('OCR addfile response did not include FileToken', ['body' => mb_substr($response->body(), 0, 500)]);
             throw new \RuntimeException('سرویس OCR توکن فایل را برنگرداند؛ کلید OCR یا دسترسی فایل را بررسی کنید.');
@@ -299,13 +307,13 @@ class MobileAiController extends Controller
 
     private function cleanMinuteText(string $text): string
     {
-        if (trim((string) env('GAPGPT_API_KEY')) === '') {
+        if (trim((string) config('services.gapgpt.api_key')) === '') {
             return $text;
         }
 
         try {
             $response = Http::timeout(25)->withHeaders([
-                'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+                'Authorization' => 'Bearer ' . config('services.gapgpt.api_key'),
                 'Content-Type' => 'application/json',
             ])->post('https://api.gapgpt.app/v1/chat/completions', [
                 'model' => 'gpt-4o',
