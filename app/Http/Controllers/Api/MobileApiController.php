@@ -85,7 +85,7 @@ class MobileApiController extends Controller
         'appendixes' => [AppendixOther::class, AppendixResource::class, 'appendix', ['appendix_other']],
         'replications' => [Replication::class, ReplicationResource::class, 'replication', ['letter']],
         'content-groups' => [ContentGroup::class, ContentGroupResource::class, 'content_group', ['contents']],
-        'contents' => [Content::class, ContentResource::class, 'content', ['group']],
+        'contents' => [Content::class, ContentResource::class, 'content', ['group','user']],
         'users' => [User::class, UserResource::class, 'user', ['roles','permissions']],
     ];
 
@@ -105,6 +105,8 @@ class MobileApiController extends Controller
                     'view_any_cartable','update_cartable','delete_cartable',
                     'view_any_referral','create_referral','update_referral','delete_referral',
                     'view_any_user','create_user','update_user','delete_user',
+                    'view_any_content','create_content','update_content','delete_content',
+                    'view_any_content::group','create_content::group','update_content::group','delete_content::group',
                 ])->mapWithKeys(fn ($permission) => [$permission => $user->can($permission)]),
             ],
         ]);
@@ -216,7 +218,7 @@ class MobileApiController extends Controller
 
     public function files(Request $request, string $resource, int $id)
     {
-        $allowed = ['letters', 'minutes', 'tasks'];
+        $allowed = ['letters', 'minutes', 'tasks', 'contents'];
         abort_unless(in_array($resource, $allowed, true), 404);
 
         if ($resource === 'letters') {
@@ -246,6 +248,25 @@ class MobileApiController extends Controller
             return response()->json(['data' => $files]);
         }
 
+        if ($resource === 'contents') {
+            $item = ContentResource::getEloquentQuery()->findOrFail($id);
+            $this->ensurePermission($request->user(), 'view_content', $item);
+            $files = [];
+            foreach ((array) ($item->body ?? []) as $index => $part) {
+                if (!is_array($part)) continue;
+                if (!empty($part['file']) && is_string($part['file'])) {
+                    $files[] = [
+                        'id' => 'body-'.$index,
+                        'title' => $part['name'] ?? 'پیوست یادداشت',
+                        'extension' => pathinfo($part['file'], PATHINFO_EXTENSION),
+                        'mime' => $part['mime'] ?? $this->mimeFromExtension(pathinfo($part['file'], PATHINFO_EXTENSION)),
+                        'url' => url("/api/mobile/v1/files/contents/{$id}/body-{$index}"),
+                    ];
+                }
+            }
+            return response()->json(['data'=>$files]);
+        }
+
         if ($resource === 'minutes') {
             $item = MinutesResource::getEloquentQuery()->with('appendix_others')->findOrFail($id);
             $this->ensurePermission($request->user(), 'view_minutes', $item);
@@ -259,7 +280,7 @@ class MobileApiController extends Controller
 
     public function file(Request $request, string $resource, int $id, string $fileKey)
     {
-        abort_unless(in_array($resource, ['letters', 'minutes', 'tasks'], true), 404);
+        abort_unless(in_array($resource, ['letters', 'minutes', 'tasks', 'contents'], true), 404);
 
         if ($resource === 'letters') {
             $item = LetterResource::getEloquentQuery()->findOrFail($id);
@@ -276,6 +297,21 @@ class MobileApiController extends Controller
                 return $this->binaryFromDisk('private_appendix_other', $appendix->getFilePath());
             }
 
+            abort(404);
+        }
+
+        if ($resource === 'contents') {
+            $item = ContentResource::getEloquentQuery()->findOrFail($id);
+            $this->ensurePermission($request->user(), 'view_content', $item);
+            if (preg_match('/^body-(\d+)$/', $fileKey, $m)) {
+                $index = (int) $m[1];
+                $body = is_array($item->body) ? $item->body : [];
+                $part = $body[$index] ?? null;
+                if (!is_array($part)) abort(404);
+                $path = $part['file'] ?? null;
+                if (is_array($path)) $path = reset($path);
+                return $this->binaryFromDisk('private2', is_string($path) ? $path : null);
+            }
             abort(404);
         }
 
@@ -1120,6 +1156,8 @@ class MobileApiController extends Controller
         return match($resource) {
             'letters' => ['user','type','organ','daftar','customers','organs_owner','users','projects'],
             'minutes' => ['typer','task_creator','organ','group','projects','tasks'],
+            'contents' => ['group','user'],
+            'content-groups' => ['parent','contents'],
             'tasks' => ['creator','responsible','organ','city','minutes','project','task_group','appendix_others'],
             'projects' => ['user','organ','city','group'],
             'referrals' => ['letter','users','by_users'],
@@ -1272,6 +1310,14 @@ class MobileApiController extends Controller
         if ($resource === 'projects' && !$update) {
             validator($data,['name'=>'required|string|max:255'])->validate();
         }
+        if ($resource === 'contents') {
+            validator($data, ['title'=>'required|string|max:255'])->validate();
+            if (isset($data['body']) && is_string($data['body'])) {
+                $decoded = json_decode($data['body'], true);
+                if (json_last_error() === JSON_ERROR_NONE) $data['body'] = $decoded;
+            }
+            if (!isset($data['body']) || !is_array($data['body'])) $data['body'] = [];
+        }
 
         if ($resource === 'tasks' && !$request->user()->can('restore_any_task')) {
             unset($data['Responsible_id'], $data['created_by']);
@@ -1304,6 +1350,7 @@ class MobileApiController extends Controller
         if ($item instanceof Project && !$item->user_id) $item->user_id = $user->id;
         if ($item instanceof Minutes && !$item->typer_id) $item->typer_id = $user->id;
         if ($item instanceof Letter && !$item->user_id) $item->user_id = $user->id;
+        if ($item instanceof Content && !$item->user_id) $item->user_id = $user->id;
     }
 
     private function syncRelations(Model $item, array $data, string $resource): void
@@ -1313,6 +1360,7 @@ class MobileApiController extends Controller
             'minutes' => ['organ'=>'organ_ids','group'=>'group_ids','projects'=>'project_ids'],
             'tasks' => ['project'=>'project_ids','task_group'=>'group_ids'],
             'projects' => ['group'=>'group_ids'],
+            'contents' => ['group'=>'group_ids'],
         ];
         if ($item instanceof User && array_key_exists('role_names', $data)) {
             $item->syncRoles(array_values(array_filter((array)$data['role_names'])));
@@ -1390,6 +1438,23 @@ class MobileApiController extends Controller
                     'minutes_id' => $task->minutes_id,
                 ])->values()
                 : [];
+        } elseif ($item instanceof Content) {
+            $data['groups'] = $item->relationLoaded('group')
+                ? $item->group->map(fn ($group) => ['id'=>(int)$group->id,'name'=>(string)$group->name,'parent_id'=>$group->parent_id])->values()
+                : [];
+            $contentParts = collect($item->body ?? [])->values()->map(function ($part, $index) use ($item) {
+                if (is_string($part)) $part = ['type'=>'file','file'=>$part];
+                if (!is_array($part)) return $part;
+                if (!empty($part['file']) && is_string($part['file'])) {
+                    $part['url'] = url("/api/mobile/v1/files/contents/{$item->id}/body-{$index}");
+                }
+                if (!empty($part['drawing']) && is_string($part['drawing']) && !str_starts_with($part['drawing'], 'data:image')) {
+                    $part['drawing_url'] = url("/api/mobile/v1/files/contents/{$item->id}/body-{$index}/drawing");
+                }
+                return $part;
+            })->values();
+            $data['body'] = $contentParts;
+            $data['files'] = $contentParts->filter(fn ($part) => is_array($part) && !empty($part['file']))->values();
         } elseif ($item instanceof User) {
             $data['avatar_url'] = $item->getFilamentAvatarUrl();
             $data['roles'] = $item->getRoleNames()->values();
@@ -1458,6 +1523,24 @@ class MobileApiController extends Controller
                 $filename
             );
             $item->forceFill(['file' => $extension])->saveQuietly();
+            return;
+        }
+
+        if ($resource === 'contents' && $item instanceof Content) {
+            $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) ?: ('note-'.$item->id);
+            $safe = preg_replace('/[^A-Za-z0-9._-]+/', '_', $filename) ?: ('note-'.$item->id);
+            $safe .= '.' . $extension;
+            $path = 'contents/' . $item->id . '/' . $safe;
+            Storage::disk('private2')->putFileAs('contents/' . $item->id, $file, $safe);
+
+            $body = is_array($item->body) ? $item->body : [];
+            $body[] = [
+                'type' => 'file',
+                'file' => $path,
+                'name' => $file->getClientOriginalName(),
+                'mime' => $file->getMimeType(),
+            ];
+            $item->forceFill(['body' => $body])->saveQuietly();
         }
     }
 
