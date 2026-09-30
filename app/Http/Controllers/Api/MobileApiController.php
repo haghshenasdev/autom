@@ -115,7 +115,16 @@ class MobileApiController extends Controller
     public function index(Request $request, string $resource)
     {
         [$model, $filamentResource, $permission, $includes] = $this->definition($resource);
-        $this->ensurePermission($request->user(), "view_any_{$permission}");
+        if ($resource === 'content-groups') {
+            abort_unless(
+                $request->user()?->can('view_any_content::group') ||
+                $request->user()?->can('view_any_content'),
+                403,
+                'شما مجوز مشاهده دسته‌بندی‌های یادداشت را ندارید.'
+            );
+        } else {
+            $this->ensurePermission($request->user(), "view_any_{$permission}");
+        }
 
         // Re-use the exact query scope used by Filament.
         $query = $filamentResource::getEloquentQuery();
@@ -527,7 +536,13 @@ class MobileApiController extends Controller
     {
         [$model, $filamentResource, $permission] = $this->definition($resource);
 
-        if ($resource === 'users' && (
+        if ($resource === 'content-groups' && (
+            $request->user()->can('view_any_content::group') ||
+            $request->user()->can('view_any_content')
+        )) {
+            // دسته‌بندی‌های یادداشت برای کاربرانی که خود یادداشت‌ها را می‌بینند
+            // نیز در انتخاب‌گر موبایل قابل مشاهده هستند.
+        } elseif ($resource === 'users' && (
             $request->user()->can('create_letter') ||
             $request->user()->can('view_any_task') ||
             $request->user()->can('view_any_minutes') ||
@@ -1273,6 +1288,10 @@ class MobileApiController extends Controller
             }
             if ($model === Task::class && $field === 'organ_id') {
                 $query->where('organ_id', $valueList[0] ?? 0);
+                continue;
+            }
+            if ($model === Content::class && $field === 'group_id') {
+                $query->whereHas('group', fn($q) => $q->whereIn('content_groups.id', $valueList));
                 continue;
             }
             $allowedFilters = method_exists($model,'getAllowedFilters') ? $model::getAllowedFilters() : [];
