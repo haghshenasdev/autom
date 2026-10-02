@@ -1259,6 +1259,10 @@ class MobileApiController extends Controller
                 $query->where('type_id', $valueList[0] ?? 0);
                 continue;
             }
+            if ($model === Letter::class && $field === 'peiroow_letter_id') {
+                $query->where('peiroow_letter_id', $valueList[0] ?? 0);
+                continue;
+            }
             if ($model === Minutes::class && $field === 'task_id') {
                 $query->where('task_id', $valueList[0] ?? 0);
                 continue;
@@ -1354,6 +1358,27 @@ class MobileApiController extends Controller
                 : (int) $data['minutes_id'];
         }
 
+        if ($resource === 'letters' && array_key_exists('peiroow_letter_id', $data)) {
+            $data['peiroow_letter_id'] = ($data['peiroow_letter_id'] === '' || $data['peiroow_letter_id'] === null)
+                ? null
+                : (int) $data['peiroow_letter_id'];
+        }
+
+        if ($resource === 'tasks') {
+            foreach (['Responsible_id', 'city_id', 'organ_id', 'minutes_id'] as $key) {
+                if (array_key_exists($key, $data)) {
+                    $data[$key] = ($data[$key] === '' || $data[$key] === null)
+                        ? null
+                        : (int) $data[$key];
+                }
+            }
+            foreach (['created_at', 'started_at', 'ended_at', 'completed_at'] as $key) {
+                if (array_key_exists($key, $data) && ($data[$key] === '' || $data[$key] === null)) {
+                    $data[$key] = null;
+                }
+            }
+        }
+
         return $data + collect($request->all())->only([
             'customer_ids','organ_owner_ids','cartable_user_ids','project_ids','group_ids','organ_ids','role_names'
         ])->toArray();
@@ -1400,6 +1425,13 @@ class MobileApiController extends Controller
 
         if ($item instanceof Letter) {
             $data['kind_title'] = Letter::getKindLabel($item->kind);
+            $data['peiroow_letter_id'] = $item->peiroow_letter_id;
+            $data['peiroow_letter'] = $item->relationLoaded('letter') && $item->letter
+                ? [
+                    'id' => $item->letter->id,
+                    'subject' => $item->letter->subject,
+                ]
+                : null;
             $data['files'] = $this->appendixFiles($item, 'letters', $item->id);
             $data['status_title'] = Letter::getStatusLabel($item->status);
             $data['cartables'] = $item->relationLoaded('users') ? $item->users->map(fn($u)=>['id'=>$u->id,'name'=>$u->name,'avatar_url'=>$u->avatar_url])->values() : [];

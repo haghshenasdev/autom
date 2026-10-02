@@ -335,6 +335,7 @@ class Letter extends Model implements HasAllowedSorts,HasAllowedFilters
             'kind',
             'created_at',
             'updated_at',
+            'peiroow_letter_id',
             AllowedFilter::callback(
                 'search',
                 function (Builder $query, $value) {
