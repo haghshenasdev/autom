@@ -21,8 +21,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Models\Minutes;
 use App\Models\Letter;
 use App\Models\Task;
@@ -421,9 +423,14 @@ class BaleBotController extends Controller
                     if (isset($data['message']['reply_to_message']['document']['file_id'])) {
                         $reply_msg = $data['message']['reply_to_message'];
                         $doc = $reply_msg['document'];
-                        $record = $this->handleMinute_create($text, $chatId, $user,$isPrivateChat,$doc);
+                        $record = $this->handleMinute_create($text, $chatId, $user, $isPrivateChat, $doc);
 
-                        $this->MinuteFileAdd($record,$doc,$media_group_id,$bale_user);
+                        // Permission or parsing failures may return an HTTP response
+                        // instead of a persisted Minutes model. Never try to attach a file
+                        // to an invalid value.
+                        if ($record instanceof Minutes) {
+                            $this->MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId);
+                        }
                     }else {
                         $this->sendMessage($chatId,'لطفا این متن را در پاسخ یک فایل برام بفرست تا فایل صورتجلسه را در سامانه ثبت کنم');
                     }
@@ -542,13 +549,13 @@ class BaleBotController extends Controller
                 // ذخیره در مدل مناسب
                 $record = null;
                 if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
-                    $record = $this->handleMinute_create($caption,$chatId,$user,$isPrivateChat,$data['message']['document'] ?? null);
+                    $record = $this->handleMinute_create($caption, $chatId, $user, $isPrivateChat, $data['message']['document'] ?? null);
 
-                    if (isset($data['message']['document'])) {
+                    if ($record instanceof Minutes && isset($data['message']['document'])) {
                         $doc = $data['message']['document'];
-                        $this->MinuteFileAdd($record,$doc,$media_group_id,$bale_user);
+                        $this->MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId);
                     }
-                    return response('صورت جلسه ایجاد شد.');
+                    return response('صورت جلسه پردازش شد.');
 
                 }
                 elseif ($matched === '#نامه') {
@@ -1678,27 +1685,35 @@ TEXT;
                 'task_id' => $parsedData['task_id'],
             ];
 
-            $record = Minutes::create($mdata);
-            $record->organ()->attach($parsedData['organs']);
-            $record->group()->attach(1);
-            foreach ($parsedData['approves'] as $approve) {
-                $cp = new \App\Http\Controllers\ai\CategoryPredictor();
-                $keywords = $cp->extractKeywords($approve['text']);
-                $task = Task::create([
-                    'name' => $approve['text'],
-                    'started_at' => $mdata['date'],
-                    'created_at' => $mdata['date'],
-                    'amount' => $approve['amount'],
-                    'ended_at' => $approve['due_at'] ?? null,
-                    'Responsible_id' => $approve['user']['id'] ?? $user->id,
-                    'created_by' => $user->id,
-                    'minutes_id' => $record->id,
-                    'city_id' => $cp->detectCity($keywords),
-                    'organ_id' => $cp->detectOrgan($keywords),
-                ]);
-                $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
-                $task->project()->attach($approve['projects'] ?: $parsedData['global_projects']);
-            }
+            // Persist the minutes, its relations and generated tasks atomically.
+            // If one step fails, the database is rolled back instead of leaving a
+            // half-created minutes record with only some of its approvals.
+            $record = DB::transaction(function () use ($mdata, $parsedData, $user) {
+                $record = Minutes::create($mdata);
+                $record->organ()->attach($parsedData['organs'] ?? []);
+                $record->group()->attach(1);
+
+                foreach (($parsedData['approves'] ?? []) as $approve) {
+                    $cp = new \App\Http\Controllers\ai\CategoryPredictor();
+                    $keywords = $cp->extractKeywords($approve['text'] ?? '');
+                    $task = Task::create([
+                        'name' => $approve['text'] ?? '',
+                        'started_at' => $mdata['date'],
+                        'created_at' => $mdata['date'],
+                        'amount' => $approve['amount'] ?? null,
+                        'ended_at' => $approve['due_at'] ?? null,
+                        'Responsible_id' => $approve['user']['id'] ?? $user->id,
+                        'created_by' => $user->id,
+                        'minutes_id' => $record->id,
+                        'city_id' => $cp->detectCity($keywords),
+                        'organ_id' => $cp->detectOrgan($keywords),
+                    ]);
+                    $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
+                    $task->project()->attach($approve['projects'] ?: ($parsedData['global_projects'] ?? []));
+                }
+
+                return $record;
+            });
 
             if ($isPrivateChat){
                 $message .= '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
@@ -1816,28 +1831,89 @@ EOT);
         return $record;
     }
 
-    private function MinuteFileAdd($record,$doc,$media_group_id,$bale_user)
+    private function MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId = null)
     {
-        $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
-        Storage::disk('private_appendix_other')->put($record->getFilePath(), $this->getFile($doc['file_id']));
-        if ($media_group_id) {
-            $state_data = explode('_', $bale_user->state);
-//                            $this->sendMessage(1497344206,json_encode($state_data));
-            if ($state_data[0] == "$media_group_id") {
-                $child = $record::withoutEvents(function () use ($record, $state_data) {
-                    return $record->appendix_others()->create([
-                        'title' => 'ضمیمه',
-                        'file' => $state_data[2],
-                    ]);
-                });
+        if (!$record instanceof Minutes || empty($doc['file_id']) || empty($doc['file_name'])) {
+            Log::warning('Bale minute file upload skipped: invalid record or document.', [
+                'record_type' => is_object($record) ? get_class($record) : gettype($record),
+                'record_id' => $record instanceof Minutes ? $record->id : null,
+                'has_file_id' => !empty($doc['file_id']),
+                'has_file_name' => !empty($doc['file_name']),
+            ]);
 
-                Storage::disk('private_appendix_other')
-                    ->put($child->getFilePath(), $this->getFile($state_data[1]));
+            if ($chatId !== null) {
+                $this->sendMessage($chatId, '⚠️ صورت‌جلسه پردازش شد، اما اطلاعات فایل معتبر نبود و فایل ذخیره نشد.');
             }
-        }
-        $bale_user->update(['state' => '1']);
 
-        return true;
+            return false;
+        }
+
+        try {
+            $extension = strtolower(pathinfo($doc['file_name'], PATHINFO_EXTENSION));
+            $fileContents = $this->getFile($doc['file_id']);
+
+            if (!is_string($fileContents) || $fileContents === '') {
+                throw new \RuntimeException('دریافت محتوای فایل صورت‌جلسه از بله ناموفق بود.');
+            }
+
+            $record->file = $extension;
+            $record->save();
+
+            $disk = Storage::disk('private_appendix_other');
+            $stored = $disk->put($record->getFilePath(), $fileContents);
+
+            if ($stored !== true) {
+                throw new \RuntimeException('فضای ذخیره‌سازی فایل صورت‌جلسه عملیات نوشتن را تأیید نکرد.');
+            }
+
+            if ($media_group_id && $bale_user) {
+                $state_data = explode('_', (string) $bale_user->state);
+
+                if (($state_data[0] ?? null) == (string) $media_group_id
+                    && !empty($state_data[1])
+                    && !empty($state_data[2])) {
+                    $child = $record::withoutEvents(function () use ($record, $state_data) {
+                        return $record->appendix_others()->create([
+                            'title' => 'ضمیمه',
+                            'file' => $state_data[2],
+                        ]);
+                    });
+
+                    $childContents = $this->getFile($state_data[1]);
+                    if (!is_string($childContents) || $childContents === '') {
+                        throw new \RuntimeException('دریافت فایل ضمیمه صورت‌جلسه از بله ناموفق بود.');
+                    }
+
+                    $childStored = $disk->put($child->getFilePath(), $childContents);
+                    if ($childStored !== true) {
+                        throw new \RuntimeException('ذخیره فایل ضمیمه صورت‌جلسه ناموفق بود.');
+                    }
+                }
+            }
+
+            if ($bale_user) {
+                $bale_user->update(['state' => '1']);
+            }
+
+            return true;
+        } catch (\Throwable $exception) {
+            Log::error('Bale minute file storage failed.', [
+                'minutes_id' => $record->id,
+                'file_name' => $doc['file_name'] ?? null,
+                'file_id' => $doc['file_id'] ?? null,
+                'exception' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+
+            if ($chatId !== null) {
+                $this->sendMessage(
+                    $chatId,
+                    '⚠️ اطلاعات صورت‌جلسه ثبت شد، اما ذخیره فایل یا ضمیمه با خطا مواجه شد. لطفاً فایل را دوباره ارسال کنید. جزئیات خطا در گزارش سامانه ثبت شد.'
+                );
+            }
+
+            return false;
+        }
     }
 
     private function handleLetter_create($caption,$chatId,$user,$isPrivateChat)
