@@ -420,19 +420,20 @@ class BaleBotController extends Controller
                     }
                 }
                 elseif (str_starts_with($firstLine,'#صورتجلسه')) {
-                    if (isset($data['message']['reply_to_message']['document']['file_id'])) {
-                        $reply_msg = $data['message']['reply_to_message'];
-                        $doc = $reply_msg['document'];
+                    $reply_msg = $data['message']['reply_to_message'] ?? [];
+                    $doc = $this->getBaleAttachmentFromMessage($reply_msg);
+                    if ($doc) {
                         $record = $this->handleMinute_create($text, $chatId, $user, $isPrivateChat, $doc);
 
-                        // Permission or parsing failures may return an HTTP response
-                        // instead of a persisted Minutes model. Never try to attach a file
-                        // to an invalid value.
+                        // Only attach files to a successfully persisted minutes record.
                         if ($record instanceof Minutes) {
-                            $this->MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId);
+                            $saved = $this->MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId);
+                            if ($saved) {
+                                $this->sendMessage($chatId, '✅ فایل صورت‌جلسه با موفقیت ثبت و ذخیره شد.');
+                            }
                         }
-                    }else {
-                        $this->sendMessage($chatId,'لطفا این متن را در پاسخ یک فایل برام بفرست تا فایل صورتجلسه را در سامانه ثبت کنم');
+                    } else {
+                        $this->sendMessage($chatId,'لطفا این متن را در پاسخ یک فایل یا تصویر بفرست تا فایل صورتجلسه را در سامانه ثبت کنم');
                     }
                 }
                 elseif (str_starts_with($firstLine, '/نامه')) {
@@ -549,13 +550,21 @@ class BaleBotController extends Controller
                 // ذخیره در مدل مناسب
                 $record = null;
                 if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
-                    $record = $this->handleMinute_create($caption, $chatId, $user, $isPrivateChat, $data['message']['document'] ?? null);
+                    // Bale sends ordinary images under `photo`, not `document`.
+                    $doc = $this->getBaleAttachmentFromMessage($data['message']);
+                    $record = $this->handleMinute_create($caption, $chatId, $user, $isPrivateChat, $doc);
 
-                    if ($record instanceof Minutes && isset($data['message']['document'])) {
-                        $doc = $data['message']['document'];
-                        $this->MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId);
+                    if ($record instanceof Minutes) {
+                        if ($doc) {
+                            $saved = $this->MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId);
+                            if ($saved) {
+                                $this->sendMessage($chatId, '✅ صورت‌جلسه و فایل پیوست با موفقیت ثبت شدند.');
+                            }
+                        } else {
+                            $this->sendMessage($chatId, '✅ صورت‌جلسه با موفقیت ثبت شد.');
+                        }
                     }
-                    return response('صورت جلسه پردازش شد.');
+                    return response($record instanceof Minutes ? 'صورت جلسه ثبت شد.' : 'ثبت صورت جلسه ناموفق بود.');
 
                 }
                 elseif ($matched === '#نامه') {
@@ -913,11 +922,34 @@ class BaleBotController extends Controller
             'text' => $text,
         ];
 
-        $response = Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
+        if (empty($token)) {
+            Log::error('Bale sendMessage skipped: BALE_BOT_TOKEN is not configured.');
+            return null;
+        }
 
-        if ($response->successful()) {
-            $data = $response->json();
-            return $data['result']['message_id'] ?? null;
+        try {
+            // Retry transient connection failures (seen in logs as cURL error 7).
+            $response = Http::connectTimeout(8)->timeout(20)->retry(2, 500)
+                ->post("https://tapi.bale.ai/bot{$token}/sendMessage", $payload);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $messageId = $data['result']['message_id'] ?? null;
+                if ($messageId !== null) {
+                    return (string) $messageId;
+                }
+            }
+
+            Log::warning('Bale sendMessage API returned an unsuccessful response.', [
+                'chat_id' => $chatId,
+                'status' => $response->status(),
+                'body' => mb_substr($response->body(), 0, 1000),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Bale sendMessage request failed.', [
+                'chat_id' => $chatId,
+                'error' => $exception->getMessage(),
+            ]);
         }
 
         return null;
@@ -1000,11 +1032,24 @@ EOT);
     public function deleteMessage(string $chatId, string $messageId): void
     {
         $token = env('BALE_BOT_TOKEN');
+        if ($token === '' || $messageId === '') {
+            return;
+        }
 
-        Http::post("https://tapi.bale.ai/bot{$token}/deleteMessage", [
-            'chat_id' => $chatId,
-            'message_id' => $messageId,
-        ]);
+        try {
+            Http::connectTimeout(5)->timeout(10)->retry(1, 300)
+                ->post("https://tapi.bale.ai/bot{$token}/deleteMessage", [
+                    'chat_id' => $chatId,
+                    'message_id' => $messageId,
+                ]);
+        } catch (\Throwable $exception) {
+            // Cleanup is best-effort and must never break record/file creation.
+            Log::warning('Bale deleteMessage request failed.', [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function sendDocumentByUrl($chatId, $fileUrl, $caption = null): void
@@ -1082,7 +1127,19 @@ EOT);
 
     private function getFile($filePath)
     {
-        return file_get_contents($this->getFileUrl($filePath));
+        $token = env('BALE_BOT_TOKEN');
+        if (empty($token) || empty($filePath)) {
+            throw new \RuntimeException('تنظیمات ربات بله یا شناسه فایل معتبر نیست.');
+        }
+
+        $response = Http::connectTimeout(10)->timeout(60)->retry(2, 500)
+            ->get($this->getFileUrl($filePath));
+
+        if (!$response->successful() || $response->body() === '') {
+            throw new \RuntimeException('دریافت فایل از API بله ناموفق بود (HTTP ' . $response->status() . ').');
+        }
+
+        return $response->body();
     }
 
     private function getFileUrl($filePath): string
@@ -1663,6 +1720,32 @@ TEXT;
         return null;
     }
 
+    /** Normalize Bale document/photo payloads to the structure used by file storage. */
+    private function getBaleAttachmentFromMessage(array $message): ?array
+    {
+        if (!empty($message['document']['file_id'])) {
+            $document = $message['document'];
+            if (empty($document['file_name'])) {
+                $document['file_name'] = 'document_' . ($message['message_id'] ?? uniqid()) . '.bin';
+            }
+            return $document;
+        }
+
+        $photos = $message['photo'] ?? [];
+        if (is_array($photos) && count($photos) > 0) {
+            // Bale lists image variants from smaller to larger; use the last/highest resolution.
+            $photo = end($photos);
+            if (is_array($photo) && !empty($photo['file_id'])) {
+                return [
+                    'file_id' => $photo['file_id'],
+                    'file_name' => 'photo_' . ($message['message_id'] ?? uniqid()) . '.jpg',
+                ];
+            }
+        }
+
+        return null;
+    }
+
     private function handleMinute_create($caption,$chatId,$user,$isPrivateChat,$doc)
     {
         if (!$user->can('create_minutes')) {
@@ -1715,91 +1798,101 @@ TEXT;
                 return $record;
             });
 
-            if ($isPrivateChat){
-                $message .= '✅ صورت جلسه با مشخصات زیر ذخیره شد : ' . "\n\n";
-                $message .= '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$record->id]).')' . "\n\n";
-                $message .= $this->createMinuteMessage($record, $user);
-            }else{
-                $message .= '📝 [صورتجلسه با شماره '.$record->id.' ثبت شد .]('. MinutesResource::getUrl('edit',[$record->id]).')';
-            }
-            $this->sendMessage($chatId, $message);
+            // Confirmation is sent by the webhook caller after any attachment is saved.
+            try {
+                if (empty($parsedData['approves']) and $doc) {
+                    $loadinApAi = $this->sendMessage($chatId,"درحال استخراج مصوبات با هوش مصنوعی");
+                    $tfs = new TempFileService();
+                    $tfsUrl = $tfs->save($this->getFile($doc['file_id']),pathinfo($doc['file_name'], PATHINFO_EXTENSION));
 
-            if (empty($parsedData['approves']) and $doc) {
-                $loadinApAi = $this->sendMessage($chatId,"درحال استخراج مصوبات با هوش مصنوعی");
-                $this->getFile($doc['file_id']);
-                $tfs = new TempFileService();
-                $tfsUrl = $tfs->save($this->getFile($doc['file_id']),pathinfo($doc['file_name'], PATHINFO_EXTENSION));
-
-                $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-                    'token' => env('EBOO_OCR_TOKEN'),
-                    'command' => 'addfile',
-                    'filelink' => url('temp-download/'.$tfsUrl),
-                ]);
-                $ocrdata = json_decode($ocrResponse->body());
-
-                if (!isset($ocrdata->FileToken)) {
-
-                    $this->sendMessage(
-                        $chatId,
-                        "⚠️ استخراج خودکار متن صورتجلسه انجام نشد، اما فایل ذخیره شد."
-                    );
-
-                } else {
-                    $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+                    $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
                         'token' => env('EBOO_OCR_TOKEN'),
-                        'command' => 'convert',
-                        'output' => 'txtraw',
-                        'filetoken' => $ocrdata->FileToken,
-                        'method' => 4,
+                        'command' => 'addfile',
+                        'filelink' => url('temp-download/'.$tfsUrl),
                     ]);
-                    $ocrText = $ocrResponse2->body();
-                    $jalaliD = Jalalian::fromDateTime($record->date)->format('Y/m/d');
+                    $ocrdata = json_decode($ocrResponse->body());
 
-                    // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
-                    $aiResponse = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-                    ])->post('https://api.gapgpt.app/v1/chat/completions', [
-                        'model' => 'gpt-4o',
-                        'messages' => [
-                            [
-                                'role' => 'user',
-                                'content' => <<<EOT
-متن زیر با OCR از یک صورتجلسه استخراج شده است. لطفاً آن را اصلاح کن و فقط مصوبات را به شکل زیر  بدون هیچ توضیح اظافه ای بازگردان:
-هر مصوبه در یک خط جداگانه که با "-" شروع شود.
-اگر اعتبار ریالی ذکر شد با $ عدد مشخص شود. مانند $100000 ریال .
-متن و اطلاعات هر مصوبه در یک خط باشند.
-لطفاً متن مصوبات زیر را بررسی کن و برای هر مصوبه‌ای که در آن مهلت یا مدت زمان مشخصی برای انجام کار ذکر شده است، مدت زمان را به صورت زیر بازنویسی کن:
+                    if (!isset($ocrdata->FileToken)) {
 
-- فرمت مدت زمان باید به شکل « تا X روز » یا « تا X ماه » یا « تا X سال آینده » باشد.
-- محاسبه مدت زمان باید بر اساس تاریخ شروع {$jalaliD} انجام شود.
-- اگر در متن مصوبه هیچ مهلت یا مدت زمانی ذکر نشده بود، هیچ عبارتی اضافه نکن و همان متن مصوبه را بدون تغییر برگردان.
-- خروجی فقط متن اصلاح‌شده مصوبات باشد، بدون توضیحات اضافی یا متن اضافه.
+                        $this->sendMessage(
+                            $chatId,
+                            "⚠️ استخراج خودکار متن صورتجلسه انجام نشد، اما فایل ذخیره شد."
+                        );
 
-مثال:
-«مدت ۲۰ روز» → « تا 20 روز »
-«این کار  تا پایان سال 1405 انجام شود» → « تا 2 ماه آینده » (مدت زمان باقی مانده از تاریخ شروع تا ابتدای سال ذکر شده )
-«یک سال فرصت برای تکمیل وجود دارد» → « تا 1 سال آینده »
+                    } else {
+                        $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
+                            'token' => env('EBOO_OCR_TOKEN'),
+                            'command' => 'convert',
+                            'output' => 'txtraw',
+                            'filetoken' => $ocrdata->FileToken,
+                            'method' => 4,
+                        ]);
+                        $ocrText = $ocrResponse2->body();
+                        $jalaliD = Jalalian::fromDateTime($record->date)->format('Y/m/d');
 
-متن صورتجلسه :
-{$ocrText}
-EOT
+                        // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
+                        $aiResponse = Http::withHeaders([
+                            'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
+                        ])->post('https://api.gapgpt.app/v1/chat/completions', [
+                            'model' => 'gpt-4o',
+                            'messages' => [
+                                [
+                                    'role' => 'user',
+                                    'content' => <<<EOT
+    متن زیر با OCR از یک صورتجلسه استخراج شده است. لطفاً آن را اصلاح کن و فقط مصوبات را به شکل زیر  بدون هیچ توضیح اظافه ای بازگردان:
+    هر مصوبه در یک خط جداگانه که با "-" شروع شود.
+    اگر اعتبار ریالی ذکر شد با $ عدد مشخص شود. مانند $100000 ریال .
+    متن و اطلاعات هر مصوبه در یک خط باشند.
+    لطفاً متن مصوبات زیر را بررسی کن و برای هر مصوبه‌ای که در آن مهلت یا مدت زمان مشخصی برای انجام کار ذکر شده است، مدت زمان را به صورت زیر بازنویسی کن:
+
+    - فرمت مدت زمان باید به شکل « تا X روز » یا « تا X ماه » یا « تا X سال آینده » باشد.
+    - محاسبه مدت زمان باید بر اساس تاریخ شروع {$jalaliD} انجام شود.
+    - اگر در متن مصوبه هیچ مهلت یا مدت زمانی ذکر نشده بود، هیچ عبارتی اضافه نکن و همان متن مصوبه را بدون تغییر برگردان.
+    - خروجی فقط متن اصلاح‌شده مصوبات باشد، بدون توضیحات اضافی یا متن اضافه.
+
+    مثال:
+    «مدت ۲۰ روز» → « تا 20 روز »
+    «این کار  تا پایان سال 1405 انجام شود» → « تا 2 ماه آینده » (مدت زمان باقی مانده از تاریخ شروع تا ابتدای سال ذکر شده )
+    «یک سال فرصت برای تکمیل وجود دارد» → « تا 1 سال آینده »
+
+    متن صورتجلسه :
+    {$ocrText}
+    EOT
+                                ],
                             ],
-                        ],
-                    ]);
+                        ]);
 
-                    $ocrApprovesText = $aiResponse->json('choices.0.message.content');
-                    $ocrApprovesText = "\n\n" . "#مصوبه " . $record->id . "\n" . $ocrApprovesText;
+                        $ocrApprovesText = $aiResponse->json('choices.0.message.content');
+                        $ocrApprovesText = "\n\n" . "#مصوبه " . $record->id . "\n" . $ocrApprovesText;
 
-                    $apm = "هوش مصنوعی مصوبات زیر را از متن صورتجلسه استخراج کرده است . لطفا متن مصوبات را اصلاح کنید و برای ربات بفرستید تا مصوبات ضمیمه صورتجلسه شوند :";
-                    $apm .= $ocrApprovesText;
-                    $keyboard['inline_keyboard'][] = [ ['text' => '📋 کپی متن مصوبات', 'copy_text' => $ocrApprovesText], ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'] ];
-                    $this->sendMessageWithKeyboard($chatId,$apm,$keyboard);
+                        $apm = "هوش مصنوعی مصوبات زیر را از متن صورتجلسه استخراج کرده است . لطفا متن مصوبات را اصلاح کنید و برای ربات بفرستید تا مصوبات ضمیمه صورتجلسه شوند :";
+                        $apm .= $ocrApprovesText;
+                        $keyboard['inline_keyboard'][] = [ ['text' => '📋 کپی متن مصوبات', 'copy_text' => $ocrApprovesText], ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'] ];
+                        $this->sendMessageWithKeyboard($chatId,$apm,$keyboard);
+                    }
+
+                    if (is_string($loadinApAi) && $loadinApAi !== '') {
+                        try { $this->deleteMessage((string) $chatId, $loadinApAi); } catch (\Throwable $cleanupException) {
+                            Log::warning('Could not delete Bale OCR progress message.', ['chat_id' => $chatId, 'error' => $cleanupException->getMessage()]);
+                        }
+                    }
+
                 }
-
-                $this->deleteMessage($chatId,$loadinApAi);
-
+            } catch (\Throwable $ocrException) {
+                // Optional OCR/AI errors must not turn a saved record into a failed creation.
+                Log::warning('Minutes OCR/AI extraction failed after record creation.', [
+                    'minutes_id' => isset($record) && $record instanceof Minutes ? $record->id : null,
+                    'error' => $ocrException->getMessage(),
+                    'file' => $ocrException->getFile(),
+                    'line' => $ocrException->getLine(),
+                ]);
+                if (isset($loadinApAi) && is_string($loadinApAi) && $loadinApAi !== '') {
+                    try { $this->deleteMessage((string) $chatId, $loadinApAi); } catch (\Throwable $cleanupException) {
+                        Log::warning('Could not delete Bale OCR progress message.', ['chat_id' => $chatId, 'error' => $cleanupException->getMessage()]);
+                    }
+                }
+                $this->sendMessage($chatId, '⚠️ صورت‌جلسه ثبت شد، اما استخراج خودکار مصوبات انجام نشد. می‌توانید مصوبات را جداگانه ارسال کنید.');
             }
-
 
         }catch (Exception $exception){
             $message = '❌ ثبت صورت جلسه با مشکل مواجه شد .';
@@ -1825,7 +1918,19 @@ EOT);
 
 
         } finally {
-            $this->deleteMessage($chatId,$pmID); //حذف پیام پردازش
+            // Failure to send/delete the temporary progress message must not mask
+            // the persisted Minutes record or turn a successful operation into failure.
+            if (is_string($pmID) && $pmID !== '') {
+                try {
+                    $this->deleteMessage((string) $chatId, $pmID);
+                } catch (\Throwable $cleanupException) {
+                    Log::warning('Could not delete Bale minute processing message.', [
+                        'chat_id' => $chatId,
+                        'message_id' => $pmID,
+                        'error' => $cleanupException->getMessage(),
+                    ]);
+                }
+            }
         }
 
         return $record;
