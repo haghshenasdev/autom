@@ -915,7 +915,7 @@ class BaleBotController extends Controller
 
     private function sendMessage($chatId, $text): null|string
     {
-        $token = env('BALE_BOT_TOKEN');
+        $token = config('bale.token');
 
         $payload = [
             'chat_id' => $chatId,
@@ -1029,10 +1029,10 @@ EOT);
      * @param mixed $messageId
      * @return void
      */
-    public function deleteMessage(string $chatId, string $messageId): void
+    public function deleteMessage($chatId, $messageId): void
     {
-        $token = env('BALE_BOT_TOKEN');
-        if ($token === '' || $messageId === '') {
+        $token = config('bale.token');
+        if (empty($token) || empty($chatId) || empty($messageId)) {
             return;
         }
 
@@ -1054,7 +1054,7 @@ EOT);
 
     private function sendDocumentByUrl($chatId, $fileUrl, $caption = null): void
     {
-        $token = env('BALE_BOT_TOKEN');
+        $token = config('bale.token');
 
         $payload = [
             'chat_id' => $chatId,
@@ -1070,7 +1070,7 @@ EOT);
 
     private function sendDocumentFromContent($chatId, $fileContent, $filename = 'file.pdf', $mimeType = 'application/pdf', $caption = null): void
     {
-        $token = env('BALE_BOT_TOKEN');
+        $token = config('bale.token');
 
         $url = "https://tapi.bale.ai/bot{$token}/sendDocument";
 
@@ -1083,7 +1083,7 @@ EOT);
     }
     private function sendMessageWithReplyKeyboard($chatId, $text): void
     {
-        $token = env('BALE_BOT_TOKEN');
+        $token = config('bale.token');
 
         $keyboard = [
             'keyboard' => [
@@ -1127,7 +1127,7 @@ EOT);
 
     private function getFile($filePath)
     {
-        $token = env('BALE_BOT_TOKEN');
+        $token = config('bale.token');
         if (empty($token) || empty($filePath)) {
             throw new \RuntimeException('تنظیمات ربات بله یا شناسه فایل معتبر نیست.');
         }
@@ -1144,14 +1144,14 @@ EOT);
 
     private function getFileUrl($filePath): string
     {
-        $token = env('BALE_BOT_TOKEN');
+        $token = config('bale.token');
 
         return "https://tapi.bale.ai/file/bot{$token}/{$filePath}";
     }
 
     private function sendMessageWithKeyboard($chatId, $text, $keyboard): void
     {
-        $token = env('BALE_BOT_TOKEN');
+        $token = config('bale.token');
         Http::post("https://tapi.bale.ai/bot{$token}/sendMessage", [
             'chat_id' => $chatId,
             'text' => $text,
@@ -1328,7 +1328,7 @@ EOT);
         if (is_null($messageId)) {
             $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
         } else {
-            $token = env('BALE_BOT_TOKEN');
+            $token = config('bale.token');
             Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
                 'chat_id' => $chatId,
                 'message_id' => $messageId,
@@ -1387,7 +1387,7 @@ EOT);
         if (is_null($messageId)){
             $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
         }else{
-            $token = env('BALE_BOT_TOKEN');
+            $token = config('bale.token');
             // ویرایش همان پیام قبلی
             Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
                 'chat_id' => $chatId,
