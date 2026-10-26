@@ -15,6 +15,7 @@ class Referral extends Model
     use HasFactory,LogsActivity;
 
     protected $fillable = [
+        'letter_id',
         'rule',
         'result',
         'by_user_id',
