@@ -18,6 +18,7 @@ class LetterParser
     public function parse(string $text): array
     {
         $text = CalendarUtils::convertNumbers($text, true);
+        $text = preg_replace('/^#مکاتبه/u', '#نامه', $text, 1);
 
         $lines = array_filter(array_map('trim', explode("\n", $text)));
 
@@ -42,7 +43,7 @@ class LetterParser
         $user = array_unique($user);
 
         $kind = 1; // پیش فرض صادره
-        if (preg_match('/نامه(?:\s+\d+)?\s+از/u', $title)) {
+        if (preg_match('/^#?(?:نامه|مکاتبه)\s+(?:\d+\s+)?از/u', $titleLine)) {
             $kind = 0;
         }
 
@@ -63,9 +64,9 @@ class LetterParser
         }
 
         $mokatebeNumber = null;
-        if (preg_match('/نامه\s+([0-9]+(?:[\/\-][0-9]+)*)/u', $title, $matches)) {
+        if (preg_match('/^#?(?:نامه|مکاتبه)\s+([0-9]+(?:[\/\-][0-9]+)*)/u', $titleLine, $matches)) {
             $mokatebeNumber = $matches[1];
-            $title = str_replace($mokatebeNumber, '', $title);
+            $title = trim(str_replace($mokatebeNumber, '', $title));
         } elseif (preg_match('/مکاتبه\s+(\S+)/u', $text, $matches)) {
             $mokatebeNumber = $matches[1];
         }
@@ -473,7 +474,8 @@ EOT],
     {
         $line = preg_replace('/\b\d{4}\/\d{1,2}\/\d{1,2}\b/u', '', $line);
         $line = str_replace('مورخ', '', $line);
-        return ltrim($line, '# ');
+        $line = preg_replace('/^#?(?:نامه|مکاتبه)\s*/u', '', trim($line));
+        return trim($line);
     }
 
     protected function extractDateFromTitle(string $line): ?Carbon

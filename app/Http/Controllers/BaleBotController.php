@@ -408,7 +408,7 @@ class BaleBotController extends Controller
                     return response('صورت‌جلسه ارسال شد');
 
                 }
-                elseif (str_starts_with($firstLine, '#نامه')) {
+                elseif (str_starts_with($firstLine, '#نامه') || str_starts_with($firstLine, '#مکاتبه')) {
                     if (str_contains($text, '#متن')) {
                         $ltp = new LetterParser();
                         $dataLetter = $ltp->mixedParse($text);
@@ -416,10 +416,12 @@ class BaleBotController extends Controller
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
                     }elseif (isset($data['message']['reply_to_message']['document']['file_id'])) {
                         $reply_msg = $data['message']['reply_to_message'];
-                        $doc = $reply_msg['document'];
-                        $record = $this->handleLetter_create($text,$chatId,$user,$isPrivateChat);
+                        $doc = $this->getBaleAttachmentFromMessage($reply_msg);
+                        $record = $this->handleLetter_create($text, $chatId, $user, $isPrivateChat, $doc);
 
-                        $this->LetterFileAdd($record,$doc,$media_group_id,$bale_user);
+                        if ($record instanceof Letter && $doc) {
+                            $this->LetterFileAdd($record, $doc, $media_group_id, $bale_user);
+                        }
                     }
                 }
                 elseif (str_starts_with($firstLine, '#یادداشت')) {
@@ -534,6 +536,11 @@ class BaleBotController extends Controller
 
                     return response("Task ذخیره شد: ");
                 }
+                elseif (str_starts_with($firstLine, '/یادداشت')) {
+                    $queryText = trim(preg_replace('/^\/یادداشت/u', '', $firstLine));
+                    $this->handleContent_list($chatId, $user, $queryText);
+                    return response('فهرست یادداشت‌ها ارسال شد.');
+                }
                 elseif (str_starts_with($firstLine, '/راهنما')) {
                     $queryText = trim(str_replace('/راهنما', '', $firstLine));
                     $message = $this->HelpHandler($queryText);
@@ -565,7 +572,7 @@ class BaleBotController extends Controller
             } elseif ($caption != '') {
                 $caption = CalendarUtils::convertNumbers($caption, true); // تبدیل اعداد فارسی به انگلیسی
                 // تشخیص هشتگ‌ها
-                $hashtags = ['#یادداشت', '#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار', '#جلسه', '#گزارش'];
+                $hashtags = ['#یادداشت', '#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#مکاتبه', '#کار', '#جلسه', '#گزارش'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
 
 
@@ -606,19 +613,18 @@ class BaleBotController extends Controller
                     return response($record instanceof Minutes ? 'صورت جلسه ثبت شد.' : 'ثبت صورت جلسه ناموفق بود.');
 
                 }
-                elseif ($matched === '#نامه') {
+                elseif (in_array($matched, ['#نامه', '#مکاتبه'], true)) {
                     if (str_contains($caption, '#متن')) {
                         $ltp = new LetterParser();
                         $dataLetter = $ltp->mixedParse($caption);
                         $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
                     } else {
-                        $record = $this->handleLetter_create($caption,$chatId,$user,$isPrivateChat);
+                        $doc = $this->getBaleAttachmentFromMessage($data['message']);
+                        $record = $this->handleLetter_create($caption, $chatId, $user, $isPrivateChat, $doc);
 
-                        if (isset($data['message']['document'])) {
-                            $doc = $data['message']['document'];
-
-                            $this->LetterFileAdd($record,$doc,$media_group_id,$bale_user);
+                        if ($record instanceof Letter && $doc) {
+                            $this->LetterFileAdd($record, $doc, $media_group_id, $bale_user);
                         }
                     }
                 }
@@ -1216,6 +1222,52 @@ EOT);
         // مدیریت حذف پیام
         if ($callbackData === 'delete_message') {
             $this->deleteMessage($chatId, $messageId);
+            return;
+        }
+
+        // انتخاب نوع نامه
+        if (str_starts_with($callbackData, 'letter_kind|')) {
+            $parts = explode('|', $callbackData);
+            $letter = Letter::find((int) ($parts[1] ?? 0));
+            $kind = (int) ($parts[2] ?? 1);
+            if ($letter && $user->can('create_letter') && in_array($kind, [0, 1], true)) {
+                if ($kind === 0 && $letter->organ_id) {
+                    $letter->organs_owner()->syncWithoutDetaching([$letter->organ_id]);
+                    $letter->update(['kind' => 0, 'organ_id' => null]);
+                } elseif ($kind === 1) {
+                    $firstOwner = $letter->organs_owner()->first();
+                    $letter->update(['kind' => 1, 'organ_id' => $letter->organ_id ?: $firstOwner?->id]);
+                } else {
+                    $letter->update(['kind' => $kind]);
+                }
+                $this->sendLetterSuggestions($chatId, $letter, [], $messageId);
+            }
+            return;
+        }
+
+        // تغییر دفتر یا ارگان گیرنده نامه
+        if (str_starts_with($callbackData, 'letter_set|')) {
+            $parts = explode('|', $callbackData);
+            $letter = Letter::find((int) ($parts[1] ?? 0));
+            $field = $parts[2] ?? '';
+            $value = (int) ($parts[3] ?? 0);
+            if ($letter && $user->can('create_letter') && in_array($field, ['daftar_id', 'organ_id', 'organ_owner'], true)) {
+                $organ = Organ::find($value);
+                $validOffice = $field === 'daftar_id' && $organ && (int) $organ->organ_type_id === 20;
+                $validRecipient = $field === 'organ_id' && $organ && (int) $organ->organ_type_id !== 20 && (int) $letter->kind === 1;
+                $validOwner = $field === 'organ_owner' && $organ && (int) $organ->organ_type_id !== 20 && (int) $letter->kind === 0;
+                if ($validOffice) {
+                    $letter->update(['daftar_id' => $value]);
+                } elseif ($validRecipient) {
+                    $letter->update(['organ_id' => $value]);
+                } elseif ($validOwner) {
+                    $exists = $letter->organs_owner()->where('organs.id', $value)->exists();
+                    $exists ? $letter->organs_owner()->detach($value) : $letter->organs_owner()->syncWithoutDetaching([$value]);
+                } else {
+                    return;
+                }
+                $this->sendLetterSuggestions($chatId, $letter, [], $messageId);
+            }
             return;
         }
 
@@ -1887,7 +1939,7 @@ TEXT;
                 $message = <<<TEXT
 راهنمای نامه
 
-✅ #نامه
+✅ #نامه یا #مکاتبه
 این دستور باید در کپشن (زیر یک تصویر یا فایل ) نوشته شود و ساختار آن باید به شکل زیر باشد .
 ------------------------------
 🖼️ تصویر یا فایل نامه
@@ -1904,7 +1956,8 @@ TEXT;
 ℹ️ تعاریف هر بخش :
 
 موضوع :
-باید در اولین خط کپشن فایل صورت جلسه آورده شود با #نامه شروع شود . در ادامه به صورت اختیاری می توان شماره مکاتبه فیزیکی نامه را آورد .
+باید در اولین خط کپشن فایل نامه آورده شود و با #نامه یا #مکاتبه شروع شود. در ادامه به صورت اختیاری می‌توان شماره مکاتبه فیزیکی نامه را آورد.
+اگر فایل یا تصویر نامه همراه پیام باشد، ربات تلاش می‌کند متن آن را با OCR استخراج و اطلاعات نامه را تکمیل کند. در صورت شکست OCR، ثبت نامه با اطلاعات کپشن و روش معمول ادامه می‌یابد.
 در ادامه اگر نامه وارده است باید از کلمه ( * از * ) و اگر صادره است از کلمه ( *به* ) و بعد از هر کدام این کلمات نام ارگان مربوطه . در ادامه موضوع نامه همراه با تاریخ مکاتبه آورده می شود .
  تاریخ باید در عنوان باشد اگر تاریخ نباشد در عنوان تاریخ روز در نظر گرفته می شود .
 تاریخ ها باید به صورت عددی نوشته شود به عنوان نمونه ۱۴۰۴/۵/۶
@@ -1976,14 +2029,15 @@ TEXT;
 ایجاد صورت جلسه
 #کار یا #جلسه
 ایجاد کار شامل جلسه ، مصوبه ، پیگیری ، بازدید و ...
-#نامه
+#نامه یا #مکاتبه
 ایجاد نامه
 
 ✅ لیست دستورات نمایش اطلاعات :
 /راهنما
 این دستور راهنمای ربات را ارسال می کند . در ادامه دستور عنوان هر موجودیت شامل کار ، نامه ، صورتجلسه و... را وارد کنید راهنمای آن موجودیت را برای شما ارسال می شود.
-/یادداشت
-راهنمای ثبت یادداشت از طریق ربات و انتخاب دسته‌بندی.
+ /یادداشت
+نمایش ۵ یادداشت آخر شما؛ با افزودن عنوان یا بخشی از آن می‌توانید جستجو کنید.
+برای راهنمای ثبت یادداشت: /راهنما یادداشت
 
 /صورتجلسه
 نمایش 5 صورت جلسه آخر شما . بعد از دستور میتوان شماره صورتجلسه یا عنوان صورتجلسه را برای جستجو در صورتجلسه ها استفاده کرد.
@@ -2277,57 +2331,324 @@ EOT);
         }
     }
 
-    private function handleLetter_create($caption,$chatId,$user,$isPrivateChat)
+    private function handleLetter_create($caption, $chatId, $user, $isPrivateChat, ?array $doc = null)
     {
         if (!$user->can('create_letter')) {
             $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
-            return response('عدم دسترسی');
+            return false;
         }
 
         $ltp = new LetterParser();
-        $dataLetter = $ltp->parse($caption);
+        $sourceText = trim((string) $caption);
+        $ocrText = '';
+        $ocrSucceeded = false;
 
-        $record = Letter::create([
-            'subject' => $dataLetter['title'],
-            'created_at' => $dataLetter['title_date'] ?? Carbon::now(),
-            'description' => $dataLetter['description'],
-            'summary' => $dataLetter['summary'],
-            'mokatebe' => $dataLetter['mokatebe'],
-            'daftar_id' => $dataLetter['daftar'],
-            'kind' => $dataLetter['kind'],
-            'user_id' => $user->id,
-            'peiroow_letter_id' => $dataLetter['pirow'],
-            'status' => $dataLetter['status'],
-        ]);
+        // OCR فقط یک منبع تکمیلی است؛ شکست آن نباید ثبت نامه را متوقف کند.
+        if ($doc && !empty($doc['file_id'])) {
+            try {
+                $fileContents = $this->getFile($doc['file_id']);
+                if (!is_string($fileContents) || $fileContents === '') {
+                    throw new \RuntimeException('دریافت فایل نامه از بله ناموفق بود.');
+                }
 
-        if ($dataLetter['kind'] == 1) {
-            $record->organ_id = $dataLetter['organ_id'];
-            $record->save();
-        } else {
-            $record->organs_owner()->attach($dataLetter['organ_id']);
+                $ocrText = app(\App\Services\BaleLetterOcrService::class)
+                    ->extract($fileContents, $doc['file_name'] ?? 'letter.pdf');
+                $ocrSucceeded = trim($ocrText) !== '';
+            } catch (\Throwable $ocrException) {
+                Log::error('Bale letter OCR failed; continuing with caption parser.', [
+                    'user_id' => $user->id,
+                    'file_name' => $doc['file_name'] ?? null,
+                    'error' => $ocrException->getMessage(),
+                    'trace' => $ocrException->getTraceAsString(),
+                ]);
+                $this->sendMessage($chatId, '⚠️ متن فایل نامه استخراج نشد؛ ثبت نامه طبق اطلاعات کپشن و روش معمول ادامه پیدا می‌کند.');
+            }
         }
 
-        $record->users()->attach($dataLetter['user_id']); //افزودن به کارپوشه
-        $record->organs_owner()->attach($dataLetter['organ_owners']);
-        $record->customers()->attach($dataLetter['customer_owners']);
-        $record->projects()->attach($dataLetter['projects']);
+        // متن OCR به parser ساختاریِ محلی داده نمی‌شود تا خطاهای تشخیص تصویر
+        // باعث ایجاد خودکار صاحب/شخص اشتباه در بانک اطلاعاتی نشود؛ AI آن را جداگانه تحلیل می‌کند.
+        $parseText = $sourceText;
+
+        try {
+            $dataLetter = $ltp->parse($parseText);
+        } catch (\Throwable $parseException) {
+            Log::error('Bale letter parsing failed; using minimal data.', [
+                'user_id' => $user->id,
+                'error' => $parseException->getMessage(),
+                'trace' => $parseException->getTraceAsString(),
+            ]);
+            $firstLine = trim((preg_split('/\R/u', $sourceText)[0] ?? ''));
+            $dataLetter = [
+                'title' => trim(preg_replace('/^#(?:نامه|مکاتبه)\s*/u', '', $firstLine)) ?: 'نامه ثبت‌شده از ربات بله',
+                'title_date' => null,
+                'organ_id' => null,
+                'user_id' => [],
+                'kind' => 1,
+                'pirow' => null,
+                'mokatebe' => null,
+                'daftar' => 461,
+                'summary' => '',
+                'description' => $ocrSucceeded ? $ocrText : $sourceText,
+                'organ_owners' => [],
+                'customer_owners' => [],
+                'status' => 2,
+                'projects' => [],
+            ];
+        }
+
+        // تلاش تکمیلی هوش مصنوعی روی متن OCR؛ خروجی آن فقط برای تکمیل فیلدهای خالی استفاده می‌شود.
+        if ($ocrSucceeded) {
+            try {
+                $aiData = $ltp->aiParse($ocrText);
+                if (is_array($aiData) && trim((string) ($aiData['subject'] ?? '')) !== '') {
+                    $dataLetter['title'] = $dataLetter['title'] ?: $aiData['subject'];
+                    if (empty($dataLetter['title_date']) && !empty($aiData['date'])) {
+                        try {
+                            $rawDate = str_replace('-', '/', trim((string) $aiData['date']));
+                            $dataLetter['title_date'] = preg_match('/^(13|14)\d{2}\/\d{1,2}\/\d{1,2}$/u', $rawDate)
+                                ? Jalalian::fromFormat('Y/m/d', $rawDate)->toCarbon()
+                                : Carbon::parse($aiData['date']);
+                        } catch (\Throwable $dateException) {
+                            Log::warning('Could not normalize OCR letter date.', [
+                                'letter_date' => $aiData['date'],
+                                'error' => $dateException->getMessage(),
+                            ]);
+                        }
+                    }
+                    $dataLetter['description'] = trim((string) ($dataLetter['description'] ?? '')) !== ''
+                        ? $dataLetter['description']
+                        : ($aiData['description'] ?? $ocrText);
+                    $dataLetter['summary'] = trim((string) ($dataLetter['summary'] ?? '')) !== ''
+                        ? $dataLetter['summary']
+                        : ($aiData['summary'] ?? '');
+                    $dataLetter['mokatebe'] = $dataLetter['mokatebe'] ?? ($aiData['mokatebe'] ?? null);
+                    $dataLetter['organ_id'] = $dataLetter['organ_id'] ?? ($aiData['organ_id'] ?? null);
+                    $dataLetter['kind'] = $dataLetter['kind'] ?? ($aiData['kind'] ?? 1);
+                    $dataLetter['organ_owners'] = array_values(array_unique(array_merge(
+                        $dataLetter['organ_owners'] ?? [],
+                        $aiData['organ_owners'] ?? []
+                    )));
+                    $dataLetter['customer_owners'] = array_values(array_unique(array_merge(
+                        $dataLetter['customer_owners'] ?? [],
+                        $aiData['customer_owners'] ?? []
+                    )));
+                }
+            } catch (\Throwable $aiException) {
+                Log::warning('Bale letter AI enrichment failed; local parser data retained.', [
+                    'user_id' => $user->id,
+                    'error' => $aiException->getMessage(),
+                ]);
+            }
+
+            // متن OCR به‌عنوان متن اصلی نامه حفظ می‌شود تا اطلاعات استخراج‌شده از بین نرود.
+            if (trim((string) ($dataLetter['description'] ?? '')) === '') {
+                $dataLetter['description'] = $ocrText;
+            }
+        }
+
+        if (trim((string) ($dataLetter['title'] ?? '')) === '') {
+            $firstLine = trim((preg_split('/\R/u', $sourceText)[0] ?? ''));
+            $fallbackTitle = trim(preg_replace('/^#(?:نامه|مکاتبه)\s*/u', '', $firstLine));
+            $dataLetter['title'] = $fallbackTitle ?: 'نامه ثبت‌شده از ربات بله';
+        }
+
+        $record = Letter::create([
+            'subject' => trim((string) ($dataLetter['title'] ?? '')) ?: 'نامه ثبت‌شده از ربات بله',
+            'created_at' => $dataLetter['title_date'] ?? Carbon::now(),
+            'description' => $dataLetter['description'] ?? $sourceText,
+            'summary' => $dataLetter['summary'] ?? '',
+            'mokatebe' => $dataLetter['mokatebe'] ?? null,
+            'daftar_id' => $dataLetter['daftar'] ?? 461,
+            'kind' => $dataLetter['kind'] ?? 1,
+            'user_id' => $user->id,
+            'peiroow_letter_id' => $dataLetter['pirow'] ?? null,
+            'status' => $dataLetter['status'] ?? 2,
+            'organ_id' => ($dataLetter['kind'] ?? 1) == 1 ? ($dataLetter['organ_id'] ?? null) : null,
+        ]);
+
+        if (($dataLetter['kind'] ?? 1) == 0 && !empty($dataLetter['organ_id'])) {
+            $record->organs_owner()->syncWithoutDetaching(array_filter([$dataLetter['organ_id']]));
+        }
+
+        $record->users()->syncWithoutDetaching($dataLetter['user_id'] ?? []);
+        $record->organs_owner()->syncWithoutDetaching(array_filter($dataLetter['organ_owners'] ?? []));
+        $record->customers()->syncWithoutDetaching(array_filter($dataLetter['customer_owners'] ?? []));
+        $record->projects()->syncWithoutDetaching(array_filter($dataLetter['projects'] ?? []));
 
         $message = '';
-        if ($isPrivateChat){
+        if ($isPrivateChat) {
             $message .= '✉️ اطلاعات نامه ذخیره شد' . "\n\n";
             $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
             $message .= $this->CreateLetterMessage($record);
-        }else{
-            $message .= '✉️ [نامه با شماره '.$record->id.' ثبت شد .]('. LetterResource::getUrl('edit',[$record->id]).')';
+        } else {
+            $message .= '✉️ [نامه با شماره ' . $record->id . ' ثبت شد .](' . LetterResource::getUrl('edit', [$record->id]) . ')';
         }
-
+        if ($ocrSucceeded) {
+            $message .= "\n\n🔎 متن فایل با OCR استخراج و در تحلیل نامه استفاده شد.";
+        }
         $this->sendMessage($chatId, $message);
 
-        if (count($dataLetter['projects']) == 0){
-            $this->sendClassificationSuggestion($chatId, $record,filterModelTypes: [\App\Models\Project::class]);
+        $this->sendLetterSuggestions($chatId, $record, $dataLetter);
+        return $record;
+    }
+
+    /** نمایش آخرین یادداشت‌ها یا جستجو در یادداشت‌های متعلق به کاربر. */
+    private function handleContent_list($chatId, $user, string $queryText = ''): void
+    {
+        if (!$user->can('view_any_content') && !$user->can('view_content') && !$user->can('create_content')) {
+            $this->sendMessage($chatId, '❌ شما دسترسی مشاهده یادداشت‌ها را ندارید.');
+            return;
         }
 
-        return $record;
+        $query = Content::query()->where('user_id', $user->id)->orderByDesc('id');
+        if ($queryText !== '') {
+            $query->where('title', 'like', '%' . str_replace(' ', '%', $queryText) . '%');
+        }
+        $items = $query->limit(5)->get();
+
+        if ($items->isEmpty()) {
+            $this->sendMessage($chatId, $queryText !== ''
+                ? '🔎 یادداشتی با این عنوان پیدا نشد.'
+                : '🗒️ هنوز یادداشتی برای شما ثبت نشده است.');
+            return;
+        }
+
+        $message = "🗒️ یادداشت‌های شما" . ($queryText !== '' ? " (نتیجه جستجو)" : '') . "\n\n";
+        foreach ($items as $index => $item) {
+            $message .= ($index + 1) . ") " . $item->title . "\n";
+            $message .= "🆔 " . $item->id . "\n";
+            $groups = $item->group()->pluck('name')->all();
+            if ($groups) $message .= "📂 " . implode('، ', $groups) . "\n";
+            $message .= '[بازکردن یادداشت](' . ContentResource::getUrl('edit', [$item->id]) . ')' . "\n\n";
+        }
+        $this->sendMessage($chatId, trim($message));
+    }
+
+    /** پیشنهاد ارگان‌های مرتبط با متن نامه، با همان نرمال‌سازی مورد استفاده در پیشنهادهای صورت‌جلسه. */
+    private function findLetterOrganSuggestions(Letter $letter)
+    {
+        $text = trim(($letter->subject ?? '') . ' ' . ($letter->description ?? ''));
+        $classifier = app(\App\Services\AiKeywordClassifier::class);
+        $keywords = collect($classifier->extractKeywords($text))
+            ->map(fn ($word) => $this->normalizeSuggestionWord((string) $word))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($keywords->isEmpty()) return collect();
+
+        return Organ::query()
+            ->where('organ_type_id', '!=', 20)
+            ->select(['id', 'name'])
+            ->get()
+            ->map(function ($organ) use ($keywords) {
+                $organWords = collect(preg_split('/\s+/u', $this->normalizeSuggestionText($organ->name)))
+                    ->filter()
+                    ->unique();
+                $matches = $organWords->intersect($keywords)->count();
+                $score = $organWords->isEmpty() ? 0 : $matches / $organWords->count();
+                return ['organ' => $organ, 'matches' => $matches, 'score' => $score];
+            })
+            ->filter(fn ($item) => $item['matches'] >= 1)
+            ->sortByDesc(fn ($item) => ($item['score'] * 100) + $item['matches'])
+            ->take(20)
+            ->pluck('organ')
+            ->values();
+    }
+
+    /** پیشنهاد و امکان اصلاح فیلدهای اصلی نامه پس از ثبت. */
+    private function sendLetterSuggestions($chatId, Letter $letter, array $parsed = [], $messageId = null): void
+    {
+        $keyboard = ['inline_keyboard' => []];
+        $kindLabel = (int) $letter->kind === 1 ? 'صادره' : 'وارده';
+        $keyboard['inline_keyboard'][] = [[
+            'text' => "نوع نامه: {$kindLabel} (تغییر)",
+            'callback_data' => "letter_kind|{$letter->id}|" . ((int) $letter->kind === 1 ? 0 : 1),
+        ]];
+
+        $daftar = Organ::query()->where('organ_type_id', 20)->orderBy('name')->get();
+        if ($daftar->isNotEmpty()) {
+            $keyboard['inline_keyboard'][] = [['text' => '--- 🏢 انتخاب دفتر ---', 'callback_data' => '__noop__']];
+            foreach ($daftar as $item) {
+                $selected = (int) $letter->daftar_id === (int) $item->id;
+                $keyboard['inline_keyboard'][] = [[
+                    'text' => ($selected ? '✅ ' : '') . mb_substr($item->name, 0, 48),
+                    'callback_data' => "letter_set|{$letter->id}|daftar_id|{$item->id}",
+                ]];
+            }
+        }
+
+        try {
+            $organCandidates = $this->findLetterOrganSuggestions($letter);
+        } catch (\Throwable $organSuggestionException) {
+            Log::warning('Bale letter organ suggestions failed.', [
+                'letter_id' => $letter->id,
+                'error' => $organSuggestionException->getMessage(),
+            ]);
+            $organCandidates = collect();
+        }
+        if (!empty($parsed['organ_id'])) {
+            $candidate = Organ::find($parsed['organ_id']);
+            if ($candidate) $organCandidates->prepend($candidate);
+        }
+        $organCandidates = $organCandidates->unique('id')->take(20);
+
+        if ($organCandidates->isNotEmpty()) {
+            $keyboard['inline_keyboard'][] = [['text' => '--- 🏛 گیرنده / ارگان ---', 'callback_data' => '__noop__']];
+            foreach ($organCandidates as $item) {
+                $isIncoming = (int) $letter->kind === 0;
+                $selected = $isIncoming
+                    ? $letter->organs_owner()->where('organs.id', $item->id)->exists()
+                    : (int) $letter->organ_id === (int) $item->id;
+                $field = $isIncoming ? 'organ_owner' : 'organ_id';
+                $keyboard['inline_keyboard'][] = [[
+                    'text' => ($selected ? '✅ ' : '') . $item->id . ' - ' . mb_substr($item->name, 0, 38),
+                    'callback_data' => "letter_set|{$letter->id}|{$field}|{$item->id}",
+                ]];
+            }
+        }
+
+        try {
+            $projects = app(\App\Services\AiKeywordClassifier::class)
+                ->classify(trim($letter->subject . ' ' . $letter->description), 0.1, [Project::class], null, 5);
+        } catch (\Throwable $suggestionException) {
+            Log::warning('Bale letter classification suggestions failed.', [
+                'letter_id' => $letter->id,
+                'error' => $suggestionException->getMessage(),
+            ]);
+            $projects = [];
+        }
+        $projectItems = $projects[Project::class] ?? [];
+        if ($projectItems) {
+            $keyboard['inline_keyboard'][] = [['text' => '--- 📁 دستورکارهای پیشنهادی ---', 'callback_data' => '__noop__']];
+            foreach ($projectItems as $item) {
+                $project = Project::find($item['model_id'] ?? 0);
+                if (!$project) continue;
+                $selected = $letter->projects()->where('projects.id', $project->id)->exists();
+                $keyboard['inline_keyboard'][] = [[
+                    'text' => ($selected ? '✅ ' : '') . $project->id . ' - ' . mb_substr(
+                        $project->name . ($project->city?->name ? ' / ' . $project->city->name : ''),
+                        0,
+                        38
+                    ),
+                    'callback_data' => "toggle_category|letter|{$letter->id}|project|{$project->id}",
+                ]];
+            }
+        }
+
+        $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
+        $message = "📌 پیشنهادهای تکمیلی نامه شماره {$letter->id}\n";
+        $message .= "دفتر، گیرنده و دستورکار را بررسی کنید؛ با لمس گزینه‌ها می‌توانید مقدار را انتخاب یا تغییر دهید.";
+        if ($messageId === null) {
+            $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+        } else {
+            Http::post('https://tapi.bale.ai/bot' . config('bale.token') . '/editMessageText', [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => $message,
+                'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
     }
 
     private function LetterFileAdd($record,$doc,$media_group_id,$bale_user)
