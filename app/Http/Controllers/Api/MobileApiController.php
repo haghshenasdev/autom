@@ -84,7 +84,7 @@ class MobileApiController extends Controller
         'approves' => [Approve::class, ApproveResource::class, 'approve', ['minute','project']],
         'appendixes' => [AppendixOther::class, AppendixResource::class, 'appendix', ['appendix_other']],
         'replications' => [Replication::class, ReplicationResource::class, 'replication', ['letter']],
-        'content-groups' => [ContentGroup::class, ContentGroupResource::class, 'content_group', ['contents']],
+        'content-groups' => [ContentGroup::class, ContentGroupResource::class, 'content::group', ['contents']],
         'contents' => [Content::class, ContentResource::class, 'content', ['group','user']],
         'users' => [User::class, UserResource::class, 'user', ['roles','permissions']],
     ];
@@ -138,6 +138,10 @@ class MobileApiController extends Controller
         $query->with($this->safeIncludes($model, $requestedIncludes) ?: $this->safeIncludes($model, $this->defaultIncludes($resource)));
 
         $query = $this->applyQuery($query, $model, $request);
+
+        if ($resource === 'content-groups') {
+            $query->withCount('children');
+        }
 
         // Lazy-loading tree support: the server's parent_id is the sole source of hierarchy.
         // Use an explicit root_only flag; empty query parameters can be normalized differently by clients.
@@ -1436,7 +1440,9 @@ class MobileApiController extends Controller
         $data = $item->toArray();
         unset($data['password'],$data['remember_token']);
 
-        if ($item instanceof Letter) {
+        if ($item instanceof ContentGroup) {
+            $data['has_children'] = (int) ($item->children_count ?? 0) > 0;
+        } elseif ($item instanceof Letter) {
             $data['kind_title'] = Letter::getKindLabel($item->kind);
             $data['peiroow_letter_id'] = $item->peiroow_letter_id;
             $data['peiroow_letter'] = $item->relationLoaded('letter') && $item->letter

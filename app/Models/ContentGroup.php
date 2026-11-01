@@ -26,6 +26,10 @@ class ContentGroup extends Model
         return $this->belongsTo(ContentGroup::class);
     }
 
+    public function children(){
+        return $this->hasMany(ContentGroup::class, 'parent_id');
+    }
+
     public static function formSchema()
     {
         return [
