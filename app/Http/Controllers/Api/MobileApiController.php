@@ -139,6 +139,19 @@ class MobileApiController extends Controller
 
         $query = $this->applyQuery($query, $model, $request);
 
+        // Lazy-loading tree support: the server's parent_id is the sole source of hierarchy.
+        // Use an explicit root_only flag; empty query parameters can be normalized differently by clients.
+        if ($resource === 'content-groups') {
+            if ($request->boolean('root_only')) {
+                // Support both NULL roots and legacy rows stored with parent_id = 0.
+                $query->where(function ($q) {
+                    $q->whereNull('parent_id')->orWhere('parent_id', 0);
+                });
+            } elseif ($request->query->has('parent_id') && $request->query('parent_id') !== '') {
+                $query->where('parent_id', (int) $request->query('parent_id'));
+            }
+        }
+
         $perPage = min(max((int) $request->query('per_page', 20), 1), 100);
         $paginator = $query->paginate($perPage)->appends($request->query());
 
