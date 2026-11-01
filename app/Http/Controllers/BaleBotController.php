@@ -6,10 +6,13 @@ use App\Filament\Resources\LetterResource;
 use App\Filament\Resources\MinutesResource;
 use App\Filament\Resources\ProjectResource;
 use App\Filament\Resources\TaskResource;
+use App\Filament\Resources\ContentResource;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\ai\LetterParser;
 use App\Models\AppendixOther;
 use App\Models\Cartable;
+use App\Models\Content;
+use App\Models\ContentGroup;
 use App\Models\City;
 use App\Models\Organ;
 use App\Models\Project;
@@ -419,7 +422,21 @@ class BaleBotController extends Controller
                         $this->LetterFileAdd($record,$doc,$media_group_id,$bale_user);
                     }
                 }
-                elseif (str_starts_with($firstLine,'#صورتجلسه')) {
+                elseif (str_starts_with($firstLine, '#یادداشت')) {
+                    if (!$user->can('create_content')) {
+                        $this->sendMessage($chatId, '❌ شما برای ثبت یادداشت دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+
+                    $replyMessage = $data['message']['reply_to_message'] ?? [];
+                    $doc = $this->getBaleAttachmentFromMessage($replyMessage);
+                    $record = $this->handleContent_create($text, $chatId, $user, $doc);
+                    if ($record instanceof Content) {
+                        $this->sendContentGroupSuggestions($chatId, $record);
+                    }
+                    return response($record instanceof Content ? 'یادداشت ثبت شد.' : 'ثبت یادداشت ناموفق بود.');
+                }
+                                elseif (str_starts_with($firstLine,'#صورتجلسه')) {
                     $reply_msg = $data['message']['reply_to_message'] ?? [];
                     $doc = $this->getBaleAttachmentFromMessage($reply_msg);
                     if ($doc) {
@@ -548,13 +565,24 @@ class BaleBotController extends Controller
             } elseif ($caption != '') {
                 $caption = CalendarUtils::convertNumbers($caption, true); // تبدیل اعداد فارسی به انگلیسی
                 // تشخیص هشتگ‌ها
-                $hashtags = ['#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار', '#جلسه', '#گزارش'];
+                $hashtags = ['#یادداشت', '#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#کار', '#جلسه', '#گزارش'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
 
 
                 // ذخیره در مدل مناسب
                 $record = null;
-                if (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
+                if ($matched === '#یادداشت') {
+                    if (!$user->can('create_content')) {
+                        $this->sendMessage($chatId, '❌ شما برای ثبت یادداشت دسترسی ندارید!');
+                        return response('عدم دسترسی');
+                    }
+                    $doc = $this->getBaleAttachmentFromMessage($data['message']);
+                    $record = $this->handleContent_create($caption, $chatId, $user, $doc);
+                    if ($record instanceof Content) {
+                        $this->sendContentGroupSuggestions($chatId, $record);
+                    }
+                    return response($record instanceof Content ? 'یادداشت ثبت شد.' : 'ثبت یادداشت ناموفق بود.');
+                } elseif (in_array($matched, ['#صورتجلسه', '#صورت', '#صورت-جلسه'])) {
                     // Bale sends ordinary images under `photo`, not `document`.
                     $doc = $this->getBaleAttachmentFromMessage($data['message']);
                     $record = $this->handleMinute_create($caption, $chatId, $user, $isPrivateChat, $doc);
@@ -1191,6 +1219,51 @@ EOT);
             return;
         }
 
+        if (str_starts_with($callbackData, 'toggle_organ|')) {
+            $parts = explode('|', $callbackData);
+            $minute = Minutes::find((int) ($parts[1] ?? 0));
+            $organId = (int) ($parts[2] ?? 0);
+            $organ = Organ::find($organId);
+            if (!$minute || !$organ || !$user->can('create_minutes')) return;
+
+            $exists = $minute->organ()->where('organs.id', $organId)->exists();
+            if ($exists) {
+                $minute->organ()->detach($organId);
+            } else {
+                $minute->organ()->attach($organId);
+            }
+            $this->sendClassificationSuggestion($chatId, $minute, $messageId, [Project::class, MinutesGroup::class]);
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'toggle_content_group|')) {
+            $parts = explode('|', $callbackData);
+            $content = Content::find((int) ($parts[1] ?? 0));
+            $groupId = (int) ($parts[2] ?? 0);
+            $group = ContentGroup::find($groupId);
+            if (!$content || !$group || !$user->can('create_content')) return;
+
+            $exists = $content->group()->where('content_groups.id', $groupId)->exists();
+            if ($exists) {
+                $content->group()->detach($groupId);
+            } else {
+                $content->group()->attach($groupId);
+            }
+            $this->sendContentGroupSuggestions($chatId, $content, $messageId, (int) ($parts[3] ?? 1));
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'content_group_page_')) {
+            $parts = explode('|', $callbackData, 2);
+            $page = (int) str_replace('content_group_page_', '', $parts[0]);
+            $contentId = (int) ($parts[1] ?? 0);
+            $content = Content::find($contentId);
+            if ($content && $user->can('create_content')) {
+                $this->sendContentGroupSuggestions($chatId, $content, $messageId, max(1, $page));
+            }
+            return;
+        }
+
         if (str_starts_with($callbackData, 'toggle_category|')) {
             $parts = explode('|', $callbackData);
             $filterModelTypes = null;
@@ -1311,6 +1384,9 @@ EOT);
     public function sendClassificationSuggestion($chatId, Model $modelsub, $messageId = null,?array $filterModelTypes = null)
     {
         $title = $modelsub->name ?? $modelsub->subject ?? $modelsub->title ?? '-';
+        if ($modelsub instanceof Minutes) {
+            $title = trim($title . ' ' . ($modelsub->text ?? ''));
+        }
         $filterModelTypes ??= match (true) {
             $modelsub instanceof Minutes => [Project::class, MinutesGroup::class],
             $modelsub instanceof Letter => [Project::class],
@@ -1358,6 +1434,9 @@ EOT);
                 $modelId = $item['model_id'];
                 $model = $modelType::find($modelId);
                 $modelTitle = $model?->title ?? $model?->name ?? '---';
+                if ($model instanceof Project && $model->city) {
+                    $modelTitle .= ' - ' . $model->city->name;
+                }
 
                 $isSelected = $modelsub->{$data['relation']}()
                     ->where($data['foreign_key'], $modelId)
@@ -1381,13 +1460,32 @@ EOT);
             }
         }
 
+        // پیشنهاد امضاکنندگان صورت‌جلسه از روی متن کامل و نام ارگان‌های ثبت‌شده.
+        if ($modelsub instanceof Minutes) {
+            $organSuggestions = $this->findMinuteOrganSuggestions($modelsub);
+            if ($organSuggestions->isNotEmpty()) {
+                $keyboard['inline_keyboard'][] = [
+                    ['text' => '--- 🏢 امضاکنندگان پیشنهادی ---', 'callback_data' => '__noop__']
+                ];
+                foreach ($organSuggestions as $organ) {
+                    $isSelected = $modelsub->organ()->where('organs.id', $organ->id)->exists();
+                    $label = ($isSelected ? '✅ ' : '') . $organ->id . ' - ' . mb_substr($organ->name, 0, 42);
+                    $keyboard['inline_keyboard'][] = [[
+                        'text' => $label,
+                        'callback_data' => "toggle_organ|{$modelsub->id}|{$organ->id}",
+                    ]];
+                }
+            }
+        }
+
         $keyboard['inline_keyboard'][] = [
             ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']
         ];
 
-        $textMessage = "📌 پیشنهادهای هوشمند برای صورت‌جلسه/رکورد:" . "\n";
-        $textMessage .= empty($results)
-            ? "برای این عنوان پیشنهاد مشابهی در واژه‌نامه هوشمند پیدا نشد. می‌توانید بعداً واژه‌های آن را در بخش داده‌های کلمات هوش مصنوعی آموزش دهید."
+        $textMessage = $modelsub instanceof Minutes ? "📌 پیشنهادهای دستورکار، دسته‌بندی و امضاکنندگان صورت‌جلسه:" . "\n" : "📌 پیشنهادهای هوشمند برای رکورد:" . "\n";
+        $hasOrganSuggestions = $modelsub instanceof Minutes && isset($organSuggestions) && $organSuggestions->isNotEmpty();
+        $textMessage .= empty($results) && !$hasOrganSuggestions
+            ? "برای این عنوان پیشنهاد مشابهی در واژه‌نامه هوشمند یا فهرست ارگان‌ها پیدا نشد."
             : "موارد مناسب را با لمس دکمه‌ها انتخاب یا از انتخاب خارج کنید.";
         if (is_null($messageId)) {
             $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
@@ -1397,6 +1495,173 @@ EOT);
                 'chat_id' => $chatId,
                 'message_id' => $messageId,
                 'text' => $textMessage,
+                'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+    }
+
+    /** پیشنهاد ارگان‌های موجود با تطبیق کلمات کلیدی متن صورت‌جلسه. */
+    private function findMinuteOrganSuggestions(Minutes $minute)
+    {
+        $text = trim(($minute->title ?? '') . ' ' . ($minute->text ?? ''));
+        $classifier = app(\App\Services\AiKeywordClassifier::class);
+        $keywords = array_values(array_unique($classifier->extractKeywords($text)));
+        if (empty($keywords)) return collect();
+
+        // فهرست ارگان‌ها مستقیماً از جدول اصلی خوانده می‌شود تا تفاوت نیم‌فاصله،
+        // شکل جمع و حروف عربی/فارسی باعث از دست رفتن تطبیق نشود.
+        $candidates = Organ::query()->select(['id', 'name'])->get();
+        $normalizedKeywords = collect($keywords)->map(fn ($word) => $this->normalizeSuggestionWord($word))->filter()->unique()->values();
+
+        return $candidates->map(function ($organ) use ($normalizedKeywords, $text) {
+            $organWords = collect(preg_split('/\s+/u', $this->normalizeSuggestionText($organ->name)))
+                ->map(fn ($word) => $this->normalizeSuggestionWord($word))
+                ->filter(fn ($word) => mb_strlen($word) >= 3)->unique();
+            $matched = $organWords->filter(function ($word) use ($normalizedKeywords) {
+                return $normalizedKeywords->contains(fn ($keyword) =>
+                    $keyword === $word || str_contains($keyword, $word) || str_contains($word, $keyword)
+                );
+            })->count();
+            $score = $organWords->count() ? ($matched / $organWords->count()) : 0;
+            $normalizedName = $this->normalizeSuggestionText($organ->name);
+            if ($normalizedName !== '' && str_contains($this->normalizeSuggestionText($text), $normalizedName)) {
+                $score += 1;
+            }
+            $organ->suggestion_score = $score;
+            return $organ;
+        })->filter(fn ($organ) => $organ->suggestion_score > 0)
+            ->sortByDesc('suggestion_score')->take(5)->values();
+    }
+
+    private function normalizeSuggestionText(string $text): string
+    {
+        $text = strtr($text, ['ي' => 'ی', 'ك' => 'ک', 'ۀ' => 'ه', 'ة' => 'ه']);
+        $text = preg_replace('/[‌ًٌٍَُِّْـ]/u', '', $text);
+        return trim(preg_replace('/\s+/u', ' ', mb_strtolower($text)));
+    }
+
+    private function normalizeSuggestionWord(string $word): string
+    {
+        $word = $this->normalizeSuggestionText($word);
+        foreach (['های', 'ها', 'ان'] as $suffix) {
+            if (mb_strlen($word) > mb_strlen($suffix) + 2 && str_ends_with($word, $suffix)) {
+                $word = mb_substr($word, 0, mb_strlen($word) - mb_strlen($suffix));
+                break;
+            }
+        }
+        return $word;
+    }
+
+    /** ثبت یادداشت از طریق ربات؛ فایل پاسخ‌شده و/یا متن همراه یادداشت را ذخیره می‌کند. */
+    private function handleContent_create(string $messageText, $chatId, $user, ?array $doc = null): Content|false
+    {
+        if (!$user->can('create_content')) {
+            $this->sendMessage($chatId, '❌ شما برای ثبت یادداشت دسترسی ندارید!');
+            return false;
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/u', trim($messageText));
+        $firstLine = trim($lines[0] ?? '');
+        $title = trim(preg_replace('/^#یادداشت\s*/u', '', $firstLine));
+        $bodyText = trim(implode("\n", array_slice($lines, 1)));
+        if ($title === '' && $bodyText !== '') {
+            $bodyLines = preg_split('/\r\n|\r|\n/u', $bodyText);
+            $title = trim(array_shift($bodyLines) ?? '');
+            $bodyText = trim(implode("\n", $bodyLines));
+        }
+        if ($title === '') {
+            $title = $doc ? 'یادداشت ثبت‌شده از ربات بله' : '';
+        }
+        if ($title === '') {
+            $this->sendMessage($chatId, 'لطفاً عنوان یادداشت را بعد از #یادداشت بنویسید.');
+            return false;
+        }
+        if (!$doc && $bodyText === '') {
+            $this->sendMessage($chatId, 'برای ثبت یادداشت، متن یادداشت را در خط بعد بنویسید یا دستور را در پاسخ یک فایل/تصویر ارسال کنید.');
+            return false;
+        }
+
+        try {
+            $body = [];
+            if ($bodyText !== '') {
+                $body[] = ['type' => 'text', 'text' => $bodyText];
+            }
+            $record = Content::create([
+                'title' => $title,
+                'body' => $body,
+                'user_id' => $user->id,
+            ]);
+
+            if ($doc && !empty($doc['file_id'])) {
+                $contents = $this->getFile($doc['file_id']);
+                if (!is_string($contents) || $contents === '') {
+                    throw new \RuntimeException('دریافت فایل یادداشت از بله ناموفق بود.');
+                }
+                $extension = strtolower(pathinfo($doc['file_name'] ?? 'attachment.bin', PATHINFO_EXTENSION)) ?: 'bin';
+                $filename = 'bale_' . $record->id . '_' . now()->format('YmdHis') . '.' . $extension;
+                $path = $record->id . '/' . $filename;
+                if (!Storage::disk('private2')->put($path, $contents)) {
+                    throw new \RuntimeException('ذخیره فایل یادداشت ناموفق بود.');
+                }
+                $body[] = ['type' => 'file', 'file' => $path];
+                $record->update(['body' => $body]);
+            }
+
+            $this->sendMessage($chatId,
+                '✅ یادداشت با موفقیت ثبت شد.' . "\n" .
+                '[بازکردن در سامانه](' . ContentResource::getUrl('edit', [$record->id]) . ')' . "\n\n" .
+                'اکنون می‌توانید دسته‌بندی مناسب را انتخاب کنید.'
+            );
+            return $record;
+        } catch (\Throwable $exception) {
+            Log::error('Bale content creation failed.', [
+                'user_id' => $user->id,
+                'title' => $title,
+                'error' => $exception->getMessage(),
+            ]);
+            $this->sendMessage($chatId, '❌ ثبت یادداشت با خطا مواجه شد. لطفاً دوباره تلاش کنید.');
+            return false;
+        }
+    }
+
+    private function sendContentGroupSuggestions($chatId, Content $record, $messageId = null, int $page = 1): void
+    {
+        $perPage = 12;
+        $total = ContentGroup::query()->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $totalPages);
+        $groups = ContentGroup::query()->with('parent')->orderBy('name')->forPage($page, $perPage)->get();
+        $keyboard = ['inline_keyboard' => []];
+
+        foreach ($groups as $group) {
+            $selected = $record->group()->where('content_groups.id', $group->id)->exists();
+            $label = ($selected ? '✅ ' : '') . $group->id . ' - ';
+            if ($group->parent) $label .= $group->parent->name . ' / ';
+            $label .= $group->name;
+            $keyboard['inline_keyboard'][] = [[
+                'text' => mb_substr($label, 0, 58),
+                'callback_data' => "toggle_content_group|{$record->id}|{$group->id}|{$page}",
+            ]];
+        }
+        $navigation = [];
+        if ($page > 1) $navigation[] = ['text' => 'قبلی', 'callback_data' => 'content_group_page_' . ($page - 1) . '|' . $record->id];
+        if ($page < $totalPages) $navigation[] = ['text' => 'بعدی', 'callback_data' => 'content_group_page_' . ($page + 1) . '|' . $record->id];
+        if ($navigation) $keyboard['inline_keyboard'][] = $navigation;
+        $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
+
+        $message = "📂 دسته‌بندی یادداشت «{$record->title}»\n";
+        $message .= $total === 0
+            ? 'هنوز دسته‌بندی‌ای تعریف نشده است.'
+            : "دسته‌بندی مناسب را انتخاب کنید. موارد انتخاب‌شده با علامت ✅ مشخص هستند. (صفحه {$page} از {$totalPages})";
+
+        if ($messageId === null) {
+            $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+        } else {
+            $token = config('bale.token');
+            Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => $message,
                 'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
             ]);
         }
@@ -1601,6 +1866,23 @@ TEXT;
 -مصوبه
 TEXT;
 
+            }elseif ($queryText == 'یادداشت'){
+                $message = <<<TEXT
+راهنمای ثبت یادداشت
+
+✅ #یادداشت عنوان یادداشت
+برای ثبت یادداشت متنی، عنوان را در خط اول و متن یادداشت را در خط‌های بعدی بنویسید:
+
+#یادداشت گزارش بازدید
+متن یادداشت در این قسمت نوشته می‌شود.
+
+📎 برای ضمیمه کردن فایل یا تصویر، همین دستور را در پاسخ (Reply) فایل/تصویر ارسال کنید:
+
+#یادداشت گزارش بازدید
+
+پس از ثبت، ربات فهرست دسته‌بندی‌های یادداشت را نمایش می‌دهد. با لمس هر دسته‌بندی می‌توانید آن را انتخاب یا از انتخاب خارج کنید. این امکان فقط برای کاربرانی فعال است که دسترسی «ایجاد یادداشت» دارند.
+TEXT;
+
             }elseif ($queryText == 'نامه'){
                 $message = <<<TEXT
 راهنمای نامه
@@ -1700,6 +1982,9 @@ TEXT;
 ✅ لیست دستورات نمایش اطلاعات :
 /راهنما
 این دستور راهنمای ربات را ارسال می کند . در ادامه دستور عنوان هر موجودیت شامل کار ، نامه ، صورتجلسه و... را وارد کنید راهنمای آن موجودیت را برای شما ارسال می شود.
+/یادداشت
+راهنمای ثبت یادداشت از طریق ربات و انتخاب دسته‌بندی.
+
 /صورتجلسه
 نمایش 5 صورت جلسه آخر شما . بعد از دستور میتوان شماره صورتجلسه یا عنوان صورتجلسه را برای جستجو در صورتجلسه ها استفاده کرد.
 /کار
