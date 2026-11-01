@@ -7,25 +7,41 @@ use Illuminate\Support\Facades\Log;
 
 class BaleLetterTextAiService
 {
+    /** Read the same configured GapGPT credential used by the rest of the application.
+     * Do not call env() at runtime: with cached Laravel config it may return null.
+     */
+    private function apiKey(): string
+    {
+        return trim((string) config('services.gapgpt.api_key'));
+    }
+
+    private function request(string $url, array $payload, int $timeout = 45)
+    {
+        $key = $this->apiKey();
+        if ($key === '') {
+            throw new \RuntimeException('کلید GapGPT در تنظیمات برنامه پیدا نشد؛ مقدار services.gapgpt.api_key را بررسی کنید.');
+        }
+
+        return Http::timeout($timeout)->withToken($key)->acceptJson()->post($url, $payload);
+    }
+
     /** Clean OCR noise without changing factual content or inventing missing details. */
     public function clean(string $text): string
     {
         $text = trim($text);
         if ($text === '') return '';
 
-        $response = Http::timeout(45)->withHeaders([
-            'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-        ])->post('https://api.gapgpt.app/v1/chat/completions', [
+        $response = $this->request('https://api.gapgpt.app/v1/chat/completions', [
             'model' => 'gpt-4o',
             'temperature' => 0.1,
             'messages' => [
                 ['role' => 'system', 'content' => 'شما ویراستار متون اداری فارسی هستید. فقط متن پاک‌سازی‌شده را برگردانید.'],
                 ['role' => 'user', 'content' => "متن زیر خروجی OCR یک نامه اداری فارسی است. فقط خطاهای آشکار OCR، فاصله‌گذاری، نیم‌فاصله، شکست خطوط و نویزهای تکراری را اصلاح کن. متن را روان و منظم کن، اما هیچ واقعیت، نام، عدد، تاریخ، شماره نامه، مبلغ، تعهد یا مفهوم حقوقی را حذف یا حدس نزن. اگر بخشی ناخواناست آن را حدس نزن و همان بخش را حفظ کن. سربرگ، فرستنده، گیرنده، رونوشت، موضوع و متن اصلی را تا حد ممکن نگه دار. هیچ خلاصه‌سازی انجام نده و توضیحی خارج از متن نده.\n\nمتن OCR:\n" . mb_substr($text, 0, 24000)],
             ],
-        ]);
+        ], 45);
 
         if (!$response->successful()) {
-            throw new \RuntimeException('پاک‌سازی هوشمند متن نامه ناموفق بود (HTTP ' . $response->status() . ').');
+            throw new \RuntimeException('پاک‌سازی هوشمند متن نامه ناموفق بود (HTTP ' . $response->status() . '). پاسخ سرویس: ' . mb_substr($response->body(), 0, 300));
         }
 
         $cleaned = trim((string) $response->json('choices.0.message.content'));
@@ -40,9 +56,7 @@ class BaleLetterTextAiService
     {
         if (!$letterText || !$candidates) return [];
 
-        $response = Http::timeout(35)->withHeaders([
-            'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-        ])->post('https://api.gapgpt.app/v1/chat/completions', [
+        $response = $this->request('https://api.gapgpt.app/v1/chat/completions', [
             'model' => 'gpt-4o',
             'temperature' => 0,
             'response_format' => ['type' => 'json_object'],
@@ -57,10 +71,10 @@ class BaleLetterTextAiService
                     'required_output' => ['ids' => []],
                 ], JSON_UNESCAPED_UNICODE)],
             ],
-        ]);
+        ], 35);
 
         if (!$response->successful()) {
-            throw new \RuntimeException('رتبه‌بندی گیرنده نامه ناموفق بود (HTTP ' . $response->status() . ').');
+            throw new \RuntimeException('رتبه‌بندی گیرنده نامه ناموفق بود (HTTP ' . $response->status() . '). پاسخ سرویس: ' . mb_substr($response->body(), 0, 300));
         }
 
         $content = trim((string) $response->json('choices.0.message.content'));
