@@ -14,7 +14,6 @@ use App\Models\City;
 use App\Models\Organ;
 use App\Models\Project;
 use App\Models\Referral;
-use App\Services\TempFileService;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +25,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Minutes;
+use App\Models\MinutesGroup;
 use App\Models\Letter;
 use App\Models\Task;
 use App\Models\BaleUser;
@@ -431,6 +431,11 @@ class BaleBotController extends Controller
                             if ($saved) {
                                 $this->sendMessage($chatId, '✅ فایل صورت‌جلسه با موفقیت ثبت و ذخیره شد.');
                             }
+                            $this->sendClassificationSuggestion(
+                                $chatId,
+                                $record,
+                                filterModelTypes: [Project::class, MinutesGroup::class]
+                            );
                         }
                     } else {
                         $this->sendMessage($chatId,'لطفا این متن را در پاسخ یک فایل یا تصویر بفرست تا فایل صورتجلسه را در سامانه ثبت کنم');
@@ -563,6 +568,12 @@ class BaleBotController extends Controller
                         } else {
                             $this->sendMessage($chatId, '✅ صورت‌جلسه با موفقیت ثبت شد.');
                         }
+
+                        $this->sendClassificationSuggestion(
+                            $chatId,
+                            $record,
+                            filterModelTypes: [Project::class, MinutesGroup::class]
+                        );
                     }
                     return response($record instanceof Minutes ? 'صورت جلسه ثبت شد.' : 'ثبت صورت جلسه ناموفق بود.');
 
@@ -1181,23 +1192,54 @@ EOT);
         }
 
         if (str_starts_with($callbackData, 'toggle_category|')) {
-            // ساختار: toggle_category|model_class|model_id|type_class|type_id
-            [, $modelClass, $modelId, $typeClass, $typeId,$filterJson] = explode('|', $callbackData);
-            $filterModelTypes = json_decode($filterJson, true);
+            $parts = explode('|', $callbackData);
+            $filterModelTypes = null;
 
+            if (count($parts) >= 6) {
+                // پشتیبانی از callbackهای قدیمی ذخیره‌شده در پیام‌های قبلی.
+                [, $modelClass, $modelId, $typeClass, $typeId, $filterJson] = $parts;
+                $filterModelTypes = json_decode($filterJson, true);
+            } else {
+                // callback کوتاه‌تر برای رعایت محدودیت طول دکمه‌های بله.
+                [, $modelKey, $modelId, $typeKey, $typeId] = $parts;
+                $modelClass = [
+                    'minutes' => Minutes::class,
+                    'letter' => Letter::class,
+                    'task' => Task::class,
+                ][$modelKey] ?? null;
+                $typeClass = [
+                    'project' => Project::class,
+                    'task_group' => \App\Models\TaskGroup::class,
+                    'minutes_group' => MinutesGroup::class,
+                ][$typeKey] ?? null;
+
+                $filterModelTypes = match ($modelClass) {
+                    Minutes::class => [Project::class, MinutesGroup::class],
+                    Letter::class => [Project::class],
+                    Task::class => [Project::class, \App\Models\TaskGroup::class],
+                    default => null,
+                };
+            }
+
+            if (!$modelClass || !$typeClass) return;
             $modelsub = app($modelClass)::find($modelId);
             if (!$modelsub) return;
 
             $relationMap = [
                 \App\Models\Project::class => [
-                    'relation' => 'project',
+                    'relation' => $modelsub instanceof Minutes ? 'projects' : 'project',
                     'foreign_key' => 'project_id',
-                    'label' => 'دستور کار ها',
+                    'label' => 'دستورکارها',
                 ],
                 \App\Models\TaskGroup::class => [
                     'relation' => 'group',
                     'foreign_key' => 'task_group_id',
-                    'label' => 'دسته بندی ها',
+                    'label' => 'دسته‌بندی‌ها',
+                ],
+                \App\Models\MinutesGroup::class => [
+                    'relation' => 'group',
+                    'foreign_key' => 'minutes_group_id',
+                    'label' => 'دسته‌بندی صورت‌جلسه',
                 ],
             ];
 
@@ -1269,6 +1311,12 @@ EOT);
     public function sendClassificationSuggestion($chatId, Model $modelsub, $messageId = null,?array $filterModelTypes = null)
     {
         $title = $modelsub->name ?? $modelsub->subject ?? $modelsub->title ?? '-';
+        $filterModelTypes ??= match (true) {
+            $modelsub instanceof Minutes => [Project::class, MinutesGroup::class],
+            $modelsub instanceof Letter => [Project::class],
+            $modelsub instanceof Task => [Project::class, \App\Models\TaskGroup::class],
+            default => [Project::class],
+        };
 
         $classifier = app(\App\Services\AiKeywordClassifier::class);
         $results = $classifier->classify($title, 0.1, $filterModelTypes, null, 3);
@@ -1276,14 +1324,19 @@ EOT);
         // نگاشت مدل به: رابطه، کلید، و عنوان
         $relationMap = [
             \App\Models\Project::class => [
-                'relation' => 'project',
+                'relation' => $modelsub instanceof Minutes ? 'projects' : 'project',
                 'foreign_key' => 'project_id',
-                'label' => 'دستور کار ها',
+                'label' => 'دستورکارها',
             ],
             \App\Models\TaskGroup::class => [
                 'relation' => 'group',
                 'foreign_key' => 'task_group_id',
-                'label' => 'دسته بندی ها',
+                'label' => 'دسته‌بندی‌ها',
+            ],
+            \App\Models\MinutesGroup::class => [
+                'relation' => 'group',
+                'foreign_key' => 'minutes_group_id',
+                'label' => 'دسته‌بندی صورت‌جلسه',
             ],
         ];
 
@@ -1311,7 +1364,15 @@ EOT);
                     ->exists();
 
                 $text = ($isSelected ? '✅ ' : '') . $modelId . '-' . $modelTitle;
-                $callback_data = "toggle_category|{$modelsub->getMorphClass()}|{$modelsub->id}|{$modelType}|{$modelId}|" . json_encode($filterModelTypes);
+                $modelKey = $modelsub instanceof Minutes ? 'minutes' : ($modelsub instanceof Letter ? 'letter' : ($modelsub instanceof Task ? 'task' : null));
+                $typeKey = match ($modelType) {
+                    \App\Models\Project::class => 'project',
+                    \App\Models\TaskGroup::class => 'task_group',
+                    \App\Models\MinutesGroup::class => 'minutes_group',
+                    default => null,
+                };
+                if (!$modelKey || !$typeKey) continue;
+                $callback_data = "toggle_category|{$modelKey}|{$modelsub->id}|{$typeKey}|{$modelId}";
 
                 $keyboard['inline_keyboard'][][] = [
                     'text' => $text,
@@ -1324,7 +1385,10 @@ EOT);
             ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']
         ];
 
-        $textMessage = "📌 پیشنهادهایی برای دسته‌بندی:" . "\n" . "(لطفا موارد مناسب را انتخاب کنید)";
+        $textMessage = "📌 پیشنهادهای هوشمند برای صورت‌جلسه/رکورد:" . "\n";
+        $textMessage .= empty($results)
+            ? "برای این عنوان پیشنهاد مشابهی در واژه‌نامه هوشمند پیدا نشد. می‌توانید بعداً واژه‌های آن را در بخش داده‌های کلمات هوش مصنوعی آموزش دهید."
+            : "موارد مناسب را با لمس دکمه‌ها انتخاب یا از انتخاب خارج کنید.";
         if (is_null($messageId)) {
             $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
         } else {
@@ -1798,101 +1862,8 @@ TEXT;
                 return $record;
             });
 
-            // Confirmation is sent by the webhook caller after any attachment is saved.
-            try {
-                if (empty($parsedData['approves']) and $doc) {
-                    $loadinApAi = $this->sendMessage($chatId,"درحال استخراج مصوبات با هوش مصنوعی");
-                    $tfs = new TempFileService();
-                    $tfsUrl = $tfs->save($this->getFile($doc['file_id']),pathinfo($doc['file_name'], PATHINFO_EXTENSION));
-
-                    $ocrResponse = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-                        'token' => env('EBOO_OCR_TOKEN'),
-                        'command' => 'addfile',
-                        'filelink' => url('temp-download/'.$tfsUrl),
-                    ]);
-                    $ocrdata = json_decode($ocrResponse->body());
-
-                    if (!isset($ocrdata->FileToken)) {
-
-                        $this->sendMessage(
-                            $chatId,
-                            "⚠️ استخراج خودکار متن صورتجلسه انجام نشد، اما فایل ذخیره شد."
-                        );
-
-                    } else {
-                        $ocrResponse2 = Http::asForm()->post('https://www.eboo.ir/api/ocr/getway', [
-                            'token' => env('EBOO_OCR_TOKEN'),
-                            'command' => 'convert',
-                            'output' => 'txtraw',
-                            'filetoken' => $ocrdata->FileToken,
-                            'method' => 4,
-                        ]);
-                        $ocrText = $ocrResponse2->body();
-                        $jalaliD = Jalalian::fromDateTime($record->date)->format('Y/m/d');
-
-                        // ارسال به GapGPT برای اصلاح و تبدیل به ساختار مصوبات
-                        $aiResponse = Http::withHeaders([
-                            'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-                        ])->post('https://api.gapgpt.app/v1/chat/completions', [
-                            'model' => 'gpt-4o',
-                            'messages' => [
-                                [
-                                    'role' => 'user',
-                                    'content' => <<<EOT
-    متن زیر با OCR از یک صورتجلسه استخراج شده است. لطفاً آن را اصلاح کن و فقط مصوبات را به شکل زیر  بدون هیچ توضیح اظافه ای بازگردان:
-    هر مصوبه در یک خط جداگانه که با "-" شروع شود.
-    اگر اعتبار ریالی ذکر شد با $ عدد مشخص شود. مانند $100000 ریال .
-    متن و اطلاعات هر مصوبه در یک خط باشند.
-    لطفاً متن مصوبات زیر را بررسی کن و برای هر مصوبه‌ای که در آن مهلت یا مدت زمان مشخصی برای انجام کار ذکر شده است، مدت زمان را به صورت زیر بازنویسی کن:
-
-    - فرمت مدت زمان باید به شکل « تا X روز » یا « تا X ماه » یا « تا X سال آینده » باشد.
-    - محاسبه مدت زمان باید بر اساس تاریخ شروع {$jalaliD} انجام شود.
-    - اگر در متن مصوبه هیچ مهلت یا مدت زمانی ذکر نشده بود، هیچ عبارتی اضافه نکن و همان متن مصوبه را بدون تغییر برگردان.
-    - خروجی فقط متن اصلاح‌شده مصوبات باشد، بدون توضیحات اضافی یا متن اضافه.
-
-    مثال:
-    «مدت ۲۰ روز» → « تا 20 روز »
-    «این کار  تا پایان سال 1405 انجام شود» → « تا 2 ماه آینده » (مدت زمان باقی مانده از تاریخ شروع تا ابتدای سال ذکر شده )
-    «یک سال فرصت برای تکمیل وجود دارد» → « تا 1 سال آینده »
-
-    متن صورتجلسه :
-    {$ocrText}
-    EOT
-                                ],
-                            ],
-                        ]);
-
-                        $ocrApprovesText = $aiResponse->json('choices.0.message.content');
-                        $ocrApprovesText = "\n\n" . "#مصوبه " . $record->id . "\n" . $ocrApprovesText;
-
-                        $apm = "هوش مصنوعی مصوبات زیر را از متن صورتجلسه استخراج کرده است . لطفا متن مصوبات را اصلاح کنید و برای ربات بفرستید تا مصوبات ضمیمه صورتجلسه شوند :";
-                        $apm .= $ocrApprovesText;
-                        $keyboard['inline_keyboard'][] = [ ['text' => '📋 کپی متن مصوبات', 'copy_text' => $ocrApprovesText], ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message'] ];
-                        $this->sendMessageWithKeyboard($chatId,$apm,$keyboard);
-                    }
-
-                    if (is_string($loadinApAi) && $loadinApAi !== '') {
-                        try { $this->deleteMessage((string) $chatId, $loadinApAi); } catch (\Throwable $cleanupException) {
-                            Log::warning('Could not delete Bale OCR progress message.', ['chat_id' => $chatId, 'error' => $cleanupException->getMessage()]);
-                        }
-                    }
-
-                }
-            } catch (\Throwable $ocrException) {
-                // Optional OCR/AI errors must not turn a saved record into a failed creation.
-                Log::warning('Minutes OCR/AI extraction failed after record creation.', [
-                    'minutes_id' => isset($record) && $record instanceof Minutes ? $record->id : null,
-                    'error' => $ocrException->getMessage(),
-                    'file' => $ocrException->getFile(),
-                    'line' => $ocrException->getLine(),
-                ]);
-                if (isset($loadinApAi) && is_string($loadinApAi) && $loadinApAi !== '') {
-                    try { $this->deleteMessage((string) $chatId, $loadinApAi); } catch (\Throwable $cleanupException) {
-                        Log::warning('Could not delete Bale OCR progress message.', ['chat_id' => $chatId, 'error' => $cleanupException->getMessage()]);
-                    }
-                }
-                $this->sendMessage($chatId, '⚠️ صورت‌جلسه ثبت شد، اما استخراج خودکار مصوبات انجام نشد. می‌توانید مصوبات را جداگانه ارسال کنید.');
-            }
+            // ثبت صورت‌جلسه فقط بر اساس اطلاعات کپشن انجام می‌شود.
+            // OCR و استخراج خودکار متن/مصوبات از فایل پیوست عمداً غیرفعال است.
 
         }catch (Exception $exception){
             $message = '❌ ثبت صورت جلسه با مشکل مواجه شد .';

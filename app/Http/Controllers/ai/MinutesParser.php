@@ -9,8 +9,6 @@ use App\Models\User;
 use App\Models\Organ;
 use Exception;
 use Illuminate\Support\Facades\Cache;
-use Morilog\Jalali\CalendarUtils;
-use Morilog\Jalali\Jalalian;
 use Carbon\Carbon;
 
 class MinutesParser
@@ -162,18 +160,7 @@ class MinutesParser
 
     protected function extractDateFromTitle(string $line): ?Carbon
     {
-        $englishDigits = ['0','1','2','3','4','5','6','7','8','9'];
-        $persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-        $converted = str_replace($persianDigits, $englishDigits, $line);
-
-        if (preg_match('/\b(\d{4})\/(\d{1,2})\/(\d{1,2})\b/u', $converted, $matches)) {
-            try {
-                return (new Jalalian( $matches[1], $matches[2], $matches[3]))->toCarbon()->setTimeFrom(Carbon::now());
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-        return null;
+        return app(\App\Services\PersianJalaliDateParser::class)->parse($line);
     }
 
     protected function extractRelativeDate(string $text, Carbon $now): ?Carbon

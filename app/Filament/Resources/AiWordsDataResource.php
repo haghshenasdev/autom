@@ -8,6 +8,7 @@ use App\Models\AiWordsData;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskGroup;
+use App\Models\MinutesGroup;
 use App\Services\AiKeywordClassifier;
 use Filament\Actions\Action;
 use Filament\Forms;
@@ -39,9 +40,11 @@ class AiWordsDataResource extends Resource
                     ->options([
                         Project::class => 'دستورکار',
                         TaskGroup::class => 'دسته‌بندی فعالیت ها',
+                        MinutesGroup::class => 'دسته‌بندی صورت‌جلسه‌ها',
                         // هر مدل دیگری که داری را اینجا اضافه کن
                     ])
                     ->searchable()
+                    ->live()
                     ->disabledOn('edit')
                     ->required(),
 
@@ -126,7 +129,7 @@ class AiWordsDataResource extends Resource
                             $count = app(\App\Services\AiKeywordClassifier::class)
                                 ->learn(
                                     $parentModel,
-                                    $record->relation_name ?? 'tasks',   // نام ریلیشن زیرمجموعه (می‌توانی در جدول ذخیره کنی)
+                                    $record->relation_name ?? ($record->model_type === MinutesGroup::class ? 'minutes' : 'tasks'),   // ریلیشن نمونه‌های آموزشی
                                     $record->target_field,               // فیلد عنوان زیرمجموعه
                                     $record->secondary_field ?? null,    // فیلد ثانویه مثل شهر
                                     $record->sensitivity ?? 0.5          // درصد حساسیت

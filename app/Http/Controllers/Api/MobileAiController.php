@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\ai\CategoryPredictor;
 use App\Http\Controllers\ai\LetterParser;
-use App\Http\Controllers\MinuteTextPS;
 use App\Models\Task;
 use App\Models\City;
 use App\Models\Organ;
@@ -110,12 +109,9 @@ class MobileAiController extends Controller
         $text = trim((string) $request->input('text', ''));
 
         if ($request->hasFile('file')) {
-            try {
-                $text = trim($this->ocr($request->file('file')));
-            } catch (\Throwable $e) {
-                Log::error('Mobile OCR failed', ['message' => $e->getMessage()]);
-                return response()->json(['message' => 'استخراج متن از فایل انجام نشد: ' . $e->getMessage()], 422);
-            }
+            return response()->json([
+                'message' => 'استخراج خودکار متن صورت‌جلسه از فایل غیرفعال است. فایل را پیوست کنید و عنوان و متن را دستی وارد نمایید.',
+            ], 410);
         }
 
         if ($text === '') {
@@ -356,20 +352,8 @@ class MobileAiController extends Controller
 
     private function jalaliDateToIso(string $text): ?string
     {
-        $digits = strtr($text, [
-            '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4',
-            '۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9',
-        ]);
-
-        if (!preg_match('/\b(1[34]\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/u', $digits, $m)) {
-            return null;
-        }
-
-        try {
-            return (new Jalalian((int)$m[1], (int)$m[2], (int)$m[3]))->toCarbon()->toIso8601String();
-        } catch (\Throwable) {
-            return null;
-        }
+        return app(\App\Services\PersianJalaliDateParser::class)
+            ->parse($text)?->toIso8601String();
     }
 
     private function detectTaskName(string $title): ?string
