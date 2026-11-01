@@ -1438,6 +1438,8 @@ EOT);
         $title = $modelsub->name ?? $modelsub->subject ?? $modelsub->title ?? '-';
         if ($modelsub instanceof Minutes) {
             $title = trim($title . ' ' . ($modelsub->text ?? ''));
+        } elseif ($modelsub instanceof Letter) {
+            $title = trim($title . ' ' . ($modelsub->description ?? ''));
         }
         $filterModelTypes ??= match (true) {
             $modelsub instanceof Minutes => [Project::class, MinutesGroup::class],
@@ -2368,6 +2370,24 @@ EOT);
         // متن OCR به parser ساختاریِ محلی داده نمی‌شود تا خطاهای تشخیص تصویر
         // باعث ایجاد خودکار صاحب/شخص اشتباه در بانک اطلاعاتی نشود؛ AI آن را جداگانه تحلیل می‌کند.
         $parseText = $sourceText;
+        $analysisText = $ocrSucceeded ? $ocrText : $sourceText;
+
+        // پاک‌سازی OCR با هوش مصنوعی؛ در صورت خطا، متن خام OCR حفظ می‌شود و ثبت ادامه دارد.
+        if ($ocrSucceeded) {
+            try {
+                $cleanedOcr = app(\App\Services\BaleLetterTextAiService::class)->clean($ocrText);
+                if (trim($cleanedOcr) !== '') {
+                    $analysisText = $cleanedOcr;
+                    $ocrText = $cleanedOcr;
+                }
+            } catch (\Throwable $cleanException) {
+                Log::error('Bale letter OCR cleanup failed; raw OCR text retained.', [
+                    'user_id' => $user->id,
+                    'file_name' => $doc['file_name'] ?? null,
+                    'error' => $cleanException->getMessage(),
+                ]);
+            }
+        }
 
         try {
             $dataLetter = $ltp->parse($parseText);
@@ -2399,7 +2419,7 @@ EOT);
         // تلاش تکمیلی هوش مصنوعی روی متن OCR؛ خروجی آن فقط برای تکمیل فیلدهای خالی استفاده می‌شود.
         if ($ocrSucceeded) {
             try {
-                $aiData = $ltp->aiParse($ocrText);
+                $aiData = $ltp->aiParse($analysisText);
                 if (is_array($aiData) && trim((string) ($aiData['subject'] ?? '')) !== '') {
                     $dataLetter['title'] = $dataLetter['title'] ?: $aiData['subject'];
                     if (empty($dataLetter['title_date']) && !empty($aiData['date'])) {
@@ -2442,7 +2462,7 @@ EOT);
 
             // متن OCR به‌عنوان متن اصلی نامه حفظ می‌شود تا اطلاعات استخراج‌شده از بین نرود.
             if (trim((string) ($dataLetter['description'] ?? '')) === '') {
-                $dataLetter['description'] = $ocrText;
+                $dataLetter['description'] = $analysisText;
             }
         }
 
@@ -2524,36 +2544,65 @@ EOT);
         $this->sendMessage($chatId, trim($message));
     }
 
-    /** پیشنهاد ارگان‌های مرتبط با متن نامه، با همان نرمال‌سازی مورد استفاده در پیشنهادهای صورت‌جلسه. */
+    /** پیشنهاد گیرنده فقط از میان ارگان‌های موجود و با رتبه‌بندی مبتنی بر متن کامل نامه. */
     private function findLetterOrganSuggestions(Letter $letter)
     {
-        $text = trim(($letter->subject ?? '') . ' ' . ($letter->description ?? ''));
-        $classifier = app(\App\Services\AiKeywordClassifier::class);
-        $keywords = collect($classifier->extractKeywords($text))
-            ->map(fn ($word) => $this->normalizeSuggestionWord((string) $word))
-            ->filter()
-            ->unique()
-            ->values();
+        $text = trim(($letter->subject ?? '') . "\n" . ($letter->description ?? ''));
+        if ($text === '') return collect();
 
+        $classifier = app(\App\Services\AiKeywordClassifier::class);
+        $keywords = collect($classifier->extractKeywords($this->normalizeSuggestionText($text)))
+            ->map(fn ($word) => $this->normalizeSuggestionWord((string) $word))
+            ->filter(fn ($word) => mb_strlen($word) >= 3)
+            ->unique()->values();
         if ($keywords->isEmpty()) return collect();
 
-        return Organ::query()
-            ->where('organ_type_id', '!=', 20)
-            ->select(['id', 'name'])
-            ->get()
-            ->map(function ($organ) use ($keywords) {
-                $organWords = collect(preg_split('/\s+/u', $this->normalizeSuggestionText($organ->name)))
-                    ->filter()
-                    ->unique();
-                $matches = $organWords->intersect($keywords)->count();
-                $score = $organWords->isEmpty() ? 0 : $matches / $organWords->count();
-                return ['organ' => $organ, 'matches' => $matches, 'score' => $score];
+        $candidates = Organ::query()->where('organ_type_id', '!=', 20)
+            ->select(['id', 'name'])->get()
+            ->map(function ($organ) use ($keywords, $text) {
+                $name = $this->normalizeSuggestionText($organ->name);
+                $organWords = collect(preg_split('/\s+/u', $name))
+                    ->map(fn ($word) => $this->normalizeSuggestionWord($word))
+                    ->filter(fn ($word) => mb_strlen($word) >= 3)->unique();
+                $matched = $organWords->filter(fn ($word) => $keywords->contains(fn ($keyword) =>
+                    $keyword === $word || (mb_strlen($word) >= 5 && mb_strlen($keyword) >= 5 &&
+                    (str_contains($keyword, $word) || str_contains($word, $keyword)))
+                ))->count();
+                $exactPhrase = $name !== '' && str_contains($this->normalizeSuggestionText($text), $name);
+                $organ->local_match_count = $matched;
+                $organ->local_score = $exactPhrase ? 100 : ($organWords->count() ? $matched / $organWords->count() : 0);
+                $organ->exact_phrase_match = $exactPhrase;
+                return $organ;
             })
-            ->filter(fn ($item) => $item['matches'] >= 1)
-            ->sortByDesc(fn ($item) => ($item['score'] * 100) + $item['matches'])
-            ->take(20)
-            ->pluck('organ')
-            ->values();
+            ->filter(fn ($organ) => $organ->exact_phrase_match || $organ->local_match_count >= 2)
+            ->sortByDesc(fn ($organ) => ($organ->exact_phrase_match ? 1000 : 0) + ($organ->local_score * 100) + $organ->local_match_count)
+            ->take(30)->values();
+
+        if ($candidates->isEmpty()) return collect();
+
+        try {
+            $rankInput = $candidates->map(fn ($organ) => [
+                'id' => (int) $organ->id,
+                'name' => $organ->name,
+            ])->all();
+            $rankedIds = app(\App\Services\BaleLetterTextAiService::class)
+                ->rankOrganCandidates($text, $rankInput, 3, (int) $letter->kind);
+            if (!empty($rankedIds)) {
+                return $candidates->whereIn('id', $rankedIds)
+                    ->sortBy(fn ($organ) => array_search((int) $organ->id, $rankedIds, true))
+                    ->take(3)->values();
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('AI letter recipient ranking failed; using strict local matching.', [
+                'letter_id' => $letter->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        // در نبود پاسخ AI فقط تطبیق صریح یا تطبیق حداقل دو واژه معتبر پذیرفته می‌شود.
+        return $candidates->filter(fn ($organ) => $organ->exact_phrase_match ||
+            ($organ->local_match_count >= 2 && $organ->local_score >= 0.45))
+            ->take(3)->values();
     }
 
     /** پیشنهاد و امکان اصلاح فیلدهای اصلی نامه پس از ثبت. */
@@ -2587,11 +2636,7 @@ EOT);
             ]);
             $organCandidates = collect();
         }
-        if (!empty($parsed['organ_id'])) {
-            $candidate = Organ::find($parsed['organ_id']);
-            if ($candidate) $organCandidates->prepend($candidate);
-        }
-        $organCandidates = $organCandidates->unique('id')->take(20);
+        $organCandidates = $organCandidates->unique('id')->take(3);
 
         if ($organCandidates->isNotEmpty()) {
             $keyboard['inline_keyboard'][] = [['text' => '--- 🏛 گیرنده / ارگان ---', 'callback_data' => '__noop__']];
@@ -2610,7 +2655,7 @@ EOT);
 
         try {
             $projects = app(\App\Services\AiKeywordClassifier::class)
-                ->classify(trim($letter->subject . ' ' . $letter->description), 0.1, [Project::class], null, 5);
+                ->classify(trim($letter->subject . ' ' . $letter->description), 0.25, [Project::class], null, 3);
         } catch (\Throwable $suggestionException) {
             Log::warning('Bale letter classification suggestions failed.', [
                 'letter_id' => $letter->id,
