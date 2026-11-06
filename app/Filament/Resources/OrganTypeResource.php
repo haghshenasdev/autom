@@ -30,6 +30,10 @@ class OrganTypeResource extends Resource
                 Forms\Components\TextInput::make('description')
                     ->nullable()->label('توضیحات')
                     ->maxLength(255),
+                Forms\Components\Toggle::make('is_minute_signer_enabled')
+                    ->label('نمایش در انتخاب امضاکنندگان صورت‌جلسه در ربات بله')
+                    ->default(true)
+                    ->helperText('در صورت فعال بودن، ارگان‌های این نوع در مسیر انتخاب دستی امضاکنندگان نمایش داده می‌شوند.'),
             ]);
     }
 
@@ -40,6 +44,8 @@ class OrganTypeResource extends Resource
                 TextColumn::make('id')->searchable()->sortable(),
                 TextColumn::make('name')->label('عنوان')->searchable(),
                 TextColumn::make('description')->label('توضیحات'),
+                Tables\Columns\IconColumn::make('is_minute_signer_enabled')->label('مجاز برای امضا')
+                    ->boolean(),
             ])
             ->filters([
                 //

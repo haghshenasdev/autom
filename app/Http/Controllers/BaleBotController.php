@@ -1253,11 +1253,55 @@ EOT);
             return;
         }
 
+        // مرور سلسله‌مراتبی انواع ارگان و انتخاب چندگانه امضاکنندگان صورت‌جلسه.
+        if (str_starts_with($callbackData, 'minute_organ_types|')) {
+            $parts = explode('|', $callbackData);
+            $minute = Minutes::find((int) ($parts[1] ?? 0));
+            if (!$minute || !$user->can('create_minutes')) return;
+            $this->sendMinuteOrganTypes($chatId, $minute, $messageId, max(1, (int) ($parts[2] ?? 1)));
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'minute_organ_list|')) {
+            $parts = explode('|', $callbackData);
+            $minute = Minutes::find((int) ($parts[1] ?? 0));
+            $typeId = (int) ($parts[2] ?? 0);
+            $type = \App\Models\OrganType::query()->where('is_minute_signer_enabled', true)->find($typeId);
+            if (!$minute || !$type || !$user->can('create_minutes')) return;
+            $this->sendMinuteOrgans($chatId, $minute, $type, $messageId, max(1, (int) ($parts[3] ?? 1)));
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'minute_organ_toggle|')) {
+            $parts = explode('|', $callbackData);
+            $minute = Minutes::find((int) ($parts[1] ?? 0));
+            $organId = (int) ($parts[2] ?? 0);
+            $typeId = (int) ($parts[3] ?? 0);
+            $page = max(1, (int) ($parts[4] ?? 1));
+            $type = \App\Models\OrganType::query()->where('is_minute_signer_enabled', true)->find($typeId);
+            $organ = Organ::query()->where('organ_type_id', $typeId)->find($organId);
+            if (!$minute || !$type || !$organ || !$user->can('create_minutes')) return;
+
+            $exists = $minute->organ()->where('organs.id', $organId)->exists();
+            $exists ? $minute->organ()->detach($organId) : $minute->organ()->syncWithoutDetaching([$organId]);
+            $this->sendMinuteOrgans($chatId, $minute, $type, $messageId, $page);
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'minute_organ_back|')) {
+            $minuteId = (int) substr($callbackData, strlen('minute_organ_back|'));
+            $minute = Minutes::find($minuteId);
+            if ($minute && $user->can('create_minutes')) {
+                $this->sendClassificationSuggestion($chatId, $minute, $messageId, [Project::class, MinutesGroup::class]);
+            }
+            return;
+        }
+
         if (str_starts_with($callbackData, 'toggle_organ|')) {
             $parts = explode('|', $callbackData);
             $minute = Minutes::find((int) ($parts[1] ?? 0));
             $organId = (int) ($parts[2] ?? 0);
-            $organ = Organ::find($organId);
+            $organ = Organ::query()->whereHas('type', fn ($query) => $query->where('is_minute_signer_enabled', true))->find($organId);
             if (!$minute || !$organ || !$user->can('create_minutes')) return;
 
             $exists = $minute->organ()->where('organs.id', $organId)->exists();
@@ -1514,6 +1558,13 @@ EOT);
             }
         }
 
+        if ($modelsub instanceof Minutes) {
+            $keyboard['inline_keyboard'][] = [[
+                'text' => '📚 انتخاب دستی امضاکنندگان از فهرست ارگان‌ها',
+                'callback_data' => "minute_organ_types|{$modelsub->id}|1",
+            ]];
+        }
+
         $keyboard['inline_keyboard'][] = [
             ['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']
         ];
@@ -1521,7 +1572,9 @@ EOT);
         $textMessage = $modelsub instanceof Minutes ? "📌 پیشنهادهای دستورکار، دسته‌بندی و امضاکنندگان صورت‌جلسه:" . "\n" : "📌 پیشنهادهای هوشمند برای رکورد:" . "\n";
         $hasOrganSuggestions = $modelsub instanceof Minutes && isset($organSuggestions) && $organSuggestions->isNotEmpty();
         $textMessage .= empty($results) && !$hasOrganSuggestions
-            ? "برای این عنوان پیشنهاد مشابهی در واژه‌نامه هوشمند یا فهرست ارگان‌ها پیدا نشد."
+            ? ($modelsub instanceof Minutes
+                ? "پیشنهاد خودکار مناسبی پیدا نشد؛ برای انتخاب دستی امضاکنندگان از دکمه فهرست ارگان‌ها استفاده کنید."
+                : "برای این عنوان پیشنهاد مشابهی در واژه‌نامه هوشمند پیدا نشد.")
             : "موارد مناسب را با لمس دکمه‌ها انتخاب یا از انتخاب خارج کنید.";
         if (is_null($messageId)) {
             $this->sendMessageWithKeyboard($chatId, $textMessage, $keyboard);
@@ -1536,6 +1589,81 @@ EOT);
         }
     }
 
+    /** نمایش انواع ارگان‌های مجاز برای انتخاب امضاکننده. */
+    private function sendMinuteOrganTypes($chatId, Minutes $minute, $messageId, int $page = 1): void
+    {
+        $perPage = 8;
+        $query = \App\Models\OrganType::query()->where('is_minute_signer_enabled', true)->orderBy('name');
+        $total = (clone $query)->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $totalPages);
+        $types = $query->skip(($page - 1) * $perPage)->take($perPage)->get();
+
+        $keyboard = ['inline_keyboard' => []];
+        $keyboard['inline_keyboard'][] = [['text' => '🏢 انتخاب نوع ارگان برای امضاکننده', 'callback_data' => '__noop__']];
+        foreach ($types as $type) {
+            $count = Organ::where('organ_type_id', $type->id)->count();
+            $keyboard['inline_keyboard'][] = [[
+                'text' => "{$type->name} ({$count})",
+                'callback_data' => "minute_organ_list|{$minute->id}|{$type->id}|1",
+            ]];
+        }
+
+        $navigation = [];
+        if ($page > 1) $navigation[] = ['text' => '⬅️ قبلی', 'callback_data' => "minute_organ_types|{$minute->id}|" . ($page - 1)];
+        if ($page < $totalPages) $navigation[] = ['text' => 'بعدی ➡️', 'callback_data' => "minute_organ_types|{$minute->id}|" . ($page + 1)];
+        if ($navigation) $keyboard['inline_keyboard'][] = $navigation;
+        $keyboard['inline_keyboard'][] = [['text' => '↩️ بازگشت به پیشنهادهای اصلی', 'callback_data' => "minute_organ_back|{$minute->id}"]];
+        $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
+
+        $this->editBaleMessage($chatId, $messageId, "🏢 نوع ارگان موردنظر را انتخاب کنید.\nصفحه {$page} از {$totalPages}", $keyboard);
+    }
+
+    /** نمایش ارگان‌های یک نوع با صفحه‌بندی و امکان انتخاب چندگانه. */
+    private function sendMinuteOrgans($chatId, Minutes $minute, \App\Models\OrganType $type, $messageId, int $page = 1): void
+    {
+        $perPage = 8;
+        $query = Organ::query()->where('organ_type_id', $type->id)->orderBy('name');
+        $total = (clone $query)->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $totalPages);
+        $organs = $query->skip(($page - 1) * $perPage)->take($perPage)->get();
+
+        $selectedIds = $minute->organ()->pluck('organs.id')->all();
+        $keyboard = ['inline_keyboard' => []];
+        $keyboard['inline_keyboard'][] = [['text' => '🏢 ' . mb_substr($type->name, 0, 45) . ' | برای انتخاب لمس کنید', 'callback_data' => '__noop__']];
+        foreach ($organs as $organ) {
+            $selected = in_array($organ->id, $selectedIds, true) || in_array((string) $organ->id, $selectedIds, true);
+            $label = ($selected ? '✅ ' : '▫️ ') . $organ->name;
+            $keyboard['inline_keyboard'][] = [[
+                'text' => mb_substr($label, 0, 60),
+                'callback_data' => "minute_organ_toggle|{$minute->id}|{$organ->id}|{$type->id}|{$page}",
+            ]];
+        }
+
+        $navigation = [];
+        if ($page > 1) $navigation[] = ['text' => '⬅️ قبلی', 'callback_data' => "minute_organ_list|{$minute->id}|{$type->id}|" . ($page - 1)];
+        if ($page < $totalPages) $navigation[] = ['text' => 'بعدی ➡️', 'callback_data' => "minute_organ_list|{$minute->id}|{$type->id}|" . ($page + 1)];
+        if ($navigation) $keyboard['inline_keyboard'][] = $navigation;
+        $keyboard['inline_keyboard'][] = [['text' => '↩️ بازگشت به انواع ارگان‌ها', 'callback_data' => "minute_organ_types|{$minute->id}|1"]];
+        $keyboard['inline_keyboard'][] = [['text' => '✅ پایان انتخاب و بازگشت', 'callback_data' => "minute_organ_back|{$minute->id}"]];
+        $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
+
+        $this->editBaleMessage($chatId, $messageId, "🏢 ارگان‌های نوع «{$type->name}»\nبا لمس هر ارگان، آن را به فهرست امضاکنندگان اضافه یا از آن حذف کنید.\nانتخاب‌شده: " . count($selectedIds) . " | صفحه {$page} از {$totalPages}", $keyboard);
+    }
+
+    /** ویرایش پیام منوی تعاملی بله. */
+    private function editBaleMessage($chatId, $messageId, string $text, array $keyboard): void
+    {
+        $token = config('bale.token');
+        Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $text,
+            'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+        ]);
+    }
+
     /** پیشنهاد ارگان‌های موجود با تطبیق کلمات کلیدی متن صورت‌جلسه. */
     private function findMinuteOrganSuggestions(Minutes $minute)
     {
@@ -1546,7 +1674,9 @@ EOT);
 
         // فهرست ارگان‌ها مستقیماً از جدول اصلی خوانده می‌شود تا تفاوت نیم‌فاصله،
         // شکل جمع و حروف عربی/فارسی باعث از دست رفتن تطبیق نشود.
-        $candidates = Organ::query()->select(['id', 'name'])->get();
+        $candidates = Organ::query()
+            ->whereHas('type', fn ($query) => $query->where('is_minute_signer_enabled', true))
+            ->select(['id', 'name', 'organ_type_id'])->get();
         $normalizedKeywords = collect($keywords)->map(fn ($word) => $this->normalizeSuggestionWord($word))->filter()->unique()->values();
 
         return $candidates->map(function ($organ) use ($normalizedKeywords, $text) {

@@ -13,9 +13,14 @@ class OrganType extends Model
     protected $fillable = [
         'name',
         'description',
+        'is_minute_signer_enabled',
     ];
 
     public $timestamps = false;
+
+    protected $casts = [
+        'is_minute_signer_enabled' => 'boolean',
+    ];
 
     public function organs()
     {
