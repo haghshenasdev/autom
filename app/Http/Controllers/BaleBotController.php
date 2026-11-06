@@ -67,11 +67,14 @@ class BaleBotController extends Controller
 
 
             if ($media_group_id) {
-                $doc = $data['message']['document'];
-                if ($caption == '') {
-                    $bale_user->update(['state' => $media_group_id . '_' . $doc['file_id'] . '_' . pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
+                // در آلبوم‌های بله ممکن است هر عضو تصویر (photo) یا فایل (document) باشد.
+                $groupAttachment = $this->getBaleAttachmentFromMessage($data['message']);
+                if ($caption === '' && $groupAttachment) {
+                    $extension = $this->getBaleFileExtension($groupAttachment);
+                    $bale_user->update([
+                        'state' => $media_group_id . '_' . $groupAttachment['file_id'] . '_' . $extension,
+                    ]);
                 }
-
             }
 
             if ($text != '') {
@@ -414,13 +417,18 @@ class BaleBotController extends Controller
                         $dataLetter = $ltp->mixedParse($text);
                         $this->sendMessage($chatId, 'متن زیر را اصلاح کنید و زیر یک تصویر ارسال نمایید .');
                         $this->sendMessage($chatId, $ltp->rebuildText($dataLetter));
-                    }elseif (isset($data['message']['reply_to_message']['document']['file_id'])) {
-                        $reply_msg = $data['message']['reply_to_message'];
+                    } else {
+                        // فایل یا تصویر ریپلای‌شده؛ هر دو از یک مسیر دریافت می‌شوند.
+                        $reply_msg = $data['message']['reply_to_message'] ?? [];
                         $doc = $this->getBaleAttachmentFromMessage($reply_msg);
-                        $record = $this->handleLetter_create($text, $chatId, $user, $isPrivateChat, $doc);
+                        if ($doc) {
+                            $record = $this->handleLetter_create($text, $chatId, $user, $isPrivateChat, $doc);
 
-                        if ($record instanceof Letter && $doc) {
-                            $this->LetterFileAdd($record, $doc, $media_group_id, $bale_user);
+                            if ($record instanceof Letter) {
+                                $this->LetterFileAdd($record, $doc, $media_group_id, $bale_user);
+                            }
+                        } else {
+                            $this->sendMessage($chatId, 'لطفاً دستور #نامه را در پاسخ به فایل یا تصویر نامه ارسال کنید.');
                         }
                     }
                 }
@@ -497,18 +505,11 @@ class BaleBotController extends Controller
                     $task = $this->handleTasks_create($text,$user,$chatId,$isPrivateChat);
 
                     if ($task){
-                        // ضمیمه کردن ریپلای
-                        if (isset($data['message']['reply_to_message']['document']['file_id'])){
-                            $reply_msg = $data['message']['reply_to_message'];
-                            $doc = $reply_msg['document'];
-                            $appendix = AppendixOther::withoutEvents(function () use ($task,$doc,$reply_msg) {
-                                return $task->appendix_others()->create([
-                                    'title'       => 'ضمیمه',
-                                    'description' => $reply_msg['caption'] ?? null,
-                                    'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
-                                ]);
-                            });
-                            Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
+                        // ضمیمه کردن فایل یا تصویر ریپلای‌شده
+                        $reply_msg = $data['message']['reply_to_message'] ?? [];
+                        $doc = $this->getBaleAttachmentFromMessage($reply_msg);
+                        if ($doc) {
+                            $this->TaskFileAdd($task, $doc, $reply_msg['caption'] ?? null);
                         }
                     }
 
@@ -519,18 +520,11 @@ class BaleBotController extends Controller
                     $task = $this->handleTasks_create($text,$user,$chatId,$isPrivateChat,[36]);
 
                     if ($task){
-                        // ضمیمه کردن ریپلای
-                        if (isset($data['message']['reply_to_message']['document']['file_id'])){
-                            $reply_msg = $data['message']['reply_to_message'];
-                            $doc = $reply_msg['document'];
-                            $appendix = AppendixOther::withoutEvents(function () use ($task,$doc,$reply_msg) {
-                                return $task->appendix_others()->create([
-                                    'title'       => 'ضمیمه',
-                                    'description' => $reply_msg['caption'] ?? null,
-                                    'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
-                                ]);
-                            });
-                            Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
+                        // ضمیمه کردن فایل یا تصویر ریپلای‌شده
+                        $reply_msg = $data['message']['reply_to_message'] ?? [];
+                        $doc = $this->getBaleAttachmentFromMessage($reply_msg);
+                        if ($doc) {
+                            $this->TaskFileAdd($task, $doc, $reply_msg['caption'] ?? null);
                         }
                     }
 
@@ -632,16 +626,10 @@ class BaleBotController extends Controller
                     $task = $this->handleTasks_create($caption,$user,$chatId,$isPrivateChat);
 
                     if ($task){
-                        // ضمیمه کردن فایل
-                        if (isset($data['message']['document']['file_id'])){
-                            $doc = $data['message']['document'];
-                            $appendix = AppendixOther::withoutEvents(function () use ($task,$doc) {
-                                return $task->appendix_others()->create([
-                                    'title'       => 'ضمیمه',
-                                    'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
-                                ]);
-                            });
-                            Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
+                        // ضمیمه فایل یا تصویر ارسال‌شده همراه کپشن
+                        $doc = $this->getBaleAttachmentFromMessage($data['message']);
+                        if ($doc) {
+                            $this->TaskFileAdd($task, $doc, $caption);
                         }
                     }
                 }
@@ -649,16 +637,10 @@ class BaleBotController extends Controller
                     $task = $this->handleTasks_create($caption,$user,$chatId,$isPrivateChat,[36]);
 
                     if ($task){
-                        // ضمیمه کردن فایل
-                        if (isset($data['message']['document']['file_id'])){
-                            $doc = $data['message']['document'];
-                            $appendix = AppendixOther::withoutEvents(function () use ($task,$doc) {
-                                return $task->appendix_others()->create([
-                                    'title'       => 'ضمیمه',
-                                    'file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION),
-                                ]);
-                            });
-                            Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $this->getFile($doc['file_id']));
+                        // ضمیمه فایل یا تصویر ارسال‌شده همراه کپشن
+                        $doc = $this->getBaleAttachmentFromMessage($data['message']);
+                        if ($doc) {
+                            $this->TaskFileAdd($task, $doc, $caption);
                         }
                     }
                 }
@@ -2125,7 +2107,11 @@ TEXT;
         return null;
     }
 
-    /** Normalize Bale document/photo payloads to the structure used by file storage. */
+    /**
+     * تبدیل فایل‌ها و تصاویر دریافتی از بله به ساختار واحد مورد استفاده در ذخیره‌سازی.
+     * فایل‌های PDF، Word، Excel و سایر فایل‌هایی که بله در فیلد document می‌فرستد
+     * بدون وابستگی به پسوند خاص پشتیبانی می‌شوند.
+     */
     private function getBaleAttachmentFromMessage(array $message): ?array
     {
         if (!empty($message['document']['file_id'])) {
@@ -2138,17 +2124,82 @@ TEXT;
 
         $photos = $message['photo'] ?? [];
         if (is_array($photos) && count($photos) > 0) {
-            // Bale lists image variants from smaller to larger; use the last/highest resolution.
+            // بله اندازه‌های مختلف تصویر را ارسال می‌کند؛ آخرین مورد معمولاً کیفیت بالاتری دارد.
             $photo = end($photos);
             if (is_array($photo) && !empty($photo['file_id'])) {
                 return [
                     'file_id' => $photo['file_id'],
                     'file_name' => 'photo_' . ($message['message_id'] ?? uniqid()) . '.jpg',
+                    'mime_type' => 'image/jpeg',
                 ];
             }
         }
 
         return null;
+    }
+
+    /** استخراج پسوند امن فایل دریافتی از بله. */
+    private function getBaleFileExtension(array $attachment): string
+    {
+        $extension = strtolower(pathinfo($attachment['file_name'] ?? '', PATHINFO_EXTENSION));
+        $extension = preg_replace('/[^a-z0-9]+/i', '', $extension);
+
+        if ($extension !== '') {
+            return $extension;
+        }
+
+        $mime = strtolower((string) ($attachment['mime_type'] ?? ''));
+        $mimeExtensions = [
+            'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'text/plain' => 'txt',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+        ];
+
+        return $mimeExtensions[$mime] ?? 'bin';
+    }
+
+    /** ذخیره ضمیمه برای کارها و گزارش‌ها، با همان ساختار فعلی AppendixOther. */
+    private function TaskFileAdd(Task $task, array $doc, ?string $description = null): bool
+    {
+        if (empty($doc['file_id'])) {
+            return false;
+        }
+
+        try {
+            $contents = $this->getFile($doc['file_id']);
+            if (!is_string($contents) || $contents === '') {
+                throw new \RuntimeException('دریافت فایل ضمیمه از بله ناموفق بود.');
+            }
+
+            $extension = $this->getBaleFileExtension($doc);
+            $appendix = AppendixOther::withoutEvents(function () use ($task, $extension, $description) {
+                return $task->appendix_others()->create([
+                    'title' => 'ضمیمه',
+                    'description' => $description,
+                    'file' => $extension,
+                ]);
+            });
+
+            $stored = Storage::disk('private_appendix_other')->put($appendix->getFilePath(), $contents);
+            if ($stored !== true) {
+                throw new \RuntimeException('ذخیره فایل ضمیمه در فضای ذخیره‌سازی ناموفق بود.');
+            }
+
+            return true;
+        } catch (\Throwable $exception) {
+            Log::error('Bale task attachment storage failed.', [
+                'task_id' => $task->id,
+                'file_name' => $doc['file_name'] ?? null,
+                'file_id' => $doc['file_id'] ?? null,
+                'error' => $exception->getMessage(),
+            ]);
+            return false;
+        }
     }
 
     private function handleMinute_create($caption,$chatId,$user,$isPrivateChat,$doc)
@@ -2266,7 +2317,7 @@ EOT);
         }
 
         try {
-            $extension = strtolower(pathinfo($doc['file_name'], PATHINFO_EXTENSION));
+            $extension = $this->getBaleFileExtension($doc);
             $fileContents = $this->getFile($doc['file_id']);
 
             if (!is_string($fileContents) || $fileContents === '') {
@@ -2698,7 +2749,7 @@ EOT);
 
     private function LetterFileAdd($record,$doc,$media_group_id,$bale_user)
     {
-        $record->update(['file' => pathinfo($doc['file_name'], PATHINFO_EXTENSION)]);
+        $record->update(['file' => $this->getBaleFileExtension($doc)]);
         Storage::disk('private')->put($record->getFilePath(), $this->getFile($doc['file_id']));
         if ($media_group_id) {
             $bale_user->update(['state' => $media_group_id . "_letter_{$record->id}"]);
