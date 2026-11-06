@@ -1342,6 +1342,68 @@ EOT);
             return;
         }
 
+        // انتخاب دستی دستورکار برای موجودیت‌های مختلف، با فیلترهای هم‌راستا با ProjectResource.
+        if (str_starts_with($callbackData, 'pmf|')) {
+            $parts = explode('|', $callbackData);
+            $entityKey = $parts[1] ?? '';
+            $record = $this->findManualProjectEntity($entityKey, (int) ($parts[2] ?? 0));
+            if (!$record || !$this->canManuallyAssignProjects($user, $entityKey)) return;
+            $this->sendManualProjectFilters($chatId, $record, $entityKey, $messageId);
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'pmv|')) {
+            $parts = explode('|', $callbackData);
+            $entityKey = $parts[1] ?? '';
+            $record = $this->findManualProjectEntity($entityKey, (int) ($parts[2] ?? 0));
+            $page = max(1, (int) ($parts[4] ?? 1));
+            if (!$record || !$this->canManuallyAssignProjects($user, $entityKey)) return;
+            $filterKey = $parts[3] ?? '';
+            if (!$this->isManualProjectFilter($filterKey)) return;
+            $this->sendManualProjectFilterValues($chatId, $record, $entityKey, $filterKey, $messageId, $page);
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'pml|')) {
+            $parts = explode('|', $callbackData);
+            $entityKey = $parts[1] ?? '';
+            $record = $this->findManualProjectEntity($entityKey, (int) ($parts[2] ?? 0));
+            $filterKey = $parts[3] ?? '';
+            $filterValue = (int) ($parts[4] ?? 0);
+            $page = max(1, (int) ($parts[5] ?? 1));
+            if (!$record || !$this->canManuallyAssignProjects($user, $entityKey) || !$this->isManualProjectFilter($filterKey)) return;
+            $this->sendManualProjectList($chatId, $record, $entityKey, $filterKey, $filterValue, $messageId, $page);
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'pmback|')) {
+            $parts = explode('|', $callbackData);
+            $entityKey = $parts[1] ?? '';
+            $record = $this->findManualProjectEntity($entityKey, (int) ($parts[2] ?? 0));
+            if (!$record || !$this->canManuallyAssignProjects($user, $entityKey)) return;
+            $this->returnManualProjectToSuggestions($chatId, $record, $entityKey, $messageId);
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'pmt|')) {
+            $parts = explode('|', $callbackData);
+            $entityKey = $parts[1] ?? '';
+            $record = $this->findManualProjectEntity($entityKey, (int) ($parts[2] ?? 0));
+            $projectId = (int) ($parts[3] ?? 0);
+            $filterKey = $parts[4] ?? '';
+            $filterValue = (int) ($parts[5] ?? 0);
+            $page = max(1, (int) ($parts[6] ?? 1));
+            if (!$record || !$this->canManuallyAssignProjects($user, $entityKey) || !$this->isManualProjectFilter($filterKey)) return;
+            $project = Project::find($projectId);
+            if (!$project || !$this->manualProjectMatchesFilter($project, $filterKey, $filterValue)) return;
+            $relation = $this->manualProjectRelation($record, $entityKey);
+            if (!$relation) return;
+            $exists = $record->{$relation}()->where('projects.id', $projectId)->exists();
+            $exists ? $record->{$relation}()->detach($projectId) : $record->{$relation}()->syncWithoutDetaching([$projectId]);
+            $this->sendManualProjectList($chatId, $record, $entityKey, $filterKey, $filterValue, $messageId, $page);
+            return;
+        }
+
         if (str_starts_with($callbackData, 'toggle_category|')) {
             $parts = explode('|', $callbackData);
             $filterModelTypes = null;
@@ -1558,6 +1620,14 @@ EOT);
             }
         }
 
+        if ($modelsub instanceof Minutes || $modelsub instanceof Letter || $modelsub instanceof Task) {
+            $entityKey = $modelsub instanceof Minutes ? 'minutes' : ($modelsub instanceof Letter ? 'letter' : 'task');
+            $keyboard['inline_keyboard'][] = [[
+                'text' => '📁 انتخاب دستی دستورکارها با فیلتر',
+                'callback_data' => "pmf|{$entityKey}|{$modelsub->id}",
+            ]];
+        }
+
         if ($modelsub instanceof Minutes) {
             $keyboard['inline_keyboard'][] = [[
                 'text' => '📚 انتخاب دستی امضاکنندگان از فهرست ارگان‌ها',
@@ -1590,6 +1660,162 @@ EOT);
     }
 
     /** نمایش انواع ارگان‌های مجاز برای انتخاب امضاکننده. */
+    private function returnManualProjectToSuggestions($chatId, Model $record, string $entityKey, $messageId): void
+    {
+        if ($entityKey === 'letter' && $record instanceof Letter) {
+            $this->sendLetterSuggestions($chatId, $record, [], $messageId);
+            return;
+        }
+        $types = $record instanceof Minutes ? [Project::class, MinutesGroup::class] : null;
+        $this->sendClassificationSuggestion($chatId, $record, $messageId, $types);
+    }
+
+    /** Resolve the supported entity whose project relation is being edited. */
+    private function findManualProjectEntity(string $entityKey, int $id): ?Model
+    {
+        $class = ['minutes' => Minutes::class, 'letter' => Letter::class, 'task' => Task::class][$entityKey] ?? null;
+        return $class ? $class::find($id) : null;
+    }
+
+    private function canManuallyAssignProjects($user, string $entityKey): bool
+    {
+        $permission = ['minutes' => 'create_minutes', 'letter' => 'create_letter', 'task' => 'create_task'][$entityKey] ?? null;
+        return $permission && $user->can($permission);
+    }
+
+    private function manualProjectRelation(Model $record, string $entityKey): ?string
+    {
+        return match ($entityKey) {
+            'minutes' => method_exists($record, 'projects') ? 'projects' : null,
+            'letter' => method_exists($record, 'projects') ? 'projects' : null,
+            'task' => method_exists($record, 'project') ? 'project' : null,
+            default => null,
+        };
+    }
+
+    private function isManualProjectFilter(string $key): bool
+    {
+        return in_array($key, ['group', 'city_id', 'organ_id', 'organ_type_id', 'status', 'user_id'], true);
+    }
+
+    /** First step: show the filters configured for projects in the Filament resource. */
+    private function sendManualProjectFilters($chatId, Model $record, string $entityKey, $messageId): void
+    {
+        $filters = [
+            'group' => 'دسته‌بندی',
+            'city_id' => 'شهر',
+            'organ_id' => 'اداره / ارگان',
+            'organ_type_id' => 'نوع ارگان',
+            'status' => 'وضعیت',
+            'user_id' => 'مسئول دستورکار',
+        ];
+        $keyboard = ['inline_keyboard' => []];
+        $keyboard['inline_keyboard'][] = [['text' => '🔎 ابتدا فیلتر موردنظر را انتخاب کنید', 'callback_data' => '__noop__']];
+        foreach ($filters as $key => $label) {
+            $keyboard['inline_keyboard'][] = [[
+                'text' => '📂 ' . $label,
+                'callback_data' => "pmv|{$entityKey}|{$record->id}|{$key}|1",
+            ]];
+        }
+        $keyboard['inline_keyboard'][] = [[
+            'text' => '↩️ بازگشت به پیشنهادهای اصلی',
+            'callback_data' => $record instanceof Minutes ? "minute_organ_back|{$record->id}" : 'delete_message',
+        ]];
+        $this->editBaleMessage($chatId, $messageId, "📁 انتخاب دستی دستورکار\nفیلتر موردنظر را انتخاب کنید تا مقادیر آن نمایش داده شود.", $keyboard);
+    }
+
+    /** Return the available values for one project filter. */
+    private function getManualProjectFilterValues(string $filterKey)
+    {
+        return match ($filterKey) {
+            'group' => \App\Models\ProjectGroup::query()->orderBy('name')->get(['id', 'name']),
+            'city_id' => City::query()->orderBy('name')->get(['id', 'name']),
+            'organ_id' => Organ::query()->orderBy('name')->get(['id', 'name']),
+            'organ_type_id' => \App\Models\OrganType::query()->orderBy('name')->get(['id', 'name']),
+            'status' => collect(Project::getStatusListDefine())->map(fn ($name, $id) => (object) ['id' => $id, 'name' => $name])->values(),
+            'user_id' => \App\Models\User::query()->whereIn('id', Project::query()->whereNotNull('user_id')->distinct()->pluck('user_id'))->orderBy('name')->get(['id', 'name']),
+            default => collect(),
+        };
+    }
+
+    private function sendManualProjectFilterValues($chatId, Model $record, string $entityKey, string $filterKey, $messageId, int $page = 1): void
+    {
+        $labels = ['group' => 'دسته‌بندی', 'city_id' => 'شهر', 'organ_id' => 'اداره / ارگان', 'organ_type_id' => 'نوع ارگان', 'status' => 'وضعیت', 'user_id' => 'مسئول دستورکار'];
+        $items = $this->getManualProjectFilterValues($filterKey);
+        $perPage = 8;
+        $total = $items->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $totalPages);
+        $keyboard = ['inline_keyboard' => []];
+        $keyboard['inline_keyboard'][] = [['text' => 'فیلتر: ' . $labels[$filterKey], 'callback_data' => '__noop__']];
+        foreach ($items->slice(($page - 1) * $perPage, $perPage) as $item) {
+            $keyboard['inline_keyboard'][] = [[
+                'text' => mb_substr($item->name, 0, 55),
+                'callback_data' => "pml|{$entityKey}|{$record->id}|{$filterKey}|{$item->id}|1",
+            ]];
+        }
+        $nav = [];
+        if ($page > 1) $nav[] = ['text' => '⬅️ قبلی', 'callback_data' => "pmv|{$entityKey}|{$record->id}|{$filterKey}|" . ($page - 1)];
+        if ($page < $totalPages) $nav[] = ['text' => 'بعدی ➡️', 'callback_data' => "pmv|{$entityKey}|{$record->id}|{$filterKey}|" . ($page + 1)];
+        if ($nav) $keyboard['inline_keyboard'][] = $nav;
+        $keyboard['inline_keyboard'][] = [['text' => '↩️ تغییر فیلتر', 'callback_data' => "pmf|{$entityKey}|{$record->id}"]];
+        $this->editBaleMessage($chatId, $messageId, "مقدار فیلتر «{$labels[$filterKey]}» را انتخاب کنید.\nصفحه {$page} از {$totalPages}", $keyboard);
+    }
+
+    private function manualProjectMatchesFilter(Project $project, string $filterKey, int $filterValue): bool
+    {
+        return match ($filterKey) {
+            'group' => $project->group()->where('project_groups.id', $filterValue)->exists(),
+            'city_id' => (int) $project->city_id === $filterValue,
+            'organ_id' => (int) $project->organ_id === $filterValue,
+            'organ_type_id' => $project->organ()->where('organ_type_id', $filterValue)->exists(),
+            'status' => (int) $project->status === $filterValue,
+            'user_id' => (int) $project->user_id === $filterValue,
+            default => false,
+        };
+    }
+
+    private function sendManualProjectList($chatId, Model $record, string $entityKey, string $filterKey, int $filterValue, $messageId, int $page = 1): void
+    {
+        $query = Project::query()->with(['city', 'organ'])->orderByDesc('id');
+        match ($filterKey) {
+            'group' => $query->whereHas('group', fn ($q) => $q->where('project_groups.id', $filterValue)),
+            'city_id' => $query->where('city_id', $filterValue),
+            'organ_id' => $query->where('organ_id', $filterValue),
+            'organ_type_id' => $query->whereHas('organ', fn ($q) => $q->where('organ_type_id', $filterValue)),
+            'status' => $query->where('status', $filterValue),
+            'user_id' => $query->where('user_id', $filterValue),
+            default => null,
+        };
+        $perPage = 7;
+        $total = (clone $query)->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $totalPages);
+        $projects = $query->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $relation = $this->manualProjectRelation($record, $entityKey);
+        $selectedIds = $relation ? $record->{$relation}()->pluck('projects.id')->map(fn ($id) => (int) $id)->all() : [];
+        $keyboard = ['inline_keyboard' => []];
+        $keyboard['inline_keyboard'][] = [['text' => '📁 دستورکارهای منطبق با فیلتر', 'callback_data' => '__noop__']];
+        foreach ($projects as $project) {
+            $selected = in_array((int) $project->id, $selectedIds, true);
+            $title = $project->id . ' - ' . $project->name;
+            if ($project->city?->name) $title .= ' / ' . $project->city->name;
+            if ($project->organ?->name) $title .= ' - ' . $project->organ->name;
+            $keyboard['inline_keyboard'][] = [[
+                'text' => ($selected ? '✅ ' : '▫️ ') . mb_substr($title, 0, 54),
+                'callback_data' => "pmt|{$entityKey}|{$record->id}|{$project->id}|{$filterKey}|{$filterValue}|{$page}",
+            ]];
+        }
+        $nav = [];
+        if ($page > 1) $nav[] = ['text' => '⬅️ قبلی', 'callback_data' => "pml|{$entityKey}|{$record->id}|{$filterKey}|{$filterValue}|" . ($page - 1)];
+        if ($page < $totalPages) $nav[] = ['text' => 'بعدی ➡️', 'callback_data' => "pml|{$entityKey}|{$record->id}|{$filterKey}|{$filterValue}|" . ($page + 1)];
+        if ($nav) $keyboard['inline_keyboard'][] = $nav;
+        $keyboard['inline_keyboard'][] = [['text' => '↩️ تغییر مقدار فیلتر', 'callback_data' => "pmv|{$entityKey}|{$record->id}|{$filterKey}|1"]];
+        $keyboard['inline_keyboard'][] = [['text' => '📂 انتخاب فیلتر دیگر', 'callback_data' => "pmf|{$entityKey}|{$record->id}"]];
+        $keyboard['inline_keyboard'][] = [['text' => '✅ پایان انتخاب', 'callback_data' => "pmback|{$entityKey}|{$record->id}"]];
+        $this->editBaleMessage($chatId, $messageId, "برای افزودن یا حذف دستورکار، روی آن بزنید.\nانتخاب‌شده: " . count($selectedIds) . " | صفحه {$page} از {$totalPages}", $keyboard);
+    }
+
     private function sendMinuteOrganTypes($chatId, Minutes $minute, $messageId, int $page = 1): void
     {
         $perPage = 8;
@@ -2861,6 +3087,11 @@ EOT);
                 ]];
             }
         }
+
+        $keyboard['inline_keyboard'][] = [[
+            'text' => '📁 انتخاب دستی دستورکارها با فیلتر',
+            'callback_data' => "pmf|letter|{$letter->id}",
+        ]];
 
         $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
         $message = "📌 پیشنهادهای تکمیلی نامه شماره {$letter->id}\n";
