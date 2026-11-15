@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { theme: { extend: {
@@ -24,6 +25,9 @@
         .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         input, button, a { font: inherit; }
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] [data-filter-chevron] { transform: rotate(180deg); }
+        .datepicker-plot-area { z-index: 100 !important; font-family: Vazirmatn, sans-serif !important; }
     </style>
 </head>
 <body class="min-h-screen text-ink antialiased">
@@ -91,7 +95,7 @@
         </div>
     </aside>
 
-    <main class="mx-auto min-w-0 w-full max-w-7xl overflow-x-hidden px-4 pb-28 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
+    <main class="mx-auto min-w-0 w-full max-w-7xl overflow-x-clip px-4 pb-28 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
         <header class="mb-7 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 lg:hidden">
                 <span class="grid h-11 w-11 place-items-center overflow-hidden rounded-2xl bg-white shadow-sm"><img src="{{ asset('karnama2.png') }}" alt="کارنما" class="h-10 w-10 object-contain"></span>
@@ -123,11 +127,15 @@
         </form>
 
         @if(in_array($activeView, ['tasks', 'letters', 'minutes', 'calendar'], true))
-            <form action="{{ url('/newui') }}" method="get" class="mb-6 min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
-                <input type="hidden" name="view" value="{{ $activeView }}">
-                @if($search !== '') <input type="hidden" name="q" value="{{ $search }}"> @endif
-                <div class="mb-3 flex items-center gap-2 text-sm font-bold"><span class="text-brand">☷</span> فیلتر نتایج</div>
-                <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <details class="mb-6 min-w-0 overflow-visible rounded-3xl border border-slate-100 bg-white shadow-sm">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-sm font-bold marker:hidden sm:px-5">
+                    <span class="flex min-w-0 items-center gap-2"><span class="text-brand">☷</span><span>فیلتر نتایج</span></span>
+                    <span class="shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-brand">باز کردن فیلترها <span data-filter-chevron class="mr-1 inline-block transition-transform">⌄</span></span>
+                </summary>
+                <form action="{{ url('/newui') }}" method="get" class="min-w-0 border-t border-slate-100 p-4 sm:p-5">
+                    <input type="hidden" name="view" value="{{ $activeView }}">
+                    @if($search !== '') <input type="hidden" name="q" value="{{ $search }}"> @endif
+                    <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     @if(in_array($activeView, ['tasks', 'calendar'], true))
                         <label class="min-w-0 text-xs font-semibold text-slate-600">وضعیت انجام
                             <select name="task_status" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand">
@@ -143,8 +151,8 @@
                             <select name="project_id" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه دستورکارها</option>@foreach($filterOptions['projects'] as $id => $name)<option value="{{ $id }}" @selected(($filters['project_id'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
                         </label>
                         @if($activeView === 'tasks')
-                            <label class="min-w-0 text-xs font-semibold text-slate-600">مهلت از تاریخ<input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
-                            <label class="min-w-0 text-xs font-semibold text-slate-600">مهلت تا تاریخ<input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                            <label class="min-w-0 text-xs font-semibold text-slate-600">مهلت از تاریخ<input type="text" name="date_from" value="{{ $filterDateValues['date_from'] }}" placeholder="۱۴۰۵/۰۱/۰۱" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datepicker class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-sm focus:border-brand focus:ring-brand"></label>
+                            <label class="min-w-0 text-xs font-semibold text-slate-600">مهلت تا تاریخ<input type="text" name="date_to" value="{{ $filterDateValues['date_to'] }}" placeholder="۱۴۰۵/۰۱/۰۱" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datepicker class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-sm focus:border-brand focus:ring-brand"></label>
                         @endif
                     @elseif($activeView === 'letters')
                         <label class="min-w-0 text-xs font-semibold text-slate-600">نوع نامه
@@ -156,20 +164,21 @@
                         <label class="min-w-0 text-xs font-semibold text-slate-600">وضعیت
                             <select name="letter_status" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه وضعیت‌ها</option>@foreach($filterOptions['letterStatuses'] as $id => $name)<option value="{{ $id }}" @selected(($filters['letter_status'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
                         </label>
-                        <label class="min-w-0 text-xs font-semibold text-slate-600">از تاریخ<input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
-                        <label class="min-w-0 text-xs font-semibold text-slate-600">تا تاریخ<input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">از تاریخ<input type="text" name="date_from" value="{{ $filterDateValues['date_from'] }}" placeholder="۱۴۰۵/۰۱/۰۱" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datepicker class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-sm focus:border-brand focus:ring-brand"></label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">تا تاریخ<input type="text" name="date_to" value="{{ $filterDateValues['date_to'] }}" placeholder="۱۴۰۵/۰۱/۰۱" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datepicker class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-sm focus:border-brand focus:ring-brand"></label>
                     @else
                         @if($filterOptions['authors']->isNotEmpty())
                             <label class="min-w-0 text-xs font-semibold text-slate-600">نویسنده
                                 <select name="author_id" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه نویسندگان</option>@foreach($filterOptions['authors'] as $id => $name)<option value="{{ $id }}" @selected(($filters['author_id'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
                             </label>
                         @endif
-                        <label class="min-w-0 text-xs font-semibold text-slate-600">از تاریخ جلسه<input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
-                        <label class="min-w-0 text-xs font-semibold text-slate-600">تا تاریخ جلسه<input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">از تاریخ جلسه<input type="text" name="date_from" value="{{ $filterDateValues['date_from'] }}" placeholder="۱۴۰۵/۰۱/۰۱" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datepicker class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-sm focus:border-brand focus:ring-brand"></label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">تا تاریخ جلسه<input type="text" name="date_to" value="{{ $filterDateValues['date_to'] }}" placeholder="۱۴۰۵/۰۱/۰۱" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datepicker class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-sm focus:border-brand focus:ring-brand"></label>
                     @endif
-                    <div class="flex items-end gap-2"><button class="flex-1 rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800">اعمال فیلتر</button><a href="{{ url('/newui?view='.$activeView) }}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-500">پاک‌کردن</a></div>
-                </div>
-            </form>
+                        <div class="flex items-end gap-2"><button class="flex-1 rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800">اعمال فیلتر</button><a href="{{ url('/newui?view='.$activeView) }}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-500">پاک‌کردن</a></div>
+                    </div>
+                </form>
+            </details>
         @endif
 
         @if($activeView === 'home')
@@ -274,6 +283,7 @@
                 <span class="rounded-full bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">روی هر فعالیت بزنید تا جزئیات آن باز شود</span>
             </section>
             <section class="min-w-0 overflow-hidden rounded-3xl border border-slate-100 bg-white p-3 shadow-card sm:p-5">
+                <div id="calendar-feedback" class="mb-3 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-800" role="status" aria-live="polite">در حال بارگذاری فعالیت‌ها…</div>
                 <div id="newui-calendar" class="min-h-[520px] min-w-0"></div>
             </section>
             <style>
@@ -292,6 +302,12 @@
                 document.addEventListener('DOMContentLoaded', function () {
                     const calendarElement = document.getElementById('newui-calendar');
                     if (!calendarElement) return;
+                    const feedbackElement = document.getElementById('calendar-feedback');
+                    if (!window.FullCalendar) {
+                        feedbackElement.textContent = 'کتابخانهٔ تقویم بارگذاری نشد. اتصال اینترنت یا دسترسی به CDN را بررسی کنید.';
+                        feedbackElement.className = 'mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800';
+                        return;
+                    }
                     const calendar = new FullCalendar.Calendar(calendarElement, {
                         locale: 'fa',
                         direction: 'rtl',
@@ -307,8 +323,16 @@
                                 if (@json($filters[$filterKey] ?? null)) params.set(@json($filterKey), @json($filters[$filterKey] ?? null));
                             @endforeach
                             const response = await fetch('{{ url('/newui/calendar/events') }}?' + params.toString(), { headers: { 'Accept': 'application/json' } });
-                            if (!response.ok) throw new Error('دریافت رویدادهای تقویم ناموفق بود.');
+                            if (!response.ok) throw new Error('دریافت فعالیت‌ها ناموفق بود (کد ' + response.status + ').');
                             return await response.json();
+                        },
+                        eventsSet: function (events) {
+                            feedbackElement.textContent = events.length ? events.length + ' فعالیت در این بازه نمایش داده می‌شود.' : 'در این بازه فعالیت زمان‌بندی‌شده‌ای پیدا نشد.';
+                            feedbackElement.className = 'mb-3 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-800';
+                        },
+                        eventSourceFailure: function (error) {
+                            feedbackElement.textContent = error?.message || 'دریافت فعالیت‌ها با خطا روبه‌رو شد.';
+                            feedbackElement.className = 'mb-3 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800';
                         },
                         eventClick: function (info) {
                             if (info.event.url) { info.jsEvent.preventDefault(); window.location.href = info.event.url; }
@@ -360,5 +384,22 @@
         @endforeach
     </div>
 </nav>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!window.jQuery || !jQuery.fn.persianDatepicker) return;
+        jQuery('[data-jalali-datepicker]').persianDatepicker({
+            format: 'YYYY/MM/DD',
+            initialValue: false,
+            autoClose: true,
+            calendarType: 'persian',
+            calendar: { persian: { locale: 'fa', showHint: false, leapYearMode: 'algorithmic' }, gregorian: { enabled: false } },
+            toolbox: { calendarSwitch: { enabled: false } },
+            timePicker: { enabled: false }
+        });
+    });
+</script>
 </body>
 </html>
