@@ -62,6 +62,7 @@ class CityResource extends Resource
         return $table
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 //
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->actions([

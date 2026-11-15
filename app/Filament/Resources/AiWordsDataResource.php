@@ -116,6 +116,9 @@ class AiWordsDataResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')->label('تاریخ ایجاد')->jalaliDateTime()->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')->label('آخرین آموزش')->jalaliDateTime()->sortable(),
             ])
+            ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
+            ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('ویرایش'),
                 Tables\Actions\Action::make('relearn')

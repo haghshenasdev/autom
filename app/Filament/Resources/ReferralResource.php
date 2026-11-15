@@ -113,14 +113,17 @@ class ReferralResource extends Resource
         return $table->defaultSort('referrals.id','desc')
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 Filter::make('checked')
                     ->label('بررسی شده'),
                 Filter::make('no checked')
-                    ->label('بررسی نشده')->query(fn (Builder  $query): Builder  => $query->where('checked', false)),
+                    ->label('بررسی نشده')->query(fn (Builder $query): Builder => $query->where(function (Builder $query) {
+                        $query->whereNull('checked')->orWhere('checked', false);
+                    })),
 
                 Filter::make('created_at')
                     ->form([
-                        Fieldset::make('تاریخ ویرایش')->schema([
+                        Fieldset::make('تاریخ ایجاد')->schema([
                             DatePicker::make('created_from')->label('از')->jalali(),
                             DatePicker::make('created_until')->label('لغایت')->jalali(),
                         ]),
@@ -129,11 +132,11 @@ class ReferralResource extends Resource
                         return $query
                             ->when(
                                 $data['created_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('updated_at', '>=', $date),
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
                             )
                             ->when(
                                 $data['created_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('updated_at', '<=', $date),
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
                             );
                     }),
             ], layout: FiltersLayout::AboveContentCollapsible)

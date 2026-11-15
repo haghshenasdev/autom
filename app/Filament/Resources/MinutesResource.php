@@ -100,6 +100,7 @@ class MinutesResource extends Resource
         return $table->defaultSort('minutes.id','desc')
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 Filter::make('tree')
                     ->form([
                         SelectTree::make('group')->label('دسته بندی')

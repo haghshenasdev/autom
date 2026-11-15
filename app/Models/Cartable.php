@@ -6,6 +6,8 @@ use App\Events\AddedToCartable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\User;
 
 class Cartable extends Pivot
 {
@@ -22,6 +24,11 @@ class Cartable extends Pivot
     public function letter()
     {
         return $this->belongsTo(Letter::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     protected static function boot()

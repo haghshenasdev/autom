@@ -185,10 +185,13 @@ class TaskResource extends Resource
         return $table->defaultSort('tasks.id','desc')
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 Filter::make('completed')
                     ->label('انجام شده')->query(fn (Builder  $query): Builder  => $query->where('completed', true)),
                 Filter::make('no completed')
-                    ->label('انجام نشده')->query(fn (Builder  $query): Builder  => $query->where('completed', null)),
+                    ->label('انجام نشده')->query(fn (Builder $query): Builder => $query->where(function (Builder $query) {
+                        $query->whereNull('completed')->orWhere('completed', 0);
+                    })),
 
                 SelectFilter::make('status')->multiple()
                     ->options(Project::getStatusListDefine())->label('وضعیت'),

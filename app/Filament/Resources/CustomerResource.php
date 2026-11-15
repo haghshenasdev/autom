@@ -85,6 +85,7 @@ class CustomerResource extends Resource
         return $table
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 SelectFilter::make('city_id')
                     ->label('شهر')
                     ->relationship('city', 'name')

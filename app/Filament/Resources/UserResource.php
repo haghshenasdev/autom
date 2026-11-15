@@ -48,6 +48,10 @@ class UserResource extends Resource
                 Forms\Components\TextInput::make('email')
                     ->label('ایمیل')
                     ->required(),
+                Forms\Components\Toggle::make('active_status')
+                    ->label('حساب کاربری فعال است'),
+                Forms\Components\DateTimePicker::make('email_verified_at')
+                    ->label('تاریخ تأیید ایمیل')->jalali(),
                 Password::make('password')->autocomplete('new_password')
                     ->label('رمز عبور')
                     ->generatable(true)->copyable(true)
@@ -70,6 +74,8 @@ class UserResource extends Resource
                 ->circular(),
             TextColumn::make('name')->label('نام')->searchable(),
             TextColumn::make('email')->label('ایمیل')->searchable(),
+            Tables\Columns\IconColumn::make('active_status')->label('حساب فعال')->boolean(),
+            TextColumn::make('email_verified_at')->label('تأیید ایمیل')->jalaliDateTime()->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('roles.name')->label('دسترسی'),
         ];
         if (request()->cookie('mobile_mode') === 'on'){
@@ -80,6 +86,7 @@ class UserResource extends Resource
         return $table
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 //
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->actions([

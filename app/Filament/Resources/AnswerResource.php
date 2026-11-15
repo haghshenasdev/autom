@@ -71,6 +71,7 @@ class AnswerResource extends Resource
                 Tables\Columns\TextColumn::make('result'),
             ])
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 //
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->headerActions([

@@ -65,8 +65,10 @@ class ApproveResource extends Resource
             TextColumn::make('title')->label('عنوان')
                 ->searchable(),
             TextColumn::make('minute.title')->label('صورت جلسه'),
+            TextColumn::make('task.name')->label('فعالیت مرتبط')->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks()->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('organ.name')->label('اداره')->listWithLineBreaks()->toggleable(),
+            TextColumn::make('time')->label('مدت')->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('amount')->label('اعتبار')->toggleable()->sortable()->numeric()->suffix('ریال'),
             TextColumn::make('status')
                 ->label('وضعیت')
@@ -86,6 +88,7 @@ class ApproveResource extends Resource
         return $table->defaultSort('approves.id','desc')
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 SelectFilter::make('minute_id')
                     ->label('صورت جلسه')->multiple()->preload()
                     ->relationship('minute','title'),

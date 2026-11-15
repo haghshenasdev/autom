@@ -126,6 +126,10 @@ class Task extends Model implements HasAllowedSorts,HasAllowedFilters
                         ->render();
                 })
                 ->searchable()->preload()->default(auth()->id())->visible(auth()->user()->can('restore_any_task')),
+            Forms\Components\Select::make('created_by')->label('ایجادکننده')
+                ->relationship('creator', 'name')
+                ->searchable()->preload()->default(auth()->id())
+                ->visible(auth()->user()->can('restore_any_task')),
             Forms\Components\Select::make('city_id')->label('شهر')
                 ->relationship('city', 'name')
                 ->searchable()->preload(),

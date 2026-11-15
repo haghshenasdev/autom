@@ -56,16 +56,17 @@ class CartableResource extends Resource
                     ->searchable()
                     ->required()
                     ->preload(),
-                Forms\Components\TextInput::make('rule')
-                    ->label('دستور')
-                    ->maxLength(255),
-                Forms\Components\Select::make('to_user_id')
-                    ->label('به')
-                    ->relationship('users', 'name')
+                Forms\Components\Select::make('user_id')
+                    ->label('کاربر کارپوشه')
+                    ->relationship('user', 'name')
                     ->searchable()
                     ->required()
-                    ->preload(),
-            ])->disabled();
+                    ->preload()
+                    ->default(Auth::id())
+                    ->disabled()
+                    ->dehydrated(),
+                Forms\Components\Toggle::make('checked')->label('بررسی شده'),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -95,6 +96,7 @@ class CartableResource extends Resource
         return $table->defaultSort('cartables.id','desc')
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 Filter::make('checked')
                     ->label('بررسی شده'),
                 Filter::make('no checked')
@@ -102,7 +104,7 @@ class CartableResource extends Resource
 
                 Filter::make('created_at')
                     ->form([
-                        Fieldset::make('تاریخ ویرایش')->schema([
+                        Fieldset::make('تاریخ ایجاد')->schema([
                             DatePicker::make('created_from')->label('از')->jalali(),
                             DatePicker::make('created_until')->label('لغایت')->jalali(),
                         ]),
@@ -111,11 +113,11 @@ class CartableResource extends Resource
                         return $query
                             ->when(
                                 $data['created_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('updated_at', '>=', $date),
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
                             )
                             ->when(
                                 $data['created_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('updated_at', '<=', $date),
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
                             );
                     })
                 ,

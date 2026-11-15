@@ -48,6 +48,7 @@ class OrganTypeResource extends Resource
                     ->boolean(),
             ])
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 //
             ])
             ->actions([

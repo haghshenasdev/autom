@@ -370,6 +370,7 @@ class LetterResource extends Resource
         return $table->defaultSort('letters.id','desc')
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 SelectFilter::make('customers')
                     ->label('صاحب')
                     ->multiple()

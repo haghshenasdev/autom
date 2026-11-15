@@ -65,6 +65,7 @@ class ContentResource extends Resource
         return $table
             ->columns($columns)
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 Filter::make('tree')->label('دسته بندی')
                     ->form([
                         SelectTree::make('group')->label('دسته بندی')

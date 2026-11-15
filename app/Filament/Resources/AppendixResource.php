@@ -88,6 +88,7 @@ class AppendixResource extends Resource
                 Tables\Columns\TextColumn::make('title')->label('عنوان'),
             ])
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 //
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->headerActions([

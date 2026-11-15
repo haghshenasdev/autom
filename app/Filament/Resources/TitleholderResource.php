@@ -43,6 +43,7 @@ class TitleholderResource extends Resource
                 Tables\Columns\TextColumn::make('organ.name')->label('سازمان'),
             ])
             ->filters([
+                \App\Filament\Support\CompleteRecordFilter::make(static::getModel()),
                 //
             ])
             ->actions([

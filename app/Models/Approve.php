@@ -22,12 +22,13 @@ class Approve extends Model
 
     protected $fillable = [
         'minute_id',
+        'task_id',
         'amount',
+        'time',
         'city_id',
         'status',
         'description',
         'title',
-        'name',
     ];
 
 
@@ -51,6 +52,11 @@ class Approve extends Model
         return $this->belongsTo(Minutes::class);
     }
 
+    public function task(): BelongsTo
+    {
+        return $this->belongsTo(Task::class);
+    }
+
     public static function formSchema() : array
     {
         return [
@@ -60,6 +66,9 @@ class Approve extends Model
             Textarea::make('description')
                 ->label('متن')->maxLength(500)
             ,
+            TextInput::make('time')->numeric()->nullable()->label('مدت'),
+            Select::make('task_id')->label('فعالیت مرتبط')
+                ->relationship('task', 'name')->searchable()->preload(),
             TextInput::make('amount')->numeric()->nullable()->suffix('ریال')
                 ->label('اعتبار اخذ شده')
                 ->mask(RawJs::make('$money($input)'))

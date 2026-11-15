@@ -33,6 +33,8 @@ class User extends Authenticatable implements HasAvatar,FilamentUser
         'avatar_url',
         'email',
         'password',
+        'active_status',
+        'email_verified_at',
     ];
 
     /**
@@ -52,6 +54,7 @@ class User extends Authenticatable implements HasAvatar,FilamentUser
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'active_status' => 'boolean',
         'password' => 'hashed',
     ];
 
