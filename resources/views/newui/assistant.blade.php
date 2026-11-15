@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>دستیار هوشمند | کارنما</title>
+    <link rel="icon" href="{{ asset('karnama2.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Vazirmatn', 'sans-serif'] }, colors: { brand: '#1d4ed8', 'brand-soft': '#eaf1ff', ink: '#17243a', muted: '#718096' }, boxShadow: { card: '0 12px 36px rgba(23, 36, 58, .06)' } } } };</script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { width: 100%; max-width: 100%; overflow: hidden; }
+        body { font-family: Vazirmatn, sans-serif; }
+        .safe-bottom { padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
+        .chat-scroll { scrollbar-width: thin; }
+    </style>
+</head>
+<body class="min-h-screen bg-[#f5f7fb] text-ink antialiased">
+<main class="mx-auto flex h-[100dvh] min-h-0 w-full max-w-5xl flex-col bg-white shadow-card sm:my-5 sm:h-[calc(100dvh-2.5rem)] sm:rounded-[2rem] sm:border sm:border-slate-100">
+    <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-4">
+        <div class="flex min-w-0 items-center gap-3">
+            <img src="{{ asset('karnama2.png') }}" alt="کارنما" class="h-11 w-11 shrink-0 rounded-2xl bg-slate-50 p-1">
+            <div class="min-w-0"><p class="text-xs text-muted">کارنما</p><h1 class="truncate font-extrabold">دستیار هوشمند</h1></div>
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+            <button id="clear-chat" type="button" class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">گفت‌وگوی جدید</button>
+            <a href="{{ url('/newui') }}" class="rounded-xl bg-brand px-3 py-2 text-xs font-bold text-white hover:bg-blue-800">بازگشت</a>
+        </div>
+    </header>
+
+    <section id="messages" class="chat-scroll min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-5 sm:px-6" role="log" aria-live="polite">
+        <div class="flex justify-start">
+            <div class="max-w-[92%] rounded-2xl rounded-tr-sm bg-blue-50 px-4 py-3 text-sm leading-7 text-slate-800 sm:max-w-[80%]">
+                سلام {{ auth()->user()->name }}! دربارهٔ نامه‌ها، فعالیت‌ها و صورت‌جلسه‌هایی که اجازهٔ دیدنشان را دارید سؤال کنید. مثلاً: «برای روستای موته در سال ۱۴۰۵ چه نامه‌هایی ثبت شده؟»
+            </div>
+        </div>
+    </section>
+
+    <div id="chat-status" class="hidden shrink-0 px-4 pb-2 text-xs text-rose-700 sm:px-6" role="status"></div>
+    <form id="chat-form" class="safe-bottom shrink-0 border-t border-slate-100 bg-white px-3 py-3 sm:px-6 sm:py-4">
+        <div class="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100">
+            <textarea id="chat-input" rows="1" maxlength="1200" required placeholder="سؤالت را دربارهٔ اطلاعات کارنما بنویس…" class="max-h-36 min-h-11 min-w-0 flex-1 resize-y border-0 bg-transparent px-2 py-2 text-sm leading-6 outline-none focus:ring-0" aria-label="متن پرسش"></textarea>
+            <button id="send-button" type="submit" class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand text-white transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-50" aria-label="ارسال پرسش">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 14-7-4 14-3-6-7-1Z"/><path d="m12 13 4-8"/></svg>
+            </button>
+        </div>
+        <p class="mt-2 text-center text-[10px] leading-5 text-slate-400">برای ساخت فیلتر جست‌وجو، متن پرسش به GapGPT ارسال می‌شود؛ متن و فایل اسناد به سرویس ارسال نمی‌شود.</p>
+    </form>
+</main>
+
+<script>
+(() => {
+    const messages = document.getElementById('messages');
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('chat-input');
+    const button = document.getElementById('send-button');
+    const status = document.getElementById('chat-status');
+
+    function addMessage(role, text, results = []) {
+        const row = document.createElement('div');
+        row.className = role === 'user' ? 'flex justify-start' : 'flex justify-end';
+        const bubble = document.createElement('div');
+        bubble.className = role === 'user'
+            ? 'max-w-[92%] whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-brand px-4 py-3 text-sm leading-7 text-white sm:max-w-[80%]'
+            : 'max-w-[96%] min-w-0 rounded-2xl rounded-tl-sm bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-800 sm:max-w-[88%]';
+        const content = document.createElement('p');
+        content.className = 'whitespace-pre-wrap break-words';
+        content.textContent = text;
+        bubble.appendChild(content);
+
+        if (role === 'assistant' && results.length) {
+            const list = document.createElement('div');
+            list.className = 'mt-3 grid min-w-0 gap-2';
+            results.forEach((result) => {
+                const card = document.createElement('a');
+                card.href = result.url;
+                card.className = 'block min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-right transition hover:border-blue-300 hover:bg-blue-50';
+                const title = document.createElement('span');
+                title.className = 'block break-words text-sm font-bold text-slate-800';
+                title.textContent = result.title || 'مشاهده مورد';
+                card.appendChild(title);
+                if (result.meta) {
+                    const meta = document.createElement('span');
+                    meta.className = 'mt-1 block break-words text-[11px] text-muted';
+                    meta.textContent = result.meta;
+                    card.appendChild(meta);
+                }
+                if (result.summary) {
+                    const summary = document.createElement('span');
+                    summary.className = 'mt-2 block break-words text-xs leading-6 text-slate-600';
+                    summary.textContent = result.summary;
+                    card.appendChild(summary);
+                }
+                list.appendChild(card);
+            });
+            bubble.appendChild(list);
+        }
+        row.appendChild(bubble);
+        messages.appendChild(row);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const question = input.value.trim();
+        if (!question) return;
+
+        addMessage('user', question);
+        input.value = '';
+        status.textContent = '';
+        status.classList.add('hidden');
+        button.disabled = true;
+
+        try {
+            const response = await fetch('{{ route('newui.assistant.message') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({ message: question }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'ارسال پرسش ناموفق بود.');
+            addMessage('assistant', data.text || 'پاسخی دریافت نشد.', Array.isArray(data.results) ? data.results : []);
+        } catch (error) {
+            status.textContent = error.message || 'ارتباط با دستیار برقرار نشد.';
+            status.classList.remove('hidden');
+        } finally {
+            button.disabled = false;
+            input.focus();
+        }
+    });
+
+    document.getElementById('clear-chat').addEventListener('click', () => {
+        messages.replaceChildren();
+        addMessage('assistant', 'گفت‌وگوی تازه شروع شد. سؤالت را بنویس.');
+        status.classList.add('hidden');
+        input.focus();
+    });
+})();
+</script>
+</body>
+</html>

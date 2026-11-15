@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\NewUiController;
+use App\Http\Controllers\NewUiAssistantController;
 
 
 /*
@@ -55,6 +56,8 @@ Route::get('/toggle-mobile-mode', function () {
 })->name('togglemobile');
 
 Route::get('/newui', NewUiController::class)->middleware('auth')->name('newui');
+Route::get('/newui/assistant', [NewUiAssistantController::class, 'index'])->middleware('auth')->name('newui.assistant');
+Route::post('/newui/assistant/message', [NewUiAssistantController::class, 'message'])->middleware(['auth', 'throttle:12,1'])->name('newui.assistant.message');
 Route::get('/newui/calendar/events', [NewUiController::class, 'calendarEvents'])
     ->middleware('auth')->name('newui.calendar.events');
 Route::get('/newui/{type}/{recordId}', [NewUiController::class, 'showRecord'])

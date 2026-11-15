@@ -63,6 +63,7 @@ class NewUiController extends Controller
         $canTasks = $user->can('view_any_task');
         $canLetters = $user->can('view_any_letter');
         $canMinutes = $user->can('view_any_minutes');
+        $canAssistant = $canTasks || $canLetters || $canMinutes;
         abort_if($activeView === 'tasks' && !$canTasks, 403);
         abort_if($activeView === 'calendar' && !$canTasks, 403);
         abort_if($activeView === 'letters' && !$canLetters, 403);
@@ -184,6 +185,7 @@ class NewUiController extends Controller
             'canTasks' => $canTasks,
             'canLetters' => $canLetters,
             'canMinutes' => $canMinutes,
+            'canAssistant' => $canAssistant,
             'canCreateTask' => $user->can('create_task'),
             'canCreateLetter' => $user->can('create_letter'),
             'canCreateMinutes' => $user->can('create_minutes'),

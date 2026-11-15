@@ -38,6 +38,7 @@
         ['id' => 'letters', 'label' => 'نامه‌ها', 'icon' => 'mail'],
         ['id' => 'minutes', 'label' => 'صورت‌جلسه‌ها', 'icon' => 'document'],
         ['id' => 'calendar', 'label' => 'تقویم', 'icon' => 'calendar'],
+        ['id' => 'assistant', 'label' => 'دستیار هوشمند', 'icon' => 'spark'],
     ];
     $dateText = function ($value) {
         if (!$value) return 'بدون تاریخ';
@@ -75,9 +76,10 @@
             @foreach($nav as $item)
                 @if($item['id'] === 'tasks' && !$canTasks) @continue @endif
                 @if($item['id'] === 'calendar' && !$canTasks) @continue @endif
+                @if($item['id'] === 'assistant' && !$canAssistant) @continue @endif
                 @if($item['id'] === 'letters' && !$canLetters) @continue @endif
                 @if($item['id'] === 'minutes' && !$canMinutes) @continue @endif
-                <a href="{{ url('/newui') }}{{ $item['id'] === 'home' ? '' : '?view='.$item['id'] }}"
+                <a href="{{ $item['id'] === 'assistant' ? url('/newui/assistant') : url('/newui').($item['id'] === 'home' ? '' : '?view='.$item['id']) }}"
                    class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition {{ $activeView === $item['id'] ? 'bg-brand-soft text-brand' : 'text-slate-600 hover:bg-slate-50' }}">
                     @include('newui.partials.icon', ['name' => $item['icon'], 'class' => 'h-5 w-5'])
                     <span>{{ $item['label'] }}</span>
@@ -372,13 +374,14 @@
 </div>
 
 <nav class="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/80 bg-white/95 px-2 pt-2 shadow-[0_-8px_30px_rgba(23,36,58,.06)] backdrop-blur lg:hidden">
-    <div class="mx-auto flex max-w-lg items-center justify-around">
+    <div class="mx-auto flex max-w-lg items-center justify-start gap-1 overflow-x-auto">
         @foreach($nav as $item)
             @if($item['id'] === 'tasks' && !$canTasks) @continue @endif
                 @if($item['id'] === 'calendar' && !$canTasks) @continue @endif
+            @if($item['id'] === 'assistant' && !$canAssistant) @continue @endif
             @if($item['id'] === 'letters' && !$canLetters) @continue @endif
             @if($item['id'] === 'minutes' && !$canMinutes) @continue @endif
-            <a href="{{ url('/newui') }}{{ $item['id'] === 'home' ? '' : '?view='.$item['id'] }}" class="flex min-w-[64px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold {{ $activeView === $item['id'] ? 'text-brand' : 'text-slate-400' }}">
+            <a href="{{ $item['id'] === 'assistant' ? url('/newui/assistant') : url('/newui').($item['id'] === 'home' ? '' : '?view='.$item['id']) }}" class="flex min-w-[64px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold {{ $activeView === $item['id'] ? 'text-brand' : 'text-slate-400' }}">
                 @include('newui.partials.icon', ['name' => $item['icon'], 'class' => 'h-5 w-5'])<span>{{ $item['label'] }}</span>
             </a>
         @endforeach
