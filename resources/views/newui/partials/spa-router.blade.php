@@ -32,6 +32,32 @@
         }
     }
 
+    async function refreshTailwind(configText) {
+        const runtime = Array.from(document.querySelectorAll('script[src]'))
+            .find((script) => script.src.includes('cdn.tailwindcss.com'));
+        if (!runtime) return;
+
+        const runtimeUrl = runtime.src;
+        document.querySelectorAll('script[src]').forEach((script) => {
+            if (script.src.includes('cdn.tailwindcss.com')) script.remove();
+        });
+
+        if (configText) {
+            const config = document.createElement('script');
+            config.textContent = configText;
+            document.head.appendChild(config);
+            config.remove();
+        }
+
+        await new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = runtimeUrl;
+            script.onload = resolve;
+            script.onerror = resolve;
+            document.head.appendChild(script);
+        });
+    }
+
     const app = Vue.createApp({
         data() {
             return { loading: false };
@@ -76,6 +102,8 @@
                     if (!nextPage) throw new Error('SPA page container missing');
 
                     const scripts = Array.from(nextPage.querySelectorAll('script')).map((script) => ({ src: script.src, type: script.type, text: script.textContent }));
+                    const tailwindConfig = Array.from(documentPage.head.querySelectorAll('script:not([src])'))
+                        .find((script) => script.textContent.includes('tailwind.config'))?.textContent || '';
                     document.head.querySelectorAll('[data-newui-route-style]').forEach((style) => style.remove());
                     document.head.querySelectorAll('[data-newui-route-link]').forEach((link) => link.remove());
                     documentPage.head.querySelectorAll('style').forEach((style) => {
@@ -91,20 +119,13 @@
                         copy.dataset.newuiRouteLink = 'true';
                         document.head.appendChild(copy);
                     });
-                    documentPage.head.querySelectorAll('script:not([src])').forEach((source) => {
-                        if (!source.textContent.includes('tailwind.config')) return;
-                        const config = document.createElement('script');
-                        config.textContent = source.textContent;
-                        document.head.appendChild(config);
-                        config.remove();
-                    });
-
                     page.innerHTML = nextPage.innerHTML;
                     document.title = documentPage.title;
                     document.body.className = documentPage.body.className;
                     const nextTheme = documentPage.querySelector('meta[name="theme-color"]')?.content;
                     if (nextTheme) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', nextTheme);
                     if (push) history.pushState({}, '', url.href);
+                    await refreshTailwind(tailwindConfig);
                     await runPageScripts(scripts);
                     window.scrollTo(0, 0);
                 } catch (error) {
