@@ -20,13 +20,25 @@ class NewUiAssistantController extends Controller
     public function message(Request $request, NewUiAssistantService $assistant): JsonResponse
     {
         $user = $this->authorizeAssistant($request);
-        $data = $request->validate([
-            'message' => ['required', 'string', 'max:1200'],
-        ]);
+        $shareContent = $request->boolean('share_content');
+        $cancelConsent = $request->boolean('cancel_content');
+        $data = $request->validate($cancelConsent
+            ? ['cancel_content' => ['required', 'accepted'], 'consent_token' => ['required', 'string', 'size:64']]
+            : ($shareContent
+                ? ['share_content' => ['required', 'accepted'], 'consent_token' => ['required', 'string', 'size:64']]
+                : ['message' => ['required', 'string', 'max:1200']]));
 
         try {
-            return response()->json($assistant->answer($user, trim($data['message'])));
+            if ($cancelConsent) {
+                $key = 'newui_assistant_consent.' . $data['consent_token'];
+                $pending = $request->session()->get($key);
+                if (is_array($pending) && ($pending['user_id'] ?? null) === $user->id) $request->session()->forget($key);
+                return response()->json(['cancelled' => true]);
+            }
+            if ($shareContent) return response()->json($assistant->confirmConsent($user, $request->session(), $data['consent_token']));
+            return response()->json($assistant->answer($user, trim($data['message']), $request->session()));
         } catch (\Throwable $exception) {
+            if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpException) throw $exception;
             Log::warning('New UI assistant request failed', ['exception' => get_class($exception)]);
 
             return response()->json([
