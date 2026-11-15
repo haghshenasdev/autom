@@ -73,20 +73,9 @@
         </div>
     </section>
 
-    <section class="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-card sm:p-7">
-        <div class="mb-5 flex items-center justify-between"><div><h2 class="font-extrabold">اطلاعات ثبت‌شده</h2><p class="mt-1 text-xs text-muted">نمایش بر اساس دسترسی حساب کاربری شما</p></div><span class="rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700">{{ $dateText($record->updated_at) }}</span></div>
-        <dl class="grid gap-3 sm:grid-cols-2">
-            @foreach($pairs as [$label, $value])
-                <div class="rounded-2xl bg-slate-50/80 p-4 {{ in_array($label, ['توضیحات', 'خلاصه', 'متن صورت‌جلسه'], true) ? 'sm:col-span-2' : '' }}">
-                    <dt class="text-[11px] font-semibold text-muted">{{ $label }}</dt>
-                    <dd class="mt-2 whitespace-pre-line text-sm font-semibold leading-7 text-slate-800">{{ $value }}</dd>
-                </div>
-            @endforeach
-        </dl>
-    </section>
-
-    @if($fileUrl)
-        <section class="mt-5 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-card sm:p-7">
+    <div class="grid items-start gap-5 {{ $fileUrl ? 'lg:grid-cols-2' : '' }}">
+        @if($fileUrl)
+            <section class="order-1 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-card sm:p-7 lg:sticky lg:top-6">
             <div class="mb-4 flex items-center justify-between gap-3"><div><h2 class="font-extrabold">پیوست {{ $type === 'letter' ? 'نامه' : 'صورت‌جلسه' }}</h2><p class="mt-1 text-xs text-muted">پیش‌نمایش فایل ذخیره‌شده</p></div><a href="{{ $fileUrl }}" target="_blank" class="rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800">باز کردن فایل</a></div>
             @if(in_array($fileExtension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true))
                 <img src="{{ $fileUrl }}" alt="پیوست" class="mx-auto max-h-[70vh] w-full rounded-2xl bg-slate-50 object-contain">
@@ -95,8 +84,21 @@
             @else
                 <div class="rounded-2xl bg-slate-50 p-8 text-center text-sm text-muted">برای این نوع فایل، از دکمهٔ «باز کردن فایل» استفاده کنید.</div>
             @endif
+            </section>
+        @endif
+
+        <section class="order-2 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-card sm:p-7">
+            <div class="mb-5 flex items-center justify-between"><div><h2 class="font-extrabold">اطلاعات ثبت‌شده</h2><p class="mt-1 text-xs text-muted">نمایش بر اساس دسترسی حساب کاربری شما</p></div><span class="rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700">{{ $dateText($record->updated_at) }}</span></div>
+            <dl class="grid gap-3 sm:grid-cols-2">
+                @foreach($pairs as [$label, $value])
+                    <div class="rounded-2xl bg-slate-50/80 p-4 {{ in_array($label, ['توضیحات', 'خلاصه', 'متن صورت‌جلسه'], true) ? 'sm:col-span-2' : '' }}">
+                        <dt class="text-[11px] font-semibold text-muted">{{ $label }}</dt>
+                        <dd class="mt-2 whitespace-pre-line text-sm font-semibold leading-7 text-slate-800">{{ $value }}</dd>
+                    </div>
+                @endforeach
+            </dl>
         </section>
-    @endif
+    </div>
 
     @if($type === 'letter' && $record->Appendix->isNotEmpty())
         <section class="mt-5 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-card sm:p-7"><h2 class="mb-4 font-extrabold">ضمیمه‌ها</h2><div class="space-y-2">
