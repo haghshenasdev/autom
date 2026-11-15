@@ -20,6 +20,15 @@ class OrganTypeResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+     protected static ?string $navigationGroup = 'مراجع دریافت نامه';
+
+    protected static ?string $label = "نوع سازمان";
+
+
+    protected static ?string $pluralModelLabel = "نوع سازمان ها";
+
+    protected static ?string $pluralLabel = "نوع سازمان";
+
     public static function form(Form $form): Form
     {
         return $form
