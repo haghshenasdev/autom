@@ -5,6 +5,7 @@ use App\Services\AiKeywordClassifier;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\NewUiController;
 
 
 /*
@@ -52,6 +53,8 @@ Route::get('/toggle-mobile-mode', function () {
     // کوکی را برای مدت طولانی (مثلاً یک سال) ذخیره می‌کنیم
     return redirect()->back()->withCookie(cookie('mobile_mode', $new, 60 * 24 * 30));
 })->name('togglemobile');
+
+Route::get('/newui', NewUiController::class)->middleware('auth')->name('newui');
 
 Route::middleware('auth')->group(function () {
     Route::get('/private-dl/{path}', function ($path) {
