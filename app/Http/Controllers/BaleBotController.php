@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Filament\Resources\LetterResource;
 use App\Filament\Resources\MinutesResource;
 use App\Filament\Resources\ProjectResource;
+use App\Filament\Resources\ProjectGroupResource;
 use App\Filament\Resources\TaskResource;
 use App\Filament\Resources\ContentResource;
 use App\Http\Controllers\ai\CategoryPredictor;
@@ -64,6 +65,50 @@ class BaleBotController extends Controller
                 return response($auth_res);
             }
             [$user,$bale_user] = $auth_res;
+
+            // Group commands only publish a private bot link; record fields stay private.
+            $groupCommand = preg_replace('/@karnama_Bot$/i', '', trim($text));
+            if (!$isPrivateChat && in_array($groupCommand, ['/new_project', '/new_project_group'], true)) {
+                $isGroup = $groupCommand === '/new_project_group';
+                $permission = $isGroup ? 'create_project::group' : 'create_project';
+                if (!$user->can($permission)) {
+                    $this->sendMessage($chatId, 'برای ساخت این مورد دسترسی ندارید.');
+                    return response('forbidden');
+                }
+                $type = $isGroup ? 'project_group' : 'project';
+                $label = $isGroup ? 'دسته‌بندی' : 'دستورکار';
+                $keyboard = ['inline_keyboard' => [[[
+                    'text' => "ساخت {$label} در گفت‌وگوی خصوصی",
+                    'url' => "https://ble.ir/karnama_Bot?start={$type}_{$chatId}",
+                ]]]];
+                $this->sendMessageWithKeyboard($chatId, "برای ثبت {$label} روی دکمه بزنید؛ ادامهٔ فرم در گفت‌وگوی خصوصی انجام می‌شود.", $keyboard);
+                return response('wizard link sent');
+            }
+
+            if ($isPrivateChat && str_starts_with((string) $bale_user->state, 'wizard:')) {
+                if (trim($text) === '/cancel') {
+                    $bale_user->update(['state' => '1']);
+                    $this->sendMessage($chatId, 'فرایند ساخت لغو شد.');
+                    return response('wizard cancelled');
+                }
+                if ($text !== '') {
+                    $this->advanceCreationWizard($chatId, $user, $bale_user, trim($text));
+                    return response('wizard advanced');
+                }
+            }
+
+            // A private file sent without a caption has no text/caption branch below.
+            // Route it through normal letter creation and attach the original file.
+            if ($isPrivateChat && $text === '' && $caption === '' && !$media_group_id) {
+                $directAttachment = $this->getBaleAttachmentFromMessage($data['message']);
+                if ($directAttachment && $user->can('create_letter')) {
+                    $record = $this->handleLetter_create('', $chatId, $user, true, $directAttachment);
+                    if ($record instanceof Letter) {
+                        $this->LetterFileAdd($record, $directAttachment, null, $bale_user);
+                    }
+                    return response('direct file processed');
+                }
+            }
 
 
             if ($media_group_id) {
@@ -144,6 +189,22 @@ class BaleBotController extends Controller
 
                 }
                 elseif (str_starts_with($firstLine, '/start')) {
+                    $payload = trim(substr($firstLine, strlen('/start')));
+                    if (preg_match('/^(project|project_group)_(-?\d+)$/', $payload, $matches)) {
+                        $kind = $matches[1];
+                        $originChatId = (int) $matches[2];
+                        $permission = $kind === 'project_group' ? 'create_project::group' : 'create_project';
+                        if (!$isPrivateChat || !$user->can($permission)) {
+                            $this->sendMessage($chatId, 'دسترسی لازم برای ساخت این مورد را ندارید.');
+                            return response('forbidden');
+                        }
+                        $state = ['kind' => $kind, 'step' => 'name', 'origin' => $originChatId];
+                        $bale_user->update(['state' => 'wizard:' . base64_encode(json_encode($state))]);
+                        $this->sendMessage($chatId, $kind === 'project_group'
+                            ? 'نام دسته‌بندی جدید را وارد کنید. برای لغو /cancel را بفرستید.'
+                            : 'عنوان دستورکار را وارد کنید. برای لغو /cancel را بفرستید.');
+                        return response('wizard started');
+                    }
                     $this->sendMessageWithReplyKeyboard($chatId, "🌺 سلام {$user->name} ، به ربات کارنما خوش آمدید !" . "\n" . "من میتونم به شما کمک کنم بتوانید به راحتی و سریع ترین حالت ممکن از سامانه کارنما استفاده کنید و کار ها و صورت جلسه های خود را مدیریت کنید." . "\n" . "با ارسال دستور /راهنما می توانید لیست دستورات کار با ربات را دریافت نمایید .");
                     return response('احراز شده');
                 }
@@ -642,6 +703,13 @@ class BaleBotController extends Controller
                         if ($doc) {
                             $this->TaskFileAdd($task, $doc, $caption);
                         }
+                    }
+                }
+                elseif ($matched === null && $isPrivateChat && $this->getBaleAttachmentFromMessage($data['message'])) {
+                    $doc = $this->getBaleAttachmentFromMessage($data['message']);
+                    $record = $this->handleLetter_create($caption, $chatId, $user, true, $doc);
+                    if ($record instanceof Letter) {
+                        $this->LetterFileAdd($record, $doc, $media_group_id, $bale_user);
                     }
                 }
                 // ارسال پیام تأیید
@@ -1186,6 +1254,162 @@ EOT);
         ]);
     }
 
+    private function decodeCreationWizard(BaleUser $baleUser): ?array
+    {
+        $encoded = substr((string) $baleUser->state, strlen('wizard:'));
+        $state = json_decode(base64_decode($encoded, true) ?: '', true);
+        return is_array($state) ? $state : null;
+    }
+
+    private function saveCreationWizard(BaleUser $baleUser, array $state): void
+    {
+        $baleUser->update(['state' => 'wizard:' . base64_encode(json_encode($state, JSON_UNESCAPED_UNICODE))]);
+    }
+
+    private function advanceCreationWizard($chatId, $user, BaleUser $baleUser, string $value): void
+    {
+        $state = $this->decodeCreationWizard($baleUser);
+        if (!$state) {
+            $baleUser->update(['state' => '1']);
+            $this->sendMessage($chatId, 'فرم ساخت معتبر نیست؛ از گروه دوباره شروع کنید.');
+            return;
+        }
+
+        if (($state['step'] ?? '') === 'name') {
+            $state['name'] = mb_substr($value, 0, 255);
+            if ($state['kind'] === 'project_group') {
+                $state['step'] = 'parent';
+                $state['page'] = 1;
+                $this->saveCreationWizard($baleUser, $state);
+                $this->sendWizardChoices($chatId, $state, 'parent');
+                return;
+            }
+            $state['step'] = 'description';
+            $this->saveCreationWizard($baleUser, $state);
+            $this->sendMessage($chatId, 'شرح دستورکار را وارد کنید؛ برای خالی گذاشتن «-» بفرستید.');
+            return;
+        }
+        if (($state['step'] ?? '') === 'description') {
+            $state['description'] = $value === '-' ? '' : mb_substr($value, 0, 255);
+            $state['step'] = 'amount';
+            $this->saveCreationWizard($baleUser, $state);
+            $this->sendMessage($chatId, 'مبلغ موردنیاز را به عدد وارد کنید؛ اگر ندارد «-» بفرستید.');
+            return;
+        }
+        if (($state['step'] ?? '') === 'amount') {
+            if ($value !== '-' && !is_numeric(str_replace(',', '', $value))) {
+                $this->sendMessage($chatId, 'مبلغ باید عدد باشد یا «-» بفرستید.');
+                return;
+            }
+            if ($value !== '-' && (float) str_replace(',', '', $value) < 0) {
+                $this->sendMessage($chatId, 'مبلغ نمی‌تواند منفی باشد.');
+                return;
+            }
+            $state['required_amount'] = $value === '-' ? null : (int) str_replace(',', '', $value);
+            $state['step'] = 'city';
+            $state['page'] = 1;
+            $this->saveCreationWizard($baleUser, $state);
+            $this->sendWizardChoices($chatId, $state, 'city');
+        }
+    }
+
+    private function sendWizardChoices($chatId, array $state, string $field, $messageId = null): void
+    {
+        $page = max(1, (int) ($state['page'] ?? 1));
+        $perPage = 6;
+        $query = match ($field) {
+            'city' => City::query()->orderBy('name'),
+            'organ' => Organ::query()->orderBy('name'),
+            'group', 'parent' => ProjectGroup::query()->orderBy('name'),
+            default => null,
+        };
+        if (!$query) return;
+        $items = $query->paginate($perPage, ['id', 'name'], 'page', $page);
+        $keyboard = ['inline_keyboard' => []];
+        $keyboard['inline_keyboard'][] = [[
+            'text' => $field === 'parent' ? 'بدون والد (دسته اصلی)' : 'بدون انتخاب',
+            'callback_data' => "wiz|{$field}|0",
+        ]];
+        foreach ($items->items() as $item) {
+            $keyboard['inline_keyboard'][] = [[
+                'text' => mb_substr($item->name, 0, 45),
+                'callback_data' => "wiz|{$field}|{$item->id}",
+            ]];
+        }
+        $navigation = [];
+        if ($page > 1) $navigation[] = ['text' => 'صفحه قبل', 'callback_data' => "wizpage|{$field}|" . ($page - 1)];
+        if ($items->hasMorePages()) $navigation[] = ['text' => 'صفحه بعد', 'callback_data' => "wizpage|{$field}|" . ($page + 1)];
+        if ($navigation) $keyboard['inline_keyboard'][] = $navigation;
+        $prompt = match ($field) {
+            'city' => 'شهر دستورکار را انتخاب کنید:',
+            'organ' => 'ارگان دستورکار را انتخاب کنید:',
+            'group' => 'دسته‌بندی دستورکار را انتخاب کنید:',
+            default => 'دسته‌بندی والد را انتخاب کنید:',
+        };
+        if ($messageId === null) {
+            $this->sendMessageWithKeyboard($chatId, $prompt, $keyboard);
+            return;
+        }
+        $token = config('bale.token');
+        Http::post("https://tapi.bale.ai/bot{$token}/editMessageText", [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $prompt,
+            'reply_markup' => json_encode($keyboard, JSON_UNESCAPED_UNICODE),
+        ]);
+    }
+
+    private function handleCreationWizardCallback($chatId, $messageId, string $callbackData, $user, BaleUser $baleUser): bool
+    {
+        $state = $this->decodeCreationWizard($baleUser);
+        if (!$state) return false;
+        if (preg_match('/^wizpage\|(city|organ|group|parent)\|(\d+)$/', $callbackData, $parts)) {
+            $state['page'] = max(1, (int) $parts[2]);
+            $this->saveCreationWizard($baleUser, $state);
+            $this->sendWizardChoices($chatId, $state, $parts[1], $messageId);
+            return true;
+        }
+        if (!preg_match('/^wiz\|(city|organ|group|parent)\|(\d+)$/', $callbackData, $parts)) return false;
+        $field = $parts[1];
+        $id = (int) $parts[2];
+        if ($field === 'parent' && $state['kind'] === 'project_group') {
+            $state['parent_id'] = $id ?: null;
+            $record = ProjectGroup::create(['name' => $state['name'], 'parent_id' => $state['parent_id']]);
+            $this->finishCreationWizard($chatId, $state, 'دسته‌بندی', $record->name, ProjectGroupResource::getUrl('edit', [$record->id]));
+            $baleUser->update(['state' => '1']);
+            return true;
+        }
+        if ($field === 'city') {
+            $state['city_id'] = $id ?: null;
+            $state['step'] = 'organ';
+        } elseif ($field === 'organ') {
+            $state['organ_id'] = $id ?: null;
+            $state['step'] = 'group';
+        } elseif ($field === 'group') {
+            $state['group_id'] = $id ?: null;
+            $project = Project::create([
+                'name' => $state['name'], 'description' => $state['description'] ?? '',
+                'required_amount' => $state['required_amount'] ?? null, 'city_id' => $state['city_id'] ?? null,
+                'organ_id' => $state['organ_id'] ?? null, 'user_id' => $user->id,
+            ]);
+            if (!empty($state['group_id'])) $project->group()->sync([(int) $state['group_id']]);
+            $this->finishCreationWizard($chatId, $state, 'دستورکار', $project->name, ProjectResource::getUrl('edit', [$project->id]));
+            $baleUser->update(['state' => '1']);
+            return true;
+        }
+        $state['page'] = 1;
+        $this->saveCreationWizard($baleUser, $state);
+        $this->sendWizardChoices($chatId, $state, $state['step'], $messageId);
+        return true;
+    }
+
+    private function finishCreationWizard($chatId, array $state, string $label, string $name, string $adminUrl): void
+    {
+        $summary = "✅ {$label} ثبت شد\nعنوان: {$name}\nبازکردن در سامانه: " . url($adminUrl) . "\nبازکردن کارنما: karnamaft://open";
+        $this->sendMessage($chatId, $summary);
+        if (!empty($state['origin'])) $this->sendMessage($state['origin'], "{$label} «{$name}» ثبت شد.\n" . url($adminUrl));
+    }
+
     public function handleCallbackQuery(Request $request): void
     {
         $data = $request->input('callback_query');
@@ -1200,6 +1424,14 @@ EOT);
             return ;
         }
         [$user,$bale_user] = $auth_res;
+
+        if (str_starts_with((string) $bale_user->state, 'wizard:')
+            && $this->handleCreationWizardCallback($chatId, $messageId, $callbackData, $user, $bale_user)) {
+            Http::post('https://tapi.bale.ai/bot' . config('bale.token') . '/answerCallbackQuery', [
+                'callback_query_id' => $data['id'] ?? null,
+            ]);
+            return;
+        }
 
         // مدیریت حذف پیام
         if ($callbackData === 'delete_message') {
@@ -2371,6 +2603,12 @@ TEXT;
 ایجاد کار شامل جلسه ، مصوبه ، پیگیری ، بازدید و ...
 #نامه یا #مکاتبه
 ایجاد نامه
+
+✅ ایجاد دستورکار و دسته‌بندی از گروه:
+/new_project
+ساخت دستورکار؛ ادامه فرم در گفت‌وگوی خصوصی ربات انجام می‌شود.
+/new_project_group
+ساخت دسته‌بندی دستورکار؛ ادامه فرم در گفت‌وگوی خصوصی ربات انجام می‌شود.
 
 ✅ لیست دستورات نمایش اطلاعات :
 /راهنما

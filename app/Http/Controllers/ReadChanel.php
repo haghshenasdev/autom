@@ -40,7 +40,12 @@ class ReadChanel extends Controller
                     }
 
                     $foundNew = true;
-                    $newPosts[$id] = $text;
+                    $fullText = (string) ($text[0] ?? '');
+                    $newPosts[$id] = [
+                        $this->extractTaskTitle($fullText),
+                        $text[1] ?? null,
+                        $fullText,
+                    ];
                 }
 
                 // گرفتن کوچک‌ترین ID برای رفتن به عقب‌تر
@@ -56,12 +61,14 @@ class ReadChanel extends Controller
             // پردازش پست‌های جدید
             foreach ($newPosts as $id => $text) {
                 $catPreder = new CategoryPredictor();
-                $cats = $catPreder->predictWithCity($text[0]);
+                $title = trim((string) ($text[0] ?? ''));
+                $fullText = (string) ($text[2] ?? $title);
+                $cats = $catPreder->predictWithCity($title);
                 $time = Carbon::parse($text[1]);
-                if ($cats && $cats['categories']) {
+                if ($title !== '' && $cats && $cats['categories']) {
                     $task = Task::create([
-                        'name' => mb_substr($catPreder->cleanTitle($text[0]), 0, 350),
-                        'description' => $text[0],
+                        'name' => mb_substr($catPreder->cleanTitle($title), 0, 350),
+                        'description' => $fullText,
                         'created_at' => $time,
                         'completed_at' => $time,
                         'started_at' => $time,
@@ -86,6 +93,29 @@ class ReadChanel extends Controller
         }catch (Exception $exception){
             echo $exception->getMessage();
         }
+    }
+
+    /** Pick the first meaningful, classifiable title from any line in a post. */
+    private function extractTaskTitle(string $content): string
+    {
+        $predictor = new CategoryPredictor();
+        $lines = array_values(array_filter(array_map(
+            static fn ($line) => trim(preg_replace('/\s+/u', ' ', $line) ?? ''),
+            preg_split('/\R/u', $content) ?: []
+        ), static fn ($line) => $line !== ''));
+
+        foreach ($lines as $index => $line) {
+            foreach ([1, 2, 3] as $span) {
+                $candidate = trim(implode(' ', array_slice($lines, $index, $span)));
+                if ($candidate === '') continue;
+                $prediction = $predictor->predictWithCity($candidate);
+                if ($prediction && !empty($prediction['categories'])) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return $lines[0] ?? '';
     }
 
     function removeExactDuplicateTitlesKeepHigherId(array $posts): array

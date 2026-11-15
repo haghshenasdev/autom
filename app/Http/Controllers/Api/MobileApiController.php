@@ -1492,6 +1492,12 @@ class MobileApiController extends Controller
             }
         } elseif ($item instanceof Minutes) {
             $data['files'] = $this->appendixFiles($item, 'minutes', $item->id);
+            $data['organs'] = $item->relationLoaded('organ')
+                ? $item->organ->map(fn ($organ) => [
+                    'id' => (int) $organ->id,
+                    'name' => (string) $organ->name,
+                ])->values()
+                : [];
             $data['projects'] = $item->relationLoaded('projects')
                 ? $item->projects->map(fn ($project) => [
                     'id' => (int) $project->id,
