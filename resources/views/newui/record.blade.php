@@ -53,7 +53,7 @@
     $fileExtension = strtolower(pathinfo((string) $record->file, PATHINFO_EXTENSION) ?: (string) $record->file);
 @endphp
 
-<main class="mx-auto min-h-screen max-w-5xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-12">
+<main class="mx-auto min-h-screen px-4 pb-28 pt-5 sm:px-6 sm:pt-8 lg:pb-12">
     <header class="mb-6 flex items-center justify-between gap-3">
         <a href="{{ url('/newui') }}" class="flex items-center gap-3"><img src="{{ asset('karnama2.png') }}" alt="کارنما" class="h-11 w-11 rounded-2xl bg-white p-1 shadow-sm"><span><span class="block text-xs text-muted">کارنما</span><span class="block font-extrabold">{{ $title }}</span></span></a>
         <div class="flex items-center gap-2">
