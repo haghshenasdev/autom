@@ -7,7 +7,10 @@ use App\Filament\Resources\MinutesResource;
 use App\Filament\Resources\TaskResource;
 use App\Models\Letter;
 use App\Models\Minutes;
+use App\Models\Project;
 use App\Models\Task;
+use App\Models\TaskGroup;
+use App\Models\Type;
 use Filament\Facades\Filament;
 use Illuminate\Http\Request;
 
@@ -20,20 +23,36 @@ class NewUiController extends Controller
         abort_unless($panel && $user->canAccessPanel($panel), 403);
 
         $activeView = $request->query('view', 'home');
-        abort_unless(in_array($activeView, ['home', 'tasks', 'letters', 'minutes'], true), 404);
+        abort_unless(in_array($activeView, ['home', 'tasks', 'letters', 'minutes', 'calendar'], true), 404);
         $taskStatus = $request->query('task_status', 'pending');
         abort_unless(in_array($taskStatus, ['pending', 'done', 'all'], true), 404);
+        $request->validate([
+            'q' => ['nullable', 'string', 'max:200'],
+            'group_id' => ['nullable', 'integer', 'exists:task_groups,id'],
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
+            'letter_kind' => ['nullable', 'in:all,incoming,outgoing'],
+            'letter_status' => ['nullable', 'integer'],
+            'letter_type_id' => ['nullable', 'integer', 'exists:types,id'],
+            'author_id' => ['nullable', 'integer', 'exists:users,id'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
 
         $canTasks = $user->can('view_any_task');
         $canLetters = $user->can('view_any_letter');
         $canMinutes = $user->can('view_any_minutes');
         abort_if($activeView === 'tasks' && !$canTasks, 403);
+        abort_if($activeView === 'calendar' && !$canTasks, 403);
         abort_if($activeView === 'letters' && !$canLetters, 403);
         abort_if($activeView === 'minutes' && !$canMinutes, 403);
 
-        $tasks = Task::query()->with(['project', 'task_group', 'minutes']);
+        $tasks = Task::query()->with(['project', 'task_group', 'minutes', 'responsible']);
         if (!$canTasks) $tasks->whereRaw('1 = 0');
         elseif (!$user->can('restore_any_task')) $tasks->where('Responsible_id', $user->id);
+        if ($request->filled('group_id')) $tasks->whereHas('task_group', fn ($query) => $query->whereKey($request->integer('group_id')));
+        if ($request->filled('project_id')) $tasks->whereHas('project', fn ($query) => $query->whereKey($request->integer('project_id')));
+        if ($request->filled('date_from')) $tasks->whereDate('ended_at', '>=', $request->query('date_from'));
+        if ($request->filled('date_to')) $tasks->whereDate('ended_at', '<=', $request->query('date_to'));
 
         $letters = Letter::query()->with(['type', 'user', 'organ']);
         if (!$canLetters) $letters->whereRaw('1 = 0');
@@ -44,10 +63,23 @@ class NewUiController extends Controller
                     ->orWhereHas('users', fn ($users) => $users->where('users.id', $user->id));
             });
         }
+        if ($request->query('letter_kind') === 'incoming') $letters->where('kind', 0);
+        elseif ($request->query('letter_kind') === 'outgoing') $letters->where('kind', 1);
+        if ($request->filled('letter_status')) $letters->where('status', $request->integer('letter_status'));
+        if ($request->filled('letter_type_id')) $letters->where('type_id', $request->integer('letter_type_id'));
+        if ($activeView === 'letters' || $request->filled('letter_kind') || $request->filled('letter_type_id') || $request->filled('letter_status')) {
+            if ($request->filled('date_from')) $letters->whereDate('created_at', '>=', $request->query('date_from'));
+            if ($request->filled('date_to')) $letters->whereDate('created_at', '<=', $request->query('date_to'));
+        }
 
         $minutes = Minutes::query()->with(['typer', 'task_creator'])->withCount(['tasks', 'approves']);
         if (!$canMinutes) $minutes->whereRaw('1 = 0');
         elseif (!$user->can('restore_any_minutes')) $minutes->where('typer_id', $user->id);
+        if ($request->filled('author_id')) $minutes->where('typer_id', $request->integer('author_id'));
+        if ($activeView === 'minutes' || $activeView === 'calendar') {
+            if ($request->filled('date_from')) $minutes->whereDate('date', '>=', $request->query('date_from'));
+            if ($request->filled('date_to')) $minutes->whereDate('date', '<=', $request->query('date_to'));
+        }
 
         $search = trim((string) $request->query('q', ''));
 
@@ -92,6 +124,8 @@ class NewUiController extends Controller
             $items = $letters->latest('created_at')->paginate(12)->withQueryString();
         } elseif ($activeView === 'minutes') {
             $items = $minutes->latest('date')->paginate(12)->withQueryString();
+        } elseif ($activeView === 'calendar') {
+            $items = collect();
         } else {
             $items = collect([
                 'tasks' => (clone $tasks)->where(function ($query) {
@@ -106,6 +140,15 @@ class NewUiController extends Controller
         return view('newui.index', [
             'activeView' => $activeView,
             'taskStatus' => $taskStatus,
+            'filters' => $request->only(['group_id', 'project_id', 'letter_kind', 'letter_status', 'letter_type_id', 'author_id', 'date_from', 'date_to']),
+            'filterOptions' => [
+                'groups' => $canTasks ? TaskGroup::query()->orderBy('name')->pluck('name', 'id') : collect(),
+                'projects' => $canTasks ? Project::query()->orderBy('name')->pluck('name', 'id') : collect(),
+                'letterTypes' => $canLetters ? Type::query()->orderBy('name')->pluck('name', 'id') : collect(),
+                'letterStatuses' => Letter::getStatusListDefine(),
+                'authors' => $canMinutes && $user->can('restore_any_minutes')
+                    ? \App\Models\User::query()->orderBy('name')->pluck('name', 'id') : collect(),
+            ],
             'search' => $search,
             'items' => $items,
             'taskCount' => $taskCount,
@@ -119,6 +162,59 @@ class NewUiController extends Controller
             'canCreateLetter' => $user->can('create_letter'),
             'canCreateMinutes' => $user->can('create_minutes'),
         ]);
+    }
+
+    public function calendarEvents(Request $request)
+    {
+        $user = $request->user();
+        $panel = Filament::getPanel('admin');
+        abort_unless($panel && $user->canAccessPanel($panel), 403);
+        abort_unless($user->can('view_any_task'), 403);
+
+        $request->validate([
+            'start' => ['required', 'date'],
+            'end' => ['required', 'date', 'after:start'],
+            'task_status' => ['nullable', 'in:pending,done,all'],
+            'group_id' => ['nullable', 'integer', 'exists:task_groups,id'],
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
+            'q' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $query = Task::query()->with('task_group')
+            ->whereNotNull('started_at')
+            ->where('started_at', '>=', $request->query('start'))
+            ->where('started_at', '<', $request->query('end'));
+        if (!$user->can('restore_any_task')) $query->where('Responsible_id', $user->id);
+        if ($request->query('task_status', 'pending') === 'pending') {
+            $query->where(fn ($builder) => $builder->whereNull('completed')->orWhere('completed', 0));
+        } elseif ($request->query('task_status') === 'done') {
+            $query->where('completed', 1);
+        }
+        if ($request->filled('group_id')) $query->whereHas('task_group', fn ($builder) => $builder->whereKey($request->integer('group_id')));
+        if ($request->filled('project_id')) $query->whereHas('project', fn ($builder) => $builder->whereKey($request->integer('project_id')));
+        if ($request->filled('q')) {
+            $search = trim((string) $request->query('q'));
+            $query->where(function ($builder) use ($search) {
+                $builder->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+                if (is_numeric($search)) $builder->orWhere('id', (int) $search);
+            });
+        }
+
+        return response()->json($query->get()->map(function (Task $task) {
+            $groupIds = $task->task_group->pluck('id');
+            $prefix = $groupIds->contains(1) ? '🧰 ' : ($groupIds->contains(33) ? '📝 ' : ($groupIds->contains(2) ? '🕹️ ' : ''));
+
+            return [
+                'id' => $task->id,
+                'title' => $prefix . $task->name,
+                'start' => $task->started_at,
+                'end' => $task->ended_at,
+                'backgroundColor' => $task->completed ? '#64748b' : '#1d4ed8',
+                'borderColor' => $task->completed ? '#475569' : '#1e40af',
+                'url' => url('/newui/task/' . $task->id),
+            ];
+        }));
     }
 
     public function showRecord(Request $request, string $type, int $recordId)

@@ -33,6 +33,7 @@
         ['id' => 'tasks', 'label' => 'فعالیت‌ها', 'icon' => 'check'],
         ['id' => 'letters', 'label' => 'نامه‌ها', 'icon' => 'mail'],
         ['id' => 'minutes', 'label' => 'صورت‌جلسه‌ها', 'icon' => 'document'],
+        ['id' => 'calendar', 'label' => 'تقویم', 'icon' => 'calendar'],
     ];
     $dateText = function ($value) {
         if (!$value) return 'بدون تاریخ';
@@ -42,6 +43,7 @@
     $showTask = fn ($record) => url('/newui/task/'.$record->id);
     $showLetter = fn ($record) => url('/newui/letter/'.$record->id);
     $showMinutes = fn ($record) => url('/newui/minute/'.$record->id);
+    $avatarUrl = fn ($person) => $person?->getFilamentAvatarUrl();
     $createUrl = match ($activeView) {
         'tasks' => \App\Filament\Resources\TaskResource::getUrl('create'),
         'letters' => \App\Filament\Resources\LetterResource::getUrl('create'),
@@ -55,7 +57,7 @@
         default => false,
     };
     $sectionTitle = [
-        'home' => 'پیشخوان', 'tasks' => 'فعالیت‌ها', 'letters' => 'نامه‌ها', 'minutes' => 'صورت‌جلسه‌ها',
+        'home' => 'پیشخوان', 'tasks' => 'فعالیت‌ها', 'letters' => 'نامه‌ها', 'minutes' => 'صورت‌جلسه‌ها', 'calendar' => 'تقویم فعالیت‌ها',
     ][$activeView];
 @endphp
 
@@ -68,6 +70,7 @@
         <nav class="space-y-1">
             @foreach($nav as $item)
                 @if($item['id'] === 'tasks' && !$canTasks) @continue @endif
+                @if($item['id'] === 'calendar' && !$canTasks) @continue @endif
                 @if($item['id'] === 'letters' && !$canLetters) @continue @endif
                 @if($item['id'] === 'minutes' && !$canMinutes) @continue @endif
                 <a href="{{ url('/newui') }}{{ $item['id'] === 'home' ? '' : '?view='.$item['id'] }}"
@@ -88,7 +91,7 @@
         </div>
     </aside>
 
-    <main class="mx-auto w-full max-w-7xl px-4 pb-28 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
+    <main class="mx-auto min-w-0 w-full max-w-7xl overflow-x-hidden px-4 pb-28 pt-5 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
         <header class="mb-7 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 lg:hidden">
                 <span class="grid h-11 w-11 place-items-center overflow-hidden rounded-2xl bg-white shadow-sm"><img src="{{ asset('karnama2.png') }}" alt="کارنما" class="h-10 w-10 object-contain"></span>
@@ -111,13 +114,63 @@
             </div>
         </header>
 
-        <form action="{{ url('/newui') }}" method="get" class="mb-6 flex gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
+        <form action="{{ url('/newui') }}" method="get" class="mb-6 flex min-w-0 gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
             @if($activeView !== 'home') <input type="hidden" name="view" value="{{ $activeView }}"> @endif
             @if($activeView === 'tasks') <input type="hidden" name="task_status" value="{{ $taskStatus }}"> @endif
             <span class="grid w-10 shrink-0 place-items-center text-slate-400">@include('newui.partials.icon', ['name' => 'search', 'class' => 'h-5 w-5'])</span>
             <input name="q" value="{{ $search }}" placeholder="جست‌وجو در {{ $sectionTitle }}..." class="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none ring-0 placeholder:text-slate-400 focus:ring-0">
-            <button class="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-800">جست‌وجو</button>
+            <button class="shrink-0 rounded-xl bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-800 sm:px-4">جست‌وجو</button>
         </form>
+
+        @if(in_array($activeView, ['tasks', 'letters', 'minutes', 'calendar'], true))
+            <form action="{{ url('/newui') }}" method="get" class="mb-6 min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+                <input type="hidden" name="view" value="{{ $activeView }}">
+                @if($search !== '') <input type="hidden" name="q" value="{{ $search }}"> @endif
+                <div class="mb-3 flex items-center gap-2 text-sm font-bold"><span class="text-brand">☷</span> فیلتر نتایج</div>
+                <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    @if(in_array($activeView, ['tasks', 'calendar'], true))
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">وضعیت انجام
+                            <select name="task_status" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand">
+                                @foreach(['pending' => 'انجام‌نشده‌ها', 'done' => 'انجام‌شده‌ها', 'all' => 'همه'] as $key => $label)
+                                    <option value="{{ $key }}" @selected($taskStatus === $key)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">دسته‌بندی
+                            <select name="group_id" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه دسته‌ها</option>@foreach($filterOptions['groups'] as $id => $name)<option value="{{ $id }}" @selected(($filters['group_id'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
+                        </label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">دستورکار
+                            <select name="project_id" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه دستورکارها</option>@foreach($filterOptions['projects'] as $id => $name)<option value="{{ $id }}" @selected(($filters['project_id'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
+                        </label>
+                        @if($activeView === 'tasks')
+                            <label class="min-w-0 text-xs font-semibold text-slate-600">مهلت از تاریخ<input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                            <label class="min-w-0 text-xs font-semibold text-slate-600">مهلت تا تاریخ<input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                        @endif
+                    @elseif($activeView === 'letters')
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">نوع نامه
+                            <select name="letter_kind" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="all">همه</option><option value="incoming" @selected(($filters['letter_kind'] ?? '') === 'incoming')>وارده</option><option value="outgoing" @selected(($filters['letter_kind'] ?? '') === 'outgoing')>صادره</option></select>
+                        </label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">دسته‌بندی
+                            <select name="letter_type_id" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه دسته‌ها</option>@foreach($filterOptions['letterTypes'] as $id => $name)<option value="{{ $id }}" @selected(($filters['letter_type_id'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
+                        </label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">وضعیت
+                            <select name="letter_status" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه وضعیت‌ها</option>@foreach($filterOptions['letterStatuses'] as $id => $name)<option value="{{ $id }}" @selected(($filters['letter_status'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
+                        </label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">از تاریخ<input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">تا تاریخ<input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                    @else
+                        @if($filterOptions['authors']->isNotEmpty())
+                            <label class="min-w-0 text-xs font-semibold text-slate-600">نویسنده
+                                <select name="author_id" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه نویسندگان</option>@foreach($filterOptions['authors'] as $id => $name)<option value="{{ $id }}" @selected(($filters['author_id'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
+                            </label>
+                        @endif
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">از تاریخ جلسه<input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                        <label class="min-w-0 text-xs font-semibold text-slate-600">تا تاریخ جلسه<input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"></label>
+                    @endif
+                    <div class="flex items-end gap-2"><button class="flex-1 rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800">اعمال فیلتر</button><a href="{{ url('/newui?view='.$activeView) }}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-500">پاک‌کردن</a></div>
+                </div>
+            </form>
+        @endif
 
         @if($activeView === 'home')
             <section class="relative mb-6 overflow-hidden rounded-[2rem] bg-gradient-to-l from-[#12316f] via-[#1d4ed8] to-[#3986f6] px-6 py-7 text-white shadow-card sm:px-8 sm:py-9">
@@ -170,9 +223,15 @@
             @else
                 <div class="space-y-3">
                     @foreach($items['tasks'] as $task)
-                        <a href="{{ $showTask($task) }}" class="group flex items-start gap-3 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-card sm:items-center sm:p-5">
+                        <a href="{{ $showTask($task) }}" class="group flex min-w-0 items-start gap-3 overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-card sm:items-center sm:p-5">
                             <span class="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-50 text-amber-600">@include('newui.partials.icon', ['name' => 'check', 'class' => 'h-5 w-5'])</span>
-                            <span class="min-w-0 flex-1"><span class="block truncate text-sm font-bold group-hover:text-brand">{{ $task->name }}</span><span class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted"><span>{{ $task->project->pluck('name')->filter()->take(2)->implode('، ') ?: 'بدون دستورکار' }}</span><span>مهلت: {{ $dateText($task->ended_at) }}</span></span>
+                            <span class="min-w-0 flex-1"><span class="block truncate text-sm font-bold group-hover:text-brand">{{ $task->name }}</span><span class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted"><span class="break-words">{{ $task->project->pluck('name')->filter()->take(2)->implode('، ') ?: 'بدون دستورکار' }}</span><span>مهلت: {{ $dateText($task->ended_at) }}</span></span>
+                                @if($task->responsible)
+                                    <span class="mt-2 inline-flex max-w-full items-center gap-2 text-[11px] text-muted">
+                                        @if($avatarUrl($task->responsible)) <img src="{{ $avatarUrl($task->responsible) }}" alt="" class="h-6 w-6 shrink-0 rounded-full object-cover"> @else <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-soft font-bold text-brand">{{ mb_substr($task->responsible->name ?? '؟', 0, 1) }}</span> @endif
+                                        <span class="truncate">مسئول: {{ $task->responsible->name }}</span>
+                                    </span>
+                                @endif
                                 @if($task->progress)<span class="mt-3 flex items-center gap-2"><span class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span class="block h-full rounded-full bg-brand" style="width: {{ min(100, max(0, $task->progress)) }}%"></span></span><span class="text-[10px] text-muted">{{ $task->progress }}٪</span></span>@endif
                             </span>
                             <span class="hidden self-center text-slate-300 group-hover:text-brand sm:block">←</span>
@@ -200,28 +259,69 @@
                         <div class="mb-4 flex items-center justify-between"><div><h2 class="font-extrabold">صورت‌جلسه‌های اخیر</h2><p class="mt-1 text-xs text-muted">آخرین نشست‌های ثبت‌شده</p></div><a href="{{ url('/newui?view=minutes') }}" class="text-xs font-bold text-brand">مشاهده همه</a></div>
                         <div class="space-y-2">
                             @forelse($items['minutes'] as $minute)
-                                <a href="{{ $showMinutes($minute) }}" class="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 transition hover:border-blue-200">
+                                <a href="{{ $showMinutes($minute) }}" class="flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 transition hover:border-blue-200">
                                     <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">@include('newui.partials.icon', ['name' => 'document', 'class' => 'h-5 w-5'])</span>
-                                    <span class="min-w-0 flex-1"><span class="block truncate text-sm font-bold">{{ $minute->title }}</span><span class="mt-1 block text-[11px] text-muted">{{ $minute->typer?->name ?? 'بدون نویسنده' }} · {{ $dateText($minute->date) }}</span></span><span class="text-slate-300">←</span>
+                                    <span class="min-w-0 flex-1"><span class="block truncate text-sm font-bold">{{ $minute->title }}</span><span class="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-muted">@if($avatarUrl($minute->typer))<img src="{{ $avatarUrl($minute->typer) }}" alt="" class="h-5 w-5 shrink-0 rounded-full object-cover">@else<span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-soft text-[10px] font-bold text-brand">{{ mb_substr($minute->typer?->name ?? '؟', 0, 1) }}</span>@endif<span class="truncate">{{ $minute->typer?->name ?? 'بدون نویسنده' }} · {{ $dateText($minute->date) }}</span></span></span><span class="shrink-0 text-slate-300">←</span>
                                 </a>
                             @empty <p class="rounded-2xl bg-white p-5 text-center text-xs text-muted">صورت‌جلسه‌ای برای نمایش نیست.</p> @endforelse
                         </div>
                     </section>
                 @endif
             </div>
+        @elseif($activeView === 'calendar')
+            <section class="mb-5 flex flex-wrap items-end justify-between gap-3">
+                <div><p class="text-xs text-muted">برنامه‌ریزی و پیگیری</p><h2 class="mt-1 text-xl font-extrabold">تقویم فعالیت‌ها</h2></div>
+                <span class="rounded-full bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">روی هر فعالیت بزنید تا جزئیات آن باز شود</span>
+            </section>
+            <section class="min-w-0 overflow-hidden rounded-3xl border border-slate-100 bg-white p-3 shadow-card sm:p-5">
+                <div id="newui-calendar" class="min-h-[520px] min-w-0"></div>
+            </section>
+            <style>
+                #newui-calendar { min-width: 0; max-width: 100%; overflow-x: auto; --fc-border-color: #e8edf5; --fc-button-bg-color: #1d4ed8; --fc-button-border-color: #1d4ed8; --fc-button-hover-bg-color: #1e40af; --fc-button-hover-border-color: #1e40af; --fc-button-active-bg-color: #1e40af; --fc-button-active-border-color: #1e40af; --fc-today-bg-color: #eff6ff; }
+                #newui-calendar .fc-toolbar { gap: .75rem; flex-wrap: wrap; }
+                #newui-calendar .fc-toolbar-chunk { min-width: 0; }
+                #newui-calendar .fc-scrollgrid { min-width: 0; }
+                #newui-calendar .fc-toolbar-title { font-family: Vazirmatn, sans-serif; font-size: 1.05rem; font-weight: 800; }
+                #newui-calendar .fc-button { border-radius: .75rem; font-family: Vazirmatn, sans-serif; font-size: .75rem; }
+                #newui-calendar .fc-event { border-radius: .5rem; padding: 2px 4px; border: 0; }
+                @media (max-width: 640px) { #newui-calendar .fc-toolbar-title { font-size: .9rem; } #newui-calendar .fc-toolbar-chunk { display: flex; justify-content: center; flex-wrap: wrap; } #newui-calendar .fc .fc-button { padding: .35rem .5rem; font-size: .7rem; } }
+            </style>
+            <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.22/index.global.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.22/locales-all.global.min.js"></script>
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const calendarElement = document.getElementById('newui-calendar');
+                    if (!calendarElement) return;
+                    const calendar = new FullCalendar.Calendar(calendarElement, {
+                        locale: 'fa',
+                        direction: 'rtl',
+                        initialView: 'dayGridMonth',
+                        height: 'auto',
+                        fixedWeekCount: false,
+                        headerToolbar: { start: 'prev,next today', center: 'title', end: 'dayGridMonth,timeGridWeek,listMonth' },
+                        buttonText: { today: 'امروز', month: 'ماه', week: 'هفته', list: 'فهرست' },
+                        events: async function (info) {
+                            const params = new URLSearchParams({ start: info.startStr, end: info.endStr, task_status: @json($taskStatus) });
+                            if (@json($search) !== '') params.set('q', @json($search));
+                            @foreach(['group_id', 'project_id'] as $filterKey)
+                                if (@json($filters[$filterKey] ?? null)) params.set(@json($filterKey), @json($filters[$filterKey]));
+                            @endforeach
+                            const response = await fetch('{{ url('/newui/calendar/events') }}?' + params.toString(), { headers: { 'Accept': 'application/json' } });
+                            if (!response.ok) throw new Error('دریافت رویدادهای تقویم ناموفق بود.');
+                            return await response.json();
+                        },
+                        eventClick: function (info) {
+                            if (info.event.url) { info.jsEvent.preventDefault(); window.location.href = info.event.url; }
+                        },
+                    });
+                    calendar.render();
+                });
+            </script>
         @else
             <section class="mb-5 flex flex-wrap items-end justify-between gap-3">
                 <div><p class="text-xs text-muted">مدیریت و پیگیری</p><h2 class="mt-1 text-xl font-extrabold">{{ $sectionTitle }}</h2></div>
                 @if($canCreateCurrent)<a href="{{ $createUrl }}" class="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-900/10 transition hover:bg-blue-800"><span class="text-lg leading-none">+</span> ثبت مورد جدید</a>@endif
             </section>
-
-            @if($activeView === 'tasks')
-                <div class="mb-5 flex gap-2 overflow-x-auto pb-1">
-                    @foreach(['pending' => 'انجام‌نشده', 'done' => 'انجام‌شده', 'all' => 'همه'] as $statusKey => $statusLabel)
-                        <a href="{{ url('/newui?view=tasks&task_status='.$statusKey.($search !== '' ? '&q='.urlencode($search) : '')) }}" class="shrink-0 rounded-full px-4 py-2 text-xs font-bold {{ $taskStatus === $statusKey ? 'bg-brand text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-500' }}">{{ $statusLabel }}</a>
-                    @endforeach
-                </div>
-            @endif
 
             @if($items->isEmpty())
                 <div class="rounded-3xl border border-dashed border-slate-300 bg-white px-5 py-14 text-center"><span class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-50 text-slate-400">@include('newui.partials.icon', ['name' => 'search', 'class' => 'h-6 w-6'])</span><p class="mt-4 font-bold">موردی پیدا نشد</p><p class="mt-1 text-xs text-muted">عبارت جست‌وجو یا فیلتر خود را تغییر دهید.</p></div>
@@ -229,15 +329,15 @@
                 <div class="space-y-3">
                     @foreach($items as $item)
                         @if($activeView === 'tasks')
-                            <a href="{{ $showTask($item) }}" class="group block rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-card sm:p-5">
-                                <div class="flex items-start gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl {{ $item->completed ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600' }}">@include('newui.partials.icon', ['name' => 'check', 'class' => 'h-5 w-5'])</span><span class="min-w-0 flex-1"><span class="block font-bold group-hover:text-brand">{{ $item->name }}</span><span class="mt-1 block line-clamp-2 text-xs leading-6 text-muted">{{ $item->description ?: 'توضیحی ثبت نشده است.' }}</span></span><span class="text-xs text-slate-300 group-hover:text-brand">←</span></div>
-                                <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-[11px] text-muted"><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $item->project->pluck('name')->filter()->take(2)->implode('، ') ?: 'بدون دستورکار' }}</span><span class="rounded-full bg-slate-50 px-2.5 py-1">مهلت: {{ $dateText($item->ended_at) }}</span><span class="mr-auto rounded-full px-2.5 py-1 {{ $item->completed ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700' }}">{{ $item->completed ? 'انجام شده' : 'در انتظار انجام' }}</span></div>
+                            <a href="{{ $showTask($item) }}" class="group block min-w-0 overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-card sm:p-5">
+                                <div class="flex min-w-0 items-start gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl {{ $item->completed ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600' }}">@include('newui.partials.icon', ['name' => 'check', 'class' => 'h-5 w-5'])</span><span class="min-w-0 flex-1"><span class="block break-words font-bold group-hover:text-brand">{{ $item->name }}</span><span class="mt-1 block line-clamp-2 break-words text-xs leading-6 text-muted">{{ $item->description ?: 'توضیحی ثبت نشده است.' }}</span>@if($item->responsible)<span class="mt-2 inline-flex max-w-full items-center gap-2 text-[11px] text-muted">@if($avatarUrl($item->responsible))<img src="{{ $avatarUrl($item->responsible) }}" alt="" class="h-6 w-6 shrink-0 rounded-full object-cover">@else<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-soft font-bold text-brand">{{ mb_substr($item->responsible->name ?? '؟', 0, 1) }}</span>@endif<span class="truncate">مسئول: {{ $item->responsible->name }}</span></span>@endif</span><span class="shrink-0 text-xs text-slate-300 group-hover:text-brand">←</span></div>
+                                <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-[11px] text-muted"><span class="max-w-full break-words rounded-full bg-slate-50 px-2.5 py-1">{{ $item->project->pluck('name')->filter()->take(2)->implode('، ') ?: 'بدون دستورکار' }}</span><span class="rounded-full bg-slate-50 px-2.5 py-1">مهلت: {{ $dateText($item->ended_at) }}</span><span class="mr-auto rounded-full px-2.5 py-1 {{ $item->completed ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700' }}">{{ $item->completed ? 'انجام شده' : 'در انتظار انجام' }}</span></div>
                                 @if($item->progress)<div class="mt-3 flex items-center gap-2"><span class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span class="block h-full rounded-full bg-brand" style="width: {{ min(100, max(0, $item->progress)) }}%"></span></span><span class="text-[10px] text-muted">{{ $item->progress }}٪</span></div>@endif
                             </a>
                         @elseif($activeView === 'letters')
-                            <a href="{{ $showLetter($item) }}" class="group flex items-start gap-3 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-card sm:p-5"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-600">@include('newui.partials.icon', ['name' => 'mail', 'class' => 'h-5 w-5'])</span><span class="min-w-0 flex-1"><span class="block font-bold group-hover:text-blue-700">{{ $item->subject }}</span><span class="mt-1 block line-clamp-2 text-xs leading-6 text-muted">{{ $item->summary ?: ($item->description ?: 'خلاصه‌ای ثبت نشده است.') }}</span><span class="mt-3 flex flex-wrap gap-2 text-[11px] text-muted"><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $item->kind ? 'صادره' : 'وارده' }}</span><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $item->type?->name ?? 'بدون نوع' }}</span><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $dateText($item->created_at) }}</span></span></span><span class="text-xs text-slate-300 group-hover:text-blue-600">←</span></a>
+                            <a href="{{ $showLetter($item) }}" class="group flex min-w-0 items-start gap-3 overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-card sm:p-5"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-600">@include('newui.partials.icon', ['name' => 'mail', 'class' => 'h-5 w-5'])</span><span class="min-w-0 flex-1"><span class="block break-words font-bold group-hover:text-blue-700">{{ $item->subject }}</span><span class="mt-1 block line-clamp-2 break-words text-xs leading-6 text-muted">{{ $item->summary ?: ($item->description ?: 'خلاصه‌ای ثبت نشده است.') }}</span><span class="mt-3 flex flex-wrap gap-2 text-[11px] text-muted"><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $item->kind ? 'صادره' : 'وارده' }}</span><span class="max-w-full break-words rounded-full bg-slate-50 px-2.5 py-1">{{ $item->type?->name ?? 'بدون نوع' }}</span><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $dateText($item->created_at) }}</span></span></span><span class="shrink-0 text-xs text-slate-300 group-hover:text-blue-600">←</span></a>
                         @else
-                            <a href="{{ $showMinutes($item) }}" class="group flex items-start gap-3 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-card sm:p-5"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-600">@include('newui.partials.icon', ['name' => 'document', 'class' => 'h-5 w-5'])</span><span class="min-w-0 flex-1"><span class="block font-bold group-hover:text-blue-700">{{ $item->title }}</span><span class="mt-1 block line-clamp-2 text-xs leading-6 text-muted">{{ \Illuminate\Support\Str::limit(strip_tags($item->text ?? ''), 150) ?: 'متنی برای این صورت‌جلسه ثبت نشده است.' }}</span><span class="mt-3 flex flex-wrap gap-2 text-[11px] text-muted"><span class="rounded-full bg-slate-50 px-2.5 py-1">نویسنده: {{ $item->typer?->name ?? 'نامشخص' }}</span><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $dateText($item->date) }}</span><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $item->tasks_count }} فعالیت</span><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $item->approves_count }} مصوبه</span></span></span><span class="text-xs text-slate-300 group-hover:text-blue-600">←</span></a>
+                            <a href="{{ $showMinutes($item) }}" class="group flex min-w-0 items-start gap-3 overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-card sm:p-5"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-600">@include('newui.partials.icon', ['name' => 'document', 'class' => 'h-5 w-5'])</span><span class="min-w-0 flex-1"><span class="block break-words font-bold group-hover:text-blue-700">{{ $item->title }}</span><span class="mt-1 block line-clamp-2 break-words text-xs leading-6 text-muted">{{ \Illuminate\Support\Str::limit(strip_tags($item->text ?? ''), 150) ?: 'متنی برای این صورت‌جلسه ثبت نشده است.' }}</span><span class="mt-3 inline-flex max-w-full items-center gap-2 text-[11px] text-muted">@if($avatarUrl($item->typer))<img src="{{ $avatarUrl($item->typer) }}" alt="" class="h-6 w-6 shrink-0 rounded-full object-cover">@else<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-soft font-bold text-brand">{{ mb_substr($item->typer?->name ?? '؟', 0, 1) }}</span>@endif<span class="truncate">نویسنده: {{ $item->typer?->name ?? 'نامشخص' }}</span></span><span class="mt-3 flex flex-wrap gap-2 text-[11px] text-muted"><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $dateText($item->date) }}</span><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $item->tasks_count }} فعالیت</span><span class="rounded-full bg-slate-50 px-2.5 py-1">{{ $item->approves_count }} مصوبه</span></span></span><span class="shrink-0 text-xs text-slate-300 group-hover:text-blue-600">←</span></a>
                         @endif
                     @endforeach
                 </div>
@@ -251,6 +351,7 @@
     <div class="mx-auto flex max-w-lg items-center justify-around">
         @foreach($nav as $item)
             @if($item['id'] === 'tasks' && !$canTasks) @continue @endif
+                @if($item['id'] === 'calendar' && !$canTasks) @continue @endif
             @if($item['id'] === 'letters' && !$canLetters) @continue @endif
             @if($item['id'] === 'minutes' && !$canMinutes) @continue @endif
             <a href="{{ url('/newui') }}{{ $item['id'] === 'home' ? '' : '?view='.$item['id'] }}" class="flex min-w-[64px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold {{ $activeView === $item['id'] ? 'text-brand' : 'text-slate-400' }}">

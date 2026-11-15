@@ -55,6 +55,8 @@ Route::get('/toggle-mobile-mode', function () {
 })->name('togglemobile');
 
 Route::get('/newui', NewUiController::class)->middleware('auth')->name('newui');
+Route::get('/newui/calendar/events', [NewUiController::class, 'calendarEvents'])
+    ->middleware('auth')->name('newui.calendar.events');
 Route::get('/newui/{type}/{recordId}', [NewUiController::class, 'showRecord'])
     ->whereIn('type', ['task', 'letter', 'minute'])
     ->middleware('auth')->name('newui.record');
