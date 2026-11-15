@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Filament\Resources\LetterResource;
+use App\Filament\Resources\MinutesResource;
+use App\Filament\Resources\TaskResource;
 use App\Models\Letter;
 use App\Models\Minutes;
 use App\Models\Task;
@@ -115,6 +118,56 @@ class NewUiController extends Controller
             'canCreateTask' => $user->can('create_task'),
             'canCreateLetter' => $user->can('create_letter'),
             'canCreateMinutes' => $user->can('create_minutes'),
+        ]);
+    }
+
+    public function showRecord(Request $request, string $type, int $recordId)
+    {
+        $user = $request->user();
+        $panel = Filament::getPanel('admin');
+        abort_unless($panel && $user->canAccessPanel($panel), 403);
+
+        if ($type === 'task') {
+            abort_unless($user->can('view_any_task'), 403);
+            $query = Task::query()->with(['project', 'task_group', 'minutes', 'responsible', 'appendix_others']);
+            if (!$user->can('restore_any_task')) $query->where('Responsible_id', $user->id);
+            $record = $query->findOrFail($recordId);
+            $editUrl = TaskResource::getUrl('edit', [$record->id]);
+            $backUrl = url('/newui?view=tasks');
+            $title = 'فعالیت';
+        } elseif ($type === 'letter') {
+            abort_unless($user->can('view_any_letter'), 403);
+            $query = Letter::query()->with(['type', 'user', 'organ', 'daftar', 'letter', 'projects', 'customers', 'organs_owner', 'users', 'Answer', 'Appendix']);
+            if (!$user->can('restore_any_letter')) {
+                $query->where(function ($scope) use ($user) {
+                    $scope->where('user_id', $user->id)
+                        ->orWhereHas('referrals', fn ($referrals) => $referrals->where('to_user_id', $user->id))
+                        ->orWhereHas('users', fn ($users) => $users->where('users.id', $user->id));
+                });
+            }
+            $record = $query->findOrFail($recordId);
+            $editUrl = LetterResource::getUrl('edit', [$record->id]);
+            $backUrl = url('/newui?view=letters');
+            $title = 'نامه';
+        } elseif ($type === 'minute') {
+            abort_unless($user->can('view_any_minutes'), 403);
+            $query = Minutes::query()->with(['typer', 'task_creator', 'organ', 'projects', 'tasks', 'approves', 'appendix_others']);
+            if (!$user->can('restore_any_minutes')) $query->where('typer_id', $user->id);
+            $record = $query->findOrFail($recordId);
+            $editUrl = MinutesResource::getUrl('edit', [$record->id]);
+            $backUrl = url('/newui?view=minutes');
+            $title = 'صورت‌جلسه';
+        } else {
+            abort(404);
+        }
+
+        return view('newui.record', [
+            'type' => $type,
+            'title' => $title,
+            'record' => $record,
+            'backUrl' => $backUrl,
+            'editUrl' => $editUrl,
+            'canEdit' => $user->can('update_' . $type),
         ]);
     }
 }
