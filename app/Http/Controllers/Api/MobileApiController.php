@@ -1226,6 +1226,10 @@ class MobileApiController extends Controller
                     ->where(function ($q) {
                         $q->whereNull('completed')->orWhere('completed', '!=', 1);
                     });
+            } elseif ($due === 'open') {
+                $query->where(function ($q) {
+                    $q->whereNull('completed')->orWhere('completed', 0);
+                });
             } elseif ($due === 'completed') {
                 $query->where('completed', 1);
             } elseif ($due === 'without_deadline') {
