@@ -304,7 +304,7 @@
                             const params = new URLSearchParams({ start: info.startStr, end: info.endStr, task_status: @json($taskStatus) });
                             if (@json($search) !== '') params.set('q', @json($search));
                             @foreach(['group_id', 'project_id'] as $filterKey)
-                                if (@json($filters[$filterKey] ?? null)) params.set(@json($filterKey), @json($filters[$filterKey]));
+                                if (@json($filters[$filterKey] ?? null)) params.set(@json($filterKey), @json($filters[$filterKey] ?? null));
                             @endforeach
                             const response = await fetch('{{ url('/newui/calendar/events') }}?' + params.toString(), { headers: { 'Accept': 'application/json' } });
                             if (!response.ok) throw new Error('دریافت رویدادهای تقویم ناموفق بود.');
