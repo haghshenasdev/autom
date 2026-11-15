@@ -125,8 +125,8 @@
                     const nextTheme = documentPage.querySelector('meta[name="theme-color"]')?.content;
                     if (nextTheme) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', nextTheme);
                     if (push) history.pushState({}, '', url.href);
-                    await refreshTailwind(tailwindConfig);
                     await runPageScripts(scripts);
+                    await refreshTailwind(tailwindConfig);
                     window.scrollTo(0, 0);
                 } catch (error) {
                     window.location.assign(url.href);

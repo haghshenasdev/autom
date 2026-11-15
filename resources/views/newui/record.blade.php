@@ -87,9 +87,15 @@
             <section class="order-1 min-w-0 w-full max-w-full overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-4 shadow-card sm:p-7 lg:order-2 lg:sticky lg:top-6">
             <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div class="min-w-0"><h2 class="font-extrabold">پیوست {{ $type === 'letter' ? 'نامه' : 'صورت‌جلسه' }}</h2><p class="mt-1 text-xs text-muted">پیش‌نمایش فایل ذخیره‌شده</p></div><a href="{{ $fileUrl }}" target="_blank" class="shrink-0 rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800">باز کردن فایل</a></div>
             @if(in_array($fileExtension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true))
-                <img src="{{ $fileUrl }}" alt="پیوست" class="mx-auto block max-h-[70vh] w-full max-w-full rounded-2xl bg-slate-50 object-contain">
+                <div data-preview-shell class="relative min-h-48 overflow-hidden rounded-2xl bg-slate-50">
+                    <div data-preview-loading class="absolute inset-0 z-10 grid place-items-center bg-slate-50/95 text-sm font-semibold text-slate-600"><span class="flex items-center gap-3"><span class="h-5 w-5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700"></span>&#1583;&#1585; &#1581;&#1575;&#1604; &#1576;&#1575;&#1585;&#1711;&#1584;&#1575;&#1585;&#1740; &#1662;&#1740;&#1588;&#8204;&#1606;&#1605;&#1575;&#1740;&#1588;&#8230;</span></div>
+                    <img data-preview-content src="{{ $fileUrl }}" alt="File preview" class="mx-auto block max-h-[70vh] w-full max-w-full rounded-2xl object-contain">
+                </div>
             @elseif($fileExtension === 'pdf')
-                <iframe src="{{ $fileUrl }}" title="پیش‌نمایش فایل" class="block h-[65vh] w-full min-w-0 max-w-full rounded-2xl border border-slate-100 bg-slate-50"></iframe>
+                <div data-preview-shell class="relative min-h-[65vh] overflow-hidden rounded-2xl bg-slate-50">
+                    <div data-preview-loading class="absolute inset-0 z-10 grid place-items-center bg-slate-50/95 text-sm font-semibold text-slate-600"><span class="flex items-center gap-3"><span class="h-5 w-5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700"></span>&#1583;&#1585; &#1581;&#1575;&#1604; &#1576;&#1575;&#1585;&#1711;&#1584;&#1575;&#1585;&#1740; &#1662;&#1740;&#1588;&#8204;&#1606;&#1605;&#1575;&#1740;&#1588;&#8230;</span></div>
+                    <iframe data-preview-content src="{{ $fileUrl }}" title="File preview" class="relative z-0 block h-[65vh] w-full min-w-0 max-w-full border border-slate-100 bg-slate-50"></iframe>
+                </div>
             @else
                 <div class="rounded-2xl bg-slate-50 p-8 text-center text-sm text-muted">برای این نوع فایل، از دکمهٔ «باز کردن فایل» استفاده کنید.</div>
             @endif
@@ -134,7 +140,17 @@
     @endif
 </main>
 <nav class="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/80 bg-white/95 px-4 pt-2 shadow-[0_-8px_30px_rgba(23,36,58,.06)] backdrop-blur sm:hidden"><a href="{{ $backUrl }}" class="mx-auto flex max-w-sm items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold text-brand">← بازگشت به فهرست</a></nav>
-</div>
+<script>
+(() => {
+    document.querySelectorAll('[data-preview-content]').forEach((preview) => {
+        const loader = preview.closest('[data-preview-shell]')?.querySelector('[data-preview-loading]');
+        const finish = () => loader?.classList.add('hidden');
+        preview.addEventListener('load', finish, { once: true });
+        preview.addEventListener('error', finish, { once: true });
+        if (preview instanceof HTMLImageElement && preview.complete) finish();
+    });
+})();
+</script>
 <div id="newui-vue-root"></div>
 </div>
 @include('newui.partials.spa-router')
