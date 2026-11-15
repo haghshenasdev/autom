@@ -4,11 +4,6 @@
     const page = document.getElementById('newui-page');
     if (!root || !page || !window.Vue) return;
 
-    const firstPageScripts = Array.from(page.querySelectorAll('script')).map((script) => ({
-        src: script.src,
-        type: script.type,
-        text: script.textContent,
-    }));
     const loadedSources = new Set(Array.from(document.querySelectorAll('script[src]')).map((script) => script.src));
     document.head.querySelectorAll('style').forEach((style) => { style.dataset.newuiRouteStyle = 'true'; });
     document.head.querySelectorAll('link[rel="stylesheet"]').forEach((link) => { link.dataset.newuiRouteLink = 'true'; });
@@ -39,11 +34,12 @@
 
     const app = Vue.createApp({
         data() {
-            return { pageHtml: page.innerHTML, loading: false };
+            return { loading: false };
         },
+        template: '<div v-if="loading" class="fixed inset-0 z-[100] grid place-items-center bg-slate-900/20 backdrop-blur-[2px]" role="status" aria-live="polite"><div class="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-xl">در حال بارگذاری…</div></div>',
         mounted() {
             const vm = this;
-            this.$el.addEventListener('click', (event) => {
+            root.addEventListener('click', (event) => {
                 const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
                 if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                 if (link.target === '_blank' || link.hasAttribute('download')) return;
@@ -54,7 +50,7 @@
                 vm.navigate(url.href);
             });
 
-            this.$el.addEventListener('submit', (event) => {
+            root.addEventListener('submit', (event) => {
                 if (event.defaultPrevented) return;
                 const form = event.target;
                 if (!(form instanceof HTMLFormElement) || (form.method || 'get').toLowerCase() !== 'get' || form.target === '_blank') return;
@@ -67,7 +63,6 @@
 
             window.addEventListener('popstate', () => vm.navigate(window.location.href, false));
             window.NewUiSpa = { navigate: (url) => vm.navigate(url) };
-            this.$nextTick(() => runPageScripts(firstPageScripts));
         },
         methods: {
             async navigate(target, push = true) {
@@ -104,13 +99,12 @@
                         config.remove();
                     });
 
-                    this.pageHtml = nextPage.innerHTML;
+                    page.innerHTML = nextPage.innerHTML;
                     document.title = documentPage.title;
                     document.body.className = documentPage.body.className;
                     const nextTheme = documentPage.querySelector('meta[name="theme-color"]')?.content;
                     if (nextTheme) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', nextTheme);
                     if (push) history.pushState({}, '', url.href);
-                    await this.$nextTick();
                     await runPageScripts(scripts);
                     window.scrollTo(0, 0);
                 } catch (error) {
@@ -122,6 +116,6 @@
         },
     });
 
-    app.mount(root);
+    app.mount(document.getElementById('newui-vue-root'));
 })();
 </script>

@@ -32,7 +32,7 @@
     </style>
 </head>
 <body class="min-h-screen text-ink antialiased">
-<div id="newui-spa"><div id="newui-page" v-html="pageHtml">
+<div id="newui-spa"><div id="newui-page">
 @php
     $nav = [
         ['id' => 'home', 'label' => 'پیشخوان', 'icon' => 'home'],
@@ -421,7 +421,7 @@
     else initializeJalaliPickers();
 </script>
 </div>
-<div v-cloak v-if="loading" class="fixed inset-0 z-[100] grid place-items-center bg-slate-900/20 backdrop-blur-[2px]" role="status" aria-live="polite"><div class="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-xl">در حال بارگذاری…</div></div>
+<div id="newui-vue-root"></div>
 </div>
 @include('newui.partials.spa-router')
 </body>

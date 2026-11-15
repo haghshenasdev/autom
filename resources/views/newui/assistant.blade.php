@@ -22,7 +22,7 @@
     </style>
 </head>
 <body class="min-h-screen bg-[#f5f7fb] text-ink antialiased">
-<div id="newui-spa"><div id="newui-page" v-html="pageHtml">
+<div id="newui-spa"><div id="newui-page">
 <main class="mx-auto flex h-[100dvh] min-h-0 w-full max-w-5xl flex-col bg-white shadow-card sm:my-5 sm:h-[calc(100dvh-2.5rem)] sm:rounded-[2rem] sm:border sm:border-slate-100">
     <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-4">
         <div class="flex min-w-0 items-center gap-3">
@@ -236,7 +236,7 @@
 })();
 </script>
 </div>
-<div v-cloak v-if="loading" class="fixed inset-0 z-[100] grid place-items-center bg-slate-900/20 backdrop-blur-[2px]" role="status" aria-live="polite"><div class="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-xl">در حال بارگذاری…</div></div>
+<div id="newui-vue-root"></div>
 </div>
 @include('newui.partials.spa-router')
 </body>
