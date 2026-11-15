@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Vazirmatn', 'sans-serif'] }, colors: { brand: '#1d4ed8', 'brand-soft': '#eaf1ff', ink: '#17243a', muted: '#718096' }, boxShadow: { card: '0 12px 36px rgba(23, 36, 58, .06)' } } } };</script>
+    @include('newui.partials.spa-head')
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         html, body { width: 100%; max-width: 100%; overflow-x: clip; }
@@ -21,6 +22,7 @@
     </style>
 </head>
 <body class="min-h-screen text-ink antialiased">
+<div id="newui-spa"><div id="newui-page" v-html="pageHtml">
 @php
     $dateText = function ($value) {
         if (!$value) return 'ثبت نشده';
@@ -132,5 +134,9 @@
     @endif
 </main>
 <nav class="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/80 bg-white/95 px-4 pt-2 shadow-[0_-8px_30px_rgba(23,36,58,.06)] backdrop-blur sm:hidden"><a href="{{ $backUrl }}" class="mx-auto flex max-w-sm items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold text-brand">← بازگشت به فهرست</a></nav>
+</div>
+<div v-cloak v-if="loading" class="fixed inset-0 z-[100] grid place-items-center bg-slate-900/20 backdrop-blur-[2px]" role="status" aria-live="polite"><div class="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-xl">در حال بارگذاری…</div></div>
+</div>
+@include('newui.partials.spa-router')
 </body>
 </html>

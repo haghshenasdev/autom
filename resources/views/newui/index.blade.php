@@ -19,6 +19,7 @@
             boxShadow: { card: '0 12px 36px rgba(23, 36, 58, .06)' }
         } } };
     </script>
+    @include('newui.partials.spa-head')
     <style>
         * { -webkit-tap-highlight-color: transparent; }
         body { font-family: Vazirmatn, sans-serif; background: #f5f7fb; }
@@ -31,6 +32,7 @@
     </style>
 </head>
 <body class="min-h-screen text-ink antialiased">
+<div id="newui-spa"><div id="newui-page" v-html="pageHtml">
 @php
     $nav = [
         ['id' => 'home', 'label' => 'پیشخوان', 'icon' => 'home'],
@@ -301,9 +303,11 @@
             <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.22/index.global.min.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.22/locales-all.global.min.js"></script>
             <script>
-                document.addEventListener('DOMContentLoaded', function () {
+                const initializeCalendar = function () {
                     const calendarElement = document.getElementById('newui-calendar');
                     if (!calendarElement) return;
+                    if (calendarElement.dataset.vueInitialized === 'true') return;
+                    calendarElement.dataset.vueInitialized = 'true';
                     const feedbackElement = document.getElementById('calendar-feedback');
                     if (!window.FullCalendar) {
                         feedbackElement.textContent = 'کتابخانهٔ تقویم بارگذاری نشد. اتصال اینترنت یا دسترسی به CDN را بررسی کنید.';
@@ -337,11 +341,17 @@
                             feedbackElement.className = 'mb-3 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800';
                         },
                         eventClick: function (info) {
-                            if (info.event.url) { info.jsEvent.preventDefault(); window.location.href = info.event.url; }
+                            if (info.event.url) {
+                                info.jsEvent.preventDefault();
+                                if (window.NewUiSpa) window.NewUiSpa.navigate(info.event.url);
+                                else window.location.href = info.event.url;
+                            }
                         },
                     });
                     calendar.render();
-                });
+                };
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeCalendar, { once: true });
+                else initializeCalendar();
             </script>
         @else
             <section class="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -391,9 +401,12 @@
 <script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    const initializeJalaliPickers = function () {
         if (!window.jQuery || !jQuery.fn.persianDatepicker) return;
-        jQuery('[data-jalali-datepicker]').persianDatepicker({
+        jQuery('[data-jalali-datepicker]').each(function () {
+            if (this.dataset.vueInitialized === 'true') return;
+            this.dataset.vueInitialized = 'true';
+            jQuery(this).persianDatepicker({
             format: 'YYYY/MM/DD',
             initialValue: false,
             autoClose: true,
@@ -401,8 +414,15 @@
             calendar: { persian: { locale: 'fa', showHint: false, leapYearMode: 'algorithmic' }, gregorian: { enabled: false } },
             toolbox: { calendarSwitch: { enabled: false } },
             timePicker: { enabled: false }
+            });
         });
-    });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeJalaliPickers, { once: true });
+    else initializeJalaliPickers();
 </script>
+</div>
+<div v-cloak v-if="loading" class="fixed inset-0 z-[100] grid place-items-center bg-slate-900/20 backdrop-blur-[2px]" role="status" aria-live="polite"><div class="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-xl">در حال بارگذاری…</div></div>
+</div>
+@include('newui.partials.spa-router')
 </body>
 </html>
