@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Filament\Resources\LetterResource;
 use App\Filament\Resources\MinutesResource;
+use App\Filament\Resources\MinutesGroupResource;
 use App\Filament\Resources\ProjectResource;
 use App\Filament\Resources\ProjectGroupResource;
 use App\Filament\Resources\TaskResource;
@@ -68,19 +69,28 @@ class BaleBotController extends Controller
 
             // Group commands only publish a private bot link; record fields stay private.
             $groupCommand = preg_replace('/@karnama_Bot$/i', '', trim($text));
-            if (!$isPrivateChat && in_array($groupCommand, ['/new_project', '/new_project_group'], true)) {
-                $isGroup = $groupCommand === '/new_project_group';
-                $permission = $isGroup ? 'create_project::group' : 'create_project';
+            if (!$isPrivateChat && in_array($groupCommand, ['/new_project', '/new_project_group', '/new_minutes_group', '/new_category'], true)) {
+                $isMinutesGroup = in_array($groupCommand, ['/new_minutes_group', '/new_category'], true);
+                $isGroup = $isMinutesGroup || $groupCommand === '/new_project_group';
+                $permission = $isMinutesGroup ? 'create_minutes::group' : ($isGroup ? 'create_project::group' : 'create_project');
                 if (!$user->can($permission)) {
                     $this->sendMessage($chatId, 'برای ساخت این مورد دسترسی ندارید.');
                     return response('forbidden');
                 }
-                $type = $isGroup ? 'project_group' : 'project';
-                $label = $isGroup ? 'دسته‌بندی' : 'دستورکار';
+                $type = $isMinutesGroup ? 'minutes_group' : ($isGroup ? 'project_group' : 'project');
+                $label = $isMinutesGroup ? 'دسته‌بندی صورت‌جلسه' : ($isGroup ? 'دسته‌بندی دستورکار' : 'دستورکار');
                 $keyboard = ['inline_keyboard' => [[[
                     'text' => "ساخت {$label} در گفت‌وگوی خصوصی",
                     'url' => "https://ble.ir/karnama_Bot?start={$type}_{$chatId}",
                 ]]]];
+                $this->sendMessageWithKeyboard(
+                    $bale_user->bale_id,
+                    "درخواست ساخت {$label} از گروه دریافت شد. برای تکمیل فرم خصوصی روی دکمه بزنید.",
+                    ['inline_keyboard' => [[[
+                        'text' => "شروع فرم {$label}",
+                        'url' => "https://ble.ir/karnama_Bot?start={$type}_{$chatId}",
+                    ]]]]
+                );
                 $this->sendMessageWithKeyboard($chatId, "برای ثبت {$label} روی دکمه بزنید؛ ادامهٔ فرم در گفت‌وگوی خصوصی انجام می‌شود.", $keyboard);
                 return response('wizard link sent');
             }
@@ -127,6 +137,9 @@ class BaleBotController extends Controller
                 $lines = explode("\n", $text);
                 $firstLine = $lines[0] ?? '';
                 $secondLine = $lines[1] ?? '';
+                // Treat #دستور as a letter alias, preserving the existing parser/OCR flow.
+                $text = preg_replace('/^#دستور/u', '#نامه', $text, 1);
+                $firstLine = preg_replace('/^#دستور/u', '#نامه', $firstLine, 1);
 
                 if (str_starts_with($firstLine, '/کارپوشه')) {
                     if (!$user->can('view_cartable')) {
@@ -190,10 +203,42 @@ class BaleBotController extends Controller
                 }
                 elseif (str_starts_with($firstLine, '/start')) {
                     $payload = trim(substr($firstLine, strlen('/start')));
-                    if (preg_match('/^(project|project_group)_(-?\d+)$/', $payload, $matches)) {
+                    if (preg_match('/^from_(project|project_group|minutes_group|task_group|task)_(letter|minutes)_(\d+)_(-?\d+)$/', $payload, $linked)) {
+                        $kind = $linked[1];
+                        $entity = $linked[2];
+                        $recordId = (int) $linked[3];
+                        $originChatId = (int) $linked[4];
+                        $permission = match ($kind) {
+                            'project' => 'create_project',
+                            'project_group' => 'create_project::group',
+                            'minutes_group' => 'create_minutes::group',
+                            'task_group' => 'create_task::group',
+                            'task' => 'create_task',
+                        };
+                        if (!$isPrivateChat || !$user->can($permission) || !$this->canLinkWizardRecord($user, $entity, $recordId)) {
+                            $this->sendMessage($chatId, 'دسترسی لازم برای ادامه این فرم را ندارید.');
+                            return response('forbidden');
+                        }
+                        $state = [
+                            'kind' => $kind,
+                            'step' => $kind === 'task' ? 'task_name' : 'name',
+                            'origin' => $originChatId,
+                            'record_type' => $entity,
+                            'record_id' => $recordId,
+                            'user_id' => $user->id,
+                            'page' => 1,
+                        ];
+                        $bale_user->update(['state' => 'wizard:' . base64_encode(json_encode($state, JSON_UNESCAPED_UNICODE))]);
+                        $prompt = $kind === 'task'
+                            ? 'عنوان فعالیت مرتبط را وارد کنید. برای لغو /cancel را بفرستید.'
+                            : ($kind === 'project' ? 'عنوان دستورکار جدید را وارد کنید. برای لغو /cancel را بفرستید.' : 'نام دسته‌بندی جدید را وارد کنید. برای لغو /cancel را بفرستید.');
+                        $this->sendMessage($chatId, $prompt);
+                        return response('linked creation wizard started');
+                    }
+                    if (preg_match('/^(project|project_group|minutes_group)_(-?\d+)$/', $payload, $matches)) {
                         $kind = $matches[1];
                         $originChatId = (int) $matches[2];
-                        $permission = $kind === 'project_group' ? 'create_project::group' : 'create_project';
+                        $permission = $kind === 'minutes_group' ? 'create_minutes::group' : ($kind === 'project_group' ? 'create_project::group' : 'create_project');
                         if (!$isPrivateChat || !$user->can($permission)) {
                             $this->sendMessage($chatId, 'دسترسی لازم برای ساخت این مورد را ندارید.');
                             return response('forbidden');
@@ -516,9 +561,7 @@ class BaleBotController extends Controller
                         // Only attach files to a successfully persisted minutes record.
                         if ($record instanceof Minutes) {
                             $saved = $this->MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId);
-                            if ($saved) {
-                                $this->sendMessage($chatId, '✅ فایل صورت‌جلسه با موفقیت ثبت و ذخیره شد.');
-                            }
+                            $this->sendMinuteCreationResult($chatId, $record, $user);
                             $this->sendClassificationSuggestion(
                                 $chatId,
                                 $record,
@@ -627,8 +670,9 @@ class BaleBotController extends Controller
             } elseif ($caption != '') {
                 $caption = CalendarUtils::convertNumbers($caption, true); // تبدیل اعداد فارسی به انگلیسی
                 // تشخیص هشتگ‌ها
-                $hashtags = ['#یادداشت', '#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#مکاتبه', '#کار', '#جلسه', '#گزارش'];
+                $hashtags = ['#یادداشت', '#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#مکاتبه', '#دستور', '#کار', '#جلسه', '#گزارش'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
+                $caption = preg_replace('/^#دستور/u', '#نامه', $caption, 1);
 
 
                 // ذخیره در مدل مناسب
@@ -652,12 +696,8 @@ class BaleBotController extends Controller
                     if ($record instanceof Minutes) {
                         if ($doc) {
                             $saved = $this->MinuteFileAdd($record, $doc, $media_group_id, $bale_user, $chatId);
-                            if ($saved) {
-                                $this->sendMessage($chatId, '✅ صورت‌جلسه و فایل پیوست با موفقیت ثبت شدند.');
-                            }
-                        } else {
-                            $this->sendMessage($chatId, '✅ صورت‌جلسه با موفقیت ثبت شد.');
                         }
+                        $this->sendMinuteCreationResult($chatId, $record, $user);
 
                         $this->sendClassificationSuggestion(
                             $chatId,
@@ -668,7 +708,7 @@ class BaleBotController extends Controller
                     return response($record instanceof Minutes ? 'صورت جلسه ثبت شد.' : 'ثبت صورت جلسه ناموفق بود.');
 
                 }
-                elseif (in_array($matched, ['#نامه', '#مکاتبه'], true)) {
+                elseif (in_array($matched, ['#نامه', '#مکاتبه', '#دستور'], true)) {
                     if (str_contains($caption, '#متن')) {
                         $ltp = new LetterParser();
                         $dataLetter = $ltp->mixedParse($caption);
@@ -791,6 +831,8 @@ class BaleBotController extends Controller
         $message .= "📅 تاریخ ثبت: " . Jalalian::fromDateTime($record->created_at)->format('Y/m/d') . "\n";
         if ($record->completed and $record->completed_at) $message .= "📅 تاریخ انجام: " . Jalalian::fromDateTime($record->completed_at)->format('Y/m/d') . "\n";
         if ($record->ended_at) $message .= "📅 تاریخ پایان: " . Jalalian::fromDateTime($record->ended_at)->format('Y/m/d') . "\n";
+        if ($record->minutes_id && $record->minutes) $message .= "📄 صورت‌جلسه مرتبط: {$record->minutes->title}\n";
+        if ($record->letter_id && $record->letter) $message .= "📄 نامه مرتبط: {$record->letter->subject}\n";
         if ($record->city_id) $message .= "📍 شهر : " . $record->city->name . "\n";
         if ($record->project->count() != 0) {
             $message .= "🎚️ دستورکار : ";
@@ -847,7 +889,7 @@ class BaleBotController extends Controller
         $message .= '📅 تاریخ : '.Jalalian::fromDateTime($record->created_at)->format('Y/m/d')."\n";
         if ($record->summary != '') $message .= '📝 خلاصه (هامش) : '.$record->summary."\n";
         if ($record->mokatebe) $message .= '🔢 شماره مکاتبه : '.$record->mokatebe."\n";
-        if ($record->daftar_id) $message .= '🏢 دفتر : '.$record->daftar->name."\n";
+        if ($record->daftar_id && $record->daftar) $message .= '🏢 دفتر : '.$record->daftar->name."\n";
         $message .= '📫 صادره یا وارده : '.(($record->kind == 1) ? 'صادره' : 'وارده')."\n";
         if ($record->user) $message .= '👤 کاربر ثبت کننده : '.$record->user->name."\n";
         if ($record->peiroow_letter_id) $message .= '📧 پیرو : '.$record->peiroow_letter_id.'-'.$record->letter->subject."\n";
@@ -907,6 +949,15 @@ class BaleBotController extends Controller
         }
 
         return $message;
+    }
+
+    private function sendMinuteCreationResult($chatId, Minutes $record, $user): void
+    {
+        $record->loadMissing(['tasks', 'typer', 'organ', 'task_creator']);
+        $message = "✅ صورت‌جلسه با موفقیت ثبت شد.\n\n" . $this->createMinuteMessage($record, $user);
+        $this->sendMessageWithKeyboard($chatId, $message, ['inline_keyboard' => [[
+            ['text' => 'باز کردن در سامانه', 'url' => url(MinutesResource::getUrl('edit', [$record->id]))],
+        ]]]);
     }
 
     public function createProjectMessage(Model $record,$user,$description = false): string
@@ -1261,6 +1312,58 @@ EOT);
         return is_array($state) ? $state : null;
     }
 
+    private function canLinkWizardRecord($user, string $entity, int $recordId): bool
+    {
+        if ($entity === 'minutes') {
+            $record = Minutes::find($recordId);
+            return $record && ((int) $record->typer_id === (int) $user->id
+                || $user->can('view_minutes') || $user->can('view_any_minutes') || $user->can('restore_any_minutes'));
+        }
+        if ($entity === 'letter') {
+            $record = Letter::find($recordId);
+            return $record && ((int) $record->user_id === (int) $user->id
+                || $user->can('view_letter') || $user->can('view_any_letter') || $user->can('restore_any_letter'));
+        }
+        return false;
+    }
+
+    private function sendLinkedCreationEntry($chatId, $user, BaleUser $baleUser, string $callbackData): void
+    {
+        if (!preg_match('/^recordcreate\|(project|project_group|minutes_group|task_group|task)\|(letter|minutes)\|(\d+)$/', $callbackData, $parts)) {
+            return;
+        }
+        [, $kind, $entity, $recordId] = $parts;
+        $recordId = (int) $recordId;
+        $permission = match ($kind) {
+            'project' => 'create_project',
+            'project_group' => 'create_project::group',
+            'minutes_group' => 'create_minutes::group',
+            'task_group' => 'create_task::group',
+            'task' => 'create_task',
+        };
+        if (!$user->can($permission) || !$this->canLinkWizardRecord($user, $entity, $recordId)
+            || ($kind === 'minutes_group' && $entity !== 'minutes')
+            || ($kind === 'project_group' && $entity !== 'letter')) {
+            $this->sendMessage($chatId, 'برای این کار دسترسی ندارید یا رکورد مبدا در دسترس نیست.');
+            return;
+        }
+
+        $labels = [
+            'project' => 'ساخت دستورکار مرتبط',
+            'project_group' => 'ساخت دسته‌بندی مرتبط',
+            'minutes_group' => 'ساخت دسته‌بندی مرتبط',
+            'task_group' => 'ساخت دسته‌بندی فعالیت',
+            'task' => 'ساخت فعالیت مرتبط',
+        ];
+        $url = 'https://ble.ir/karnama_Bot?start=from_' . $kind . '_' . $entity . '_' . $recordId . '_' . $chatId;
+        $keyboard = ['inline_keyboard' => [[['text' => 'ادامه در گفت‌وگوی خصوصی', 'url' => $url]]]];
+        $prompt = "برای {$labels[$kind]} روی دکمه بزنید؛ رکورد پس از ثبت به مورد مبدا متصل می‌شود.";
+        $this->sendMessageWithKeyboard($baleUser->bale_id, $prompt, $keyboard);
+        if ((string) $chatId !== (string) $baleUser->bale_id) {
+            $this->sendMessageWithKeyboard($chatId, $prompt, $keyboard);
+        }
+    }
+
     private function saveCreationWizard(BaleUser $baleUser, array $state): void
     {
         $baleUser->update(['state' => 'wizard:' . base64_encode(json_encode($state, JSON_UNESCAPED_UNICODE))]);
@@ -1274,10 +1377,74 @@ EOT);
             $this->sendMessage($chatId, 'فرم ساخت معتبر نیست؛ از گروه دوباره شروع کنید.');
             return;
         }
+        if (!empty($state['record_type'])) {
+            $permission = match ($state['kind'] ?? '') {
+                'project' => 'create_project',
+                'project_group' => 'create_project::group',
+                'minutes_group' => 'create_minutes::group',
+                'task_group' => 'create_task::group',
+                'task' => 'create_task',
+                default => null,
+            };
+            if (!$permission || !$user->can($permission)
+                || !$this->canLinkWizardRecord($user, $state['record_type'], (int) ($state['record_id'] ?? 0))) {
+                $baleUser->update(['state' => '1']);
+                $this->sendMessage($chatId, 'مجوز یا دسترسی به رکورد مبدا تغییر کرده است؛ فرایند لغو شد.');
+                return;
+            }
+        }
+
+        if (($state['kind'] ?? '') === 'task') {
+            $value = trim(CalendarUtils::convertNumbers($value, true));
+            if (($state['step'] ?? '') === 'task_name') {
+                if ($value === '') {
+                    $this->sendMessage($chatId, 'عنوان فعالیت نمی‌تواند خالی باشد.');
+                    return;
+                }
+                $state['name'] = mb_substr($value, 0, 350);
+                $state['step'] = 'task_description';
+                $this->saveCreationWizard($baleUser, $state);
+                $this->sendMessage($chatId, 'توضیحات فعالیت را وارد کنید؛ برای رد کردن «-» بفرستید.');
+                return;
+            }
+            if (($state['step'] ?? '') === 'task_description') {
+                $state['description'] = $value === '-' ? '' : mb_substr($value, 0, 5000);
+                $state['step'] = 'task_start_date';
+                $this->saveCreationWizard($baleUser, $state);
+                $this->sendMessage($chatId, 'تاریخ شروع را به شکل ۱۴۰۵/۰۱/۱۵ وارد کنید؛ برای امروز «-» بفرستید.');
+                return;
+            }
+            if (in_array($state['step'] ?? '', ['task_start_date', 'task_due_date'], true)) {
+                $field = $state['step'] === 'task_start_date' ? 'started_at' : 'ended_at';
+                if ($value === '-') {
+                    $state[$field] = $field === 'started_at' ? now()->toDateTimeString() : null;
+                } else {
+                    try {
+                        $state[$field] = preg_match('/^(13|14)\d{2}\/\d{1,2}\/\d{1,2}$/u', $value)
+                            ? Jalalian::fromFormat('Y/m/d', $value)->toCarbon()->startOfDay()->toDateTimeString()
+                            : Carbon::parse($value)->startOfDay()->toDateTimeString();
+                    } catch (\Throwable $exception) {
+                        $this->sendMessage($chatId, 'تاریخ معتبر نیست؛ نمونه: ۱۴۰۵/۰۱/۱۵ یا برای رد کردن «-».');
+                        return;
+                    }
+                }
+                if ($field === 'started_at') {
+                    $state['step'] = 'task_due_date';
+                    $this->saveCreationWizard($baleUser, $state);
+                    $this->sendMessage($chatId, 'تاریخ انجام/پایان فعالیت را وارد کنید؛ برای تعیین‌نکردن «-» بفرستید.');
+                    return;
+                }
+                $state['step'] = 'task_group';
+                $state['page'] = 1;
+                $this->saveCreationWizard($baleUser, $state);
+                $this->sendWizardChoices($chatId, $state, 'task_group');
+                return;
+            }
+        }
 
         if (($state['step'] ?? '') === 'name') {
             $state['name'] = mb_substr($value, 0, 255);
-            if ($state['kind'] === 'project_group') {
+            if (in_array($state['kind'], ['project_group', 'minutes_group', 'task_group'], true)) {
                 $state['step'] = 'parent';
                 $state['page'] = 1;
                 $this->saveCreationWizard($baleUser, $state);
@@ -1320,14 +1487,24 @@ EOT);
         $query = match ($field) {
             'city' => City::query()->orderBy('name'),
             'organ' => Organ::query()->orderBy('name'),
-            'group', 'parent' => ProjectGroup::query()->orderBy('name'),
+            'group' => ProjectGroup::query()->orderBy('name'),
+            'task_group' => \App\Models\TaskGroup::query()->orderBy('name'),
+            'responsible' => \App\Models\User::query()->orderBy('name'),
+            'parent' => match ($state['kind'] ?? '') {
+                'minutes_group' => MinutesGroup::query()->orderBy('name'),
+                'task_group' => \App\Models\TaskGroup::query()->orderBy('name'),
+                default => ProjectGroup::query()->orderBy('name'),
+            },
             default => null,
         };
         if (!$query) return;
+        if ($field === 'responsible' && empty($state['can_assign_any'])) {
+            $query->whereRaw('1 = 0');
+        }
         $items = $query->paginate($perPage, ['id', 'name'], 'page', $page);
         $keyboard = ['inline_keyboard' => []];
         $keyboard['inline_keyboard'][] = [[
-            'text' => $field === 'parent' ? 'بدون والد (دسته اصلی)' : 'بدون انتخاب',
+            'text' => $field === 'parent' ? 'بدون والد (دسته اصلی)' : ($field === 'responsible' ? 'مسئول: خودم' : 'بدون انتخاب'),
             'callback_data' => "wiz|{$field}|0",
         ]];
         foreach ($items->items() as $item) {
@@ -1344,6 +1521,8 @@ EOT);
             'city' => 'شهر دستورکار را انتخاب کنید:',
             'organ' => 'ارگان دستورکار را انتخاب کنید:',
             'group' => 'دسته‌بندی دستورکار را انتخاب کنید:',
+            'task_group' => 'نوع فعالیت را انتخاب کنید:',
+            'responsible' => 'مسئول فعالیت را انتخاب کنید:',
             default => 'دسته‌بندی والد را انتخاب کنید:',
         };
         if ($messageId === null) {
@@ -1363,19 +1542,67 @@ EOT);
     {
         $state = $this->decodeCreationWizard($baleUser);
         if (!$state) return false;
-        if (preg_match('/^wizpage\|(city|organ|group|parent)\|(\d+)$/', $callbackData, $parts)) {
+        if (!empty($state['record_type'])) {
+            $permission = match ($state['kind'] ?? '') {
+                'project' => 'create_project',
+                'project_group' => 'create_project::group',
+                'minutes_group' => 'create_minutes::group',
+                'task_group' => 'create_task::group',
+                'task' => 'create_task',
+                default => null,
+            };
+            if (!$permission || !$user->can($permission)
+                || !$this->canLinkWizardRecord($user, $state['record_type'], (int) ($state['record_id'] ?? 0))) {
+                $baleUser->update(['state' => '1']);
+                $this->sendMessage($chatId, 'مجوز یا دسترسی به رکورد مبدا تغییر کرده است؛ فرایند لغو شد.');
+                return true;
+            }
+        }
+        if (preg_match('/^wizpage\|(city|organ|group|parent|task_group|responsible)\|(\d+)$/', $callbackData, $parts)) {
             $state['page'] = max(1, (int) $parts[2]);
             $this->saveCreationWizard($baleUser, $state);
             $this->sendWizardChoices($chatId, $state, $parts[1], $messageId);
             return true;
         }
-        if (!preg_match('/^wiz\|(city|organ|group|parent)\|(\d+)$/', $callbackData, $parts)) return false;
+        if (!preg_match('/^wiz\|(city|organ|group|parent|task_group|responsible)\|(\d+)$/', $callbackData, $parts)) return false;
         $field = $parts[1];
         $id = (int) $parts[2];
-        if ($field === 'parent' && $state['kind'] === 'project_group') {
+        if (($state['kind'] ?? '') === 'task' && $field === 'task_group') {
+            if ($id && !\App\Models\TaskGroup::whereKey($id)->exists()) return true;
+            $state['task_group_id'] = $id ?: null;
+            $state['step'] = 'responsible';
+            $state['page'] = 1;
+            $state['can_assign_any'] = $user->can('restore_any_task');
+            $this->saveCreationWizard($baleUser, $state);
+            $this->sendWizardChoices($chatId, $state, 'responsible', $messageId);
+            return true;
+        }
+        if (($state['kind'] ?? '') === 'task' && $field === 'responsible') {
+            $responsibleId = $id ?: (int) $user->id;
+            if (!$user->can('restore_any_task') && $responsibleId !== (int) $user->id) return true;
+            if (!\App\Models\User::whereKey($responsibleId)->exists()
+                || !$user->can('create_task')
+                || !$this->canLinkWizardRecord($user, $state['record_type'] ?? '', (int) ($state['record_id'] ?? 0))) {
+                return true;
+            }
+            $this->createLinkedTask($chatId, $state, $user, $baleUser, $responsibleId);
+            return true;
+        }
+        if ($field === 'parent' && in_array($state['kind'], ['project_group', 'minutes_group', 'task_group'], true)) {
             $state['parent_id'] = $id ?: null;
-            $record = ProjectGroup::create(['name' => $state['name'], 'parent_id' => $state['parent_id']]);
-            $this->finishCreationWizard($chatId, $state, 'دسته‌بندی', $record->name, ProjectGroupResource::getUrl('edit', [$record->id]));
+            if ($state['kind'] === 'task_group') {
+                $record = \App\Models\TaskGroup::create(['name' => $state['name'], 'parent_id' => $state['parent_id']]);
+                $this->finishCreationWizard($chatId, $state, 'دسته‌بندی فعالیت', $record->name, TaskResource::getUrl('index'));
+            } elseif ($state['kind'] === 'minutes_group') {
+                $record = MinutesGroup::create(['name' => $state['name'], 'parent_id' => $state['parent_id']]);
+                if (($state['record_type'] ?? null) === 'minutes') {
+                    Minutes::find((int) $state['record_id'])?->group()->syncWithoutDetaching([$record->id]);
+                }
+                $this->finishCreationWizard($chatId, $state, 'دسته‌بندی صورت‌جلسه', $record->name, MinutesGroupResource::getUrl('edit', [$record->id]));
+            } else {
+                $record = ProjectGroup::create(['name' => $state['name'], 'parent_id' => $state['parent_id']]);
+                $this->finishCreationWizard($chatId, $state, 'دسته‌بندی دستورکار', $record->name, ProjectGroupResource::getUrl('edit', [$record->id]));
+            }
             $baleUser->update(['state' => '1']);
             return true;
         }
@@ -1393,6 +1620,11 @@ EOT);
                 'organ_id' => $state['organ_id'] ?? null, 'user_id' => $user->id,
             ]);
             if (!empty($state['group_id'])) $project->group()->sync([(int) $state['group_id']]);
+            if (($state['record_type'] ?? null) === 'minutes') {
+                Minutes::find((int) $state['record_id'])?->projects()->syncWithoutDetaching([$project->id]);
+            } elseif (($state['record_type'] ?? null) === 'letter') {
+                Letter::find((int) $state['record_id'])?->projects()->syncWithoutDetaching([$project->id]);
+            }
             $this->finishCreationWizard($chatId, $state, 'دستورکار', $project->name, ProjectResource::getUrl('edit', [$project->id]));
             $baleUser->update(['state' => '1']);
             return true;
@@ -1408,6 +1640,48 @@ EOT);
         $summary = "✅ {$label} ثبت شد\nعنوان: {$name}\nبازکردن در سامانه: " . url($adminUrl) . "\nبازکردن کارنما: karnamaft://open";
         $this->sendMessage($chatId, $summary);
         if (!empty($state['origin'])) $this->sendMessage($state['origin'], "{$label} «{$name}» ثبت شد.\n" . url($adminUrl));
+    }
+
+    private function createLinkedTask($chatId, array $state, $user, BaleUser $baleUser, int $responsibleId): void
+    {
+        $data = [
+            'name' => $state['name'],
+            'description' => $state['description'] ?? '',
+            'started_at' => $state['started_at'] ?? now(),
+            'ended_at' => $state['ended_at'] ?? null,
+            'completed' => 0,
+            'status' => 0,
+            'created_by' => $user->id,
+            'Responsible_id' => $responsibleId,
+        ];
+        if (($state['record_type'] ?? null) === 'minutes') {
+            $source = Minutes::find((int) $state['record_id']);
+            if (!$source) return;
+            $data['minutes_id'] = $source->id;
+            $projectIds = $source->projects()->pluck('projects.id')->all();
+        } else {
+            $source = Letter::find((int) ($state['record_id'] ?? 0));
+            if (!$source) return;
+            $data['letter_id'] = $source->id;
+            $projectIds = $source->projects()->pluck('projects.id')->all();
+        }
+
+        $task = Task::create($data);
+        if (!empty($state['task_group_id'])) {
+            $task->group()->syncWithoutDetaching([(int) $state['task_group_id']]);
+        }
+        if ($projectIds) $task->project()->syncWithoutDetaching($projectIds);
+        $task->load(['responsible', 'group', 'project']);
+        $message = "✅ فعالیت با موفقیت ثبت و به رکورد مبدا متصل شد.\n\n" . $this->CreateTaskMessage($task, $user);
+        if ($task->responsible) $message .= "مسئول: {$task->responsible->name}\n";
+        $keyboard = ['inline_keyboard' => [[
+            ['text' => 'باز کردن فعالیت در سامانه', 'url' => url(TaskResource::getUrl('edit', [$task->id]))],
+        ]]];
+        $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+        if (!empty($state['origin']) && (string) $state['origin'] !== (string) $chatId) {
+            $this->sendMessage($state['origin'], '✅ فعالیت مرتبط با رکورد گروه در سامانه ثبت شد.');
+        }
+        $baleUser->update(['state' => '1']);
     }
 
     public function handleCallbackQuery(Request $request): void
@@ -1427,6 +1701,14 @@ EOT);
 
         if (str_starts_with((string) $bale_user->state, 'wizard:')
             && $this->handleCreationWizardCallback($chatId, $messageId, $callbackData, $user, $bale_user)) {
+            Http::post('https://tapi.bale.ai/bot' . config('bale.token') . '/answerCallbackQuery', [
+                'callback_query_id' => $data['id'] ?? null,
+            ]);
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'recordcreate|')) {
+            $this->sendLinkedCreationEntry($chatId, $user, $bale_user, $callbackData);
             Http::post('https://tapi.bale.ai/bot' . config('bale.token') . '/answerCallbackQuery', [
                 'callback_query_id' => $data['id'] ?? null,
             ]);
@@ -1864,6 +2146,17 @@ EOT);
             $keyboard['inline_keyboard'][] = [[
                 'text' => '📚 انتخاب دستی امضاکنندگان از فهرست ارگان‌ها',
                 'callback_data' => "minute_organ_types|{$modelsub->id}|1",
+            ]];
+        }
+
+        if ($modelsub instanceof Minutes || $modelsub instanceof Letter) {
+            $entityKey = $modelsub instanceof Minutes ? 'minutes' : 'letter';
+            $keyboard['inline_keyboard'][] = [
+                ['text' => '➕ ایجاد دستورکار جدید', 'callback_data' => "recordcreate|project|{$entityKey}|{$modelsub->id}"],
+            ];
+            $keyboard['inline_keyboard'][] = [[
+                'text' => '➕ ایجاد فعالیت مرتبط',
+                'callback_data' => "recordcreate|task|{$entityKey}|{$modelsub->id}",
             ]];
         }
 
@@ -3140,18 +3433,13 @@ EOT);
         $record->customers()->syncWithoutDetaching(array_filter($dataLetter['customer_owners'] ?? []));
         $record->projects()->syncWithoutDetaching(array_filter($dataLetter['projects'] ?? []));
 
-        $message = '';
-        if ($isPrivateChat) {
-            $message .= '✉️ اطلاعات نامه ذخیره شد' . "\n\n";
-            $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$record->id]) . ')' . "\n\n";
-            $message .= $this->CreateLetterMessage($record);
-        } else {
-            $message .= '✉️ [نامه با شماره ' . $record->id . ' ثبت شد .](' . LetterResource::getUrl('edit', [$record->id]) . ')';
-        }
+        $message = '✅ نامه با موفقیت ثبت شد.' . "\n\n" . $this->CreateLetterMessage($record);
         if ($ocrSucceeded) {
             $message .= "\n\n🔎 متن فایل با OCR استخراج و در تحلیل نامه استفاده شد.";
         }
-        $this->sendMessage($chatId, $message);
+        $this->sendMessageWithKeyboard($chatId, $message, ['inline_keyboard' => [[
+            ['text' => 'باز کردن در سامانه', 'url' => url(LetterResource::getUrl('edit', [$record->id]))],
+        ]]]);
 
         $this->sendLetterSuggestions($chatId, $record, $dataLetter);
         return $record;
@@ -3329,6 +3617,15 @@ EOT);
         $keyboard['inline_keyboard'][] = [[
             'text' => '📁 انتخاب دستی دستورکارها با فیلتر',
             'callback_data' => "pmf|letter|{$letter->id}",
+        ]];
+
+        $keyboard['inline_keyboard'][] = [[
+            'text' => '➕ ایجاد دستورکار جدید',
+            'callback_data' => "recordcreate|project|letter|{$letter->id}",
+        ]];
+        $keyboard['inline_keyboard'][] = [[
+            'text' => '➕ ایجاد فعالیت مرتبط',
+            'callback_data' => "recordcreate|task|letter|{$letter->id}",
         ]];
 
         $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];

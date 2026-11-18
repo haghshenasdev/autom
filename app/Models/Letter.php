@@ -270,6 +270,11 @@ class Letter extends Model implements HasAllowedSorts,HasAllowedFilters
         return $this->belongsToMany(Project::class, 'letter_project')->withPivot('summary');
     }
 
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
     public function Appendix(): HasMany
     {
         return $this->hasMany(Appendix::class);

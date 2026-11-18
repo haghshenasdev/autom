@@ -40,6 +40,7 @@ class Task extends Model implements HasAllowedSorts,HasAllowedFilters
         'city_id',
         'amount',
         'minutes_id',
+        'letter_id',
         'task_group_id',
         'created_by',
         'Responsible_id',
@@ -93,6 +94,11 @@ class Task extends Model implements HasAllowedSorts,HasAllowedFilters
     public function minutes()
     {
         return $this->belongsTo(Minutes::class);
+    }
+
+    public function letter()
+    {
+        return $this->belongsTo(Letter::class);
     }
 
     // ارتباط با مدل User به عنوان مسئول
