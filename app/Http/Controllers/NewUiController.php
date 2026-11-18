@@ -42,6 +42,69 @@ class NewUiController extends Controller
         return redirect()->route('newui', ['view' => 'cartable'])->with('success', 'فعالیت به‌روزرسانی شد.');
     }
 
+    public function letterTimeline(Request $request, int $letterId)
+    {
+        $user = $request->user();
+        abort_unless($user->can('view_any_letter'), 403);
+        $letter = $this->letterQueryForUser($user)
+            ->with(['Answer', 'referrals.by_users', 'referrals.users', 'referrals.activities.causer', 'activities.causer', 'user'])
+            ->findOrFail($letterId);
+
+        return response()->json(['data' => $letter->timeline()->values()]);
+    }
+
+    public function openNotification(Request $request, string $notificationId)
+    {
+        $notification = $request->user()->notifications()->findOrFail($notificationId);
+        $data = is_array($notification->data) ? $notification->data : [];
+        $type = strtolower((string) ($data['resource_type'] ?? ''));
+        $id = filter_var($data['resource_id'] ?? null, FILTER_VALIDATE_INT);
+
+        if ($id && in_array($type, ['letters', 'letter'], true)) {
+            abort_unless($request->user()->can('view_any_letter'), 403);
+            $this->letterQueryForUser($request->user())->findOrFail($id);
+            $notification->markAsRead();
+            return redirect()->route('newui.record', ['type' => 'letter', 'recordId' => $id]);
+        }
+        if ($id && in_array($type, ['minutes', 'minute'], true)) {
+            $user = $request->user();
+            abort_unless($user->can('view_any_minutes'), 403);
+            $query = Minutes::query()->whereKey($id);
+            if (!$user->can('restore_any_minutes')) $query->where('typer_id', $user->id);
+            $query->firstOrFail();
+            $notification->markAsRead();
+            return redirect()->route('newui.record', ['type' => 'minute', 'recordId' => $id]);
+        }
+        if ($id && in_array($type, ['tasks', 'task'], true)) {
+            $user = $request->user();
+            abort_unless($user->can('view_any_task'), 403);
+            $query = Task::query()->whereKey($id);
+            if (!$user->can('restore_any_task')) $query->where('Responsible_id', $user->id);
+            $query->firstOrFail();
+            $notification->markAsRead();
+            return redirect()->route('newui.record', ['type' => 'task', 'recordId' => $id]);
+        }
+
+        $notification->markAsRead();
+        return redirect()->route('newui')->with('status', 'اعلان خوانده شد.');
+    }
+
+    public function setNotificationRead(Request $request, string $notificationId)
+    {
+        $notification = $request->user()->notifications()->findOrFail($notificationId);
+        $data = $request->validate(['read' => ['required', 'boolean']]);
+        $notification->forceFill(['read_at' => $data['read'] ? now() : null])->save();
+
+        return redirect()->route('newui')->with('status', $data['read'] ? 'اعلان خوانده شد.' : 'اعلان به‌عنوان خوانده‌نشده علامت خورد.');
+    }
+
+    public function deleteNotification(Request $request, string $notificationId)
+    {
+        $request->user()->notifications()->findOrFail($notificationId)->delete();
+
+        return redirect()->route('newui')->with('status', 'اعلان حذف شد.');
+    }
+
     public function __invoke(Request $request)
     {
         $user = $request->user();
@@ -173,7 +236,7 @@ class NewUiController extends Controller
                 ->where('subject', 'like', "%{$search}%")
                 ->orWhere('id', is_numeric($search) ? (int) $search : -1));
         }
-        $cartableLetters = $cartableLetters->latest('cartables.id')
+        $cartableLetters = $cartableLetters->latest('cartables.created_at')->latest('cartables.id')
             ->paginate(10, ['*'], 'cartable_letters_page')->withQueryString();
 
         $cartableTasks = clone $tasks;
@@ -195,10 +258,13 @@ class NewUiController extends Controller
             $cartableTasks->whereNull('ended_at')
                 ->where(fn ($query) => $query->whereNull('completed')->orWhere('completed', '!=', 1));
         }
+        $cartableTasks->where('Responsible_id', $user->id);
         $cartableTasks = $cartableTasks->with(['letter', 'minutes', 'task_group', 'project'])
-            ->orderByRaw('CASE WHEN ended_at IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('ended_at')->latest('id')
+            ->latest('created_at')->latest('id')
             ->paginate(10, ['*'], 'cartable_tasks_page')->withQueryString();
+
+        $notifications = $user->notifications()->latest()->limit(8)->get();
+        $unreadNotificationCount = $user->unreadNotifications()->count();
 
         $items = collect();
         if ($activeView === 'tasks') {
@@ -261,11 +327,27 @@ class NewUiController extends Controller
             'cartableTasks' => $cartableTasks,
             'cartableChecked' => $cartableChecked,
             'taskDue' => $taskDue,
+            'notifications' => $notifications,
+            'unreadNotificationCount' => $unreadNotificationCount,
             'canAssistant' => $canAssistant,
             'canCreateTask' => $user->can('create_task'),
             'canCreateLetter' => $user->can('create_letter'),
             'canCreateMinutes' => $user->can('create_minutes'),
         ]);
+    }
+
+    private function letterQueryForUser($user)
+    {
+        $query = Letter::query();
+        if (!$user->can('restore_any_letter')) {
+            $query->where(function ($scope) use ($user) {
+                $scope->where('user_id', $user->id)
+                    ->orWhereHas('referrals', fn ($referrals) => $referrals->where('to_user_id', $user->id))
+                    ->orWhereHas('users', fn ($users) => $users->where('users.id', $user->id));
+            });
+        }
+
+        return $query;
     }
 
     public function calendarEvents(Request $request)

@@ -9,6 +9,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Session\Store;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Morilog\Jalali\Jalalian;
@@ -16,7 +17,7 @@ use Morilog\Jalali\Jalalian;
 /** GapGPT returns a small search plan. Database access stays read-only here. */
 class NewUiAssistantService
 {
-    private const LIMIT = 10;
+    private const PER_PAGE = 10;
 
     public function answer(User $user, string $question, Store $session): array
     {
@@ -32,7 +33,7 @@ class NewUiAssistantService
 
         // On a miss, retry with a different filter plan. Only the question and
         // the previous filter values are sent; no record data leaves the app.
-        if ($results->isEmpty()) {
+        if ($results->getCollection()->isEmpty()) {
             $plan = $this->plan($question, $allowed, $plan);
             $results = $this->search($user, $question, $allowed, $plan);
         }
@@ -40,9 +41,10 @@ class NewUiAssistantService
         $entity = in_array($plan['entity'] ?? '', $allowed, true)
             ? $plan['entity']
             : $this->inferEntity($question, $allowed);
+        $plan['entity'] = $entity;
 
         $label = ['letters' => 'نامه', 'tasks' => 'فعالیت', 'minutes' => 'صورت‌جلسه'][$entity] ?? 'مورد';
-        if ($results->isEmpty()) {
+        if ($results->getCollection()->isEmpty()) {
             $candidates = $this->findConsentCandidates($user, $question, $allowed, $plan);
             if ($candidates->isNotEmpty()) {
                 $destination = 'GapGPT (api.gapgpt.app)';
@@ -73,8 +75,57 @@ class NewUiAssistantService
             return ['text' => "در مواردی که دسترسی مشاهده‌شان را دارید، {$label}ای با این مشخصات پیدا نشد.", 'results' => []];
         }
 
-        $publicResults = $results->map(fn (array $item) => collect($item)->except(['id', 'content'])->all())->values();
-        return ['text' => $results->count() . " {$label} پیدا شد. برای بازکردن جزئیات، روی هر نتیجه بزنید.", 'results' => $publicResults->all()];
+        $token = Str::random(64);
+        $session->put('newui_assistant_results.' . $token, [
+            'user_id' => (int) $user->id,
+            'question' => $question,
+            'allowed' => $allowed,
+            'plan' => $plan,
+            'expires_at' => now()->addMinutes(20)->timestamp,
+        ]);
+
+        return $this->formatResultPage($results, $label, $token);
+    }
+
+    public function resultsPage(User $user, Store $session, string $token, int $page): array
+    {
+        $state = $session->get('newui_assistant_results.' . $token);
+        if (!is_array($state)
+            || (int) ($state['user_id'] ?? 0) !== (int) $user->id
+            || (int) ($state['expires_at'] ?? 0) < now()->timestamp) {
+            abort(410, 'درخواست صفحه‌بندی منقضی شده است؛ جست‌وجو را دوباره انجام دهید.');
+        }
+
+        $allowed = array_values(array_filter([
+            $user->can('view_any_letter') ? 'letters' : null,
+            $user->can('view_any_task') ? 'tasks' : null,
+            $user->can('view_any_minutes') ? 'minutes' : null,
+        ]));
+        $entity = $state['plan']['entity'] ?? null;
+        abort_unless(in_array($entity, $allowed, true) && in_array($entity, $state['allowed'] ?? [], true), 403);
+
+        $results = $this->search($user, $state['question'], $allowed, $state['plan'], $page);
+        abort_if($page > max(1, $results->lastPage()), 404);
+        $label = ['letters' => 'نامه', 'tasks' => 'فعالیت', 'minutes' => 'صورت‌جلسه'][$entity] ?? 'مورد';
+
+        return $this->formatResultPage($results, $label, $token);
+    }
+
+    private function formatResultPage(LengthAwarePaginator $results, string $label, string $token): array
+    {
+        $publicResults = $results->getCollection()
+            ->map(fn (array $item) => collect($item)->except(['id', 'content'])->all())->values();
+
+        return [
+            'text' => "صفحه {$results->currentPage()} از {$results->lastPage()} · در مجموع {$results->total()} {$label} پیدا شد.",
+            'results' => $publicResults->all(),
+            'search_token' => $token,
+            'pagination' => [
+                'current_page' => $results->currentPage(),
+                'last_page' => $results->lastPage(),
+                'total' => $results->total(),
+            ],
+        ];
     }
 
     /** Build a constrained search plan; only the question and optional prior filters are sent. */
@@ -104,7 +155,7 @@ class NewUiAssistantService
         return is_array($data) ? $data : [];
     }
 
-    private function search(User $user, string $question, array $allowed, array $plan)
+    private function search(User $user, string $question, array $allowed, array $plan, int $page = 1): LengthAwarePaginator
     {
         $entity = in_array($plan['entity'] ?? '', $allowed, true)
             ? $plan['entity']
@@ -114,10 +165,10 @@ class NewUiAssistantService
         $range = $this->dateRange($plan, $question);
 
         return match ($entity) {
-            'letters' => $this->letters($user, $term, $place, $range, $plan['letter_kind'] ?? null),
-            'tasks' => $this->tasks($user, $term, $place, $range),
-            'minutes' => $this->minutes($user, $term, $place, $range),
-            default => collect(),
+            'letters' => $this->letters($user, $term, $place, $range, $plan['letter_kind'] ?? null, $page),
+            'tasks' => $this->tasks($user, $term, $place, $range, $page),
+            'minutes' => $this->minutes($user, $term, $place, $range, $page),
+            default => Letter::query()->whereRaw('1 = 0')->paginate(self::PER_PAGE, ['*'], 'assistant_page', $page),
         };
     }
 
@@ -132,12 +183,12 @@ class NewUiAssistantService
         foreach ($attempts as [$candidateTerm, $candidatePlace, $candidateRange]) {
             if (!$candidateTerm && !$candidatePlace) continue;
             $results = match ($entity) {
-                'letters' => $this->letters($user, $candidateTerm, $candidatePlace, $candidateRange, $plan['letter_kind'] ?? null),
-                'tasks' => $this->tasks($user, $candidateTerm, $candidatePlace, $candidateRange),
-                'minutes' => $this->minutes($user, $candidateTerm, $candidatePlace, $candidateRange),
-                default => collect(),
+                'letters' => $this->letters($user, $candidateTerm, $candidatePlace, $candidateRange, $plan['letter_kind'] ?? null, 1),
+                'tasks' => $this->tasks($user, $candidateTerm, $candidatePlace, $candidateRange, 1),
+                'minutes' => $this->minutes($user, $candidateTerm, $candidatePlace, $candidateRange, 1),
+                default => Letter::query()->whereRaw('1 = 0')->paginate(self::PER_PAGE),
             };
-            if ($results->isNotEmpty()) return $results->take(5)->values();
+            if ($results->total() > 0) return $results->getCollection()->take(5)->values();
         }
         return collect();
     }
@@ -203,7 +254,7 @@ class NewUiAssistantService
         };
     }
 
-    private function letters(User $user, ?string $term, ?string $place, ?array $range, $kind)
+    private function letters(User $user, ?string $term, ?string $place, ?array $range, $kind, int $page = 1): LengthAwarePaginator
     {
         $query = Letter::query()->with(['type', 'organ'])->select('letters.*');
         if (!$user->can('restore_any_letter')) {
@@ -222,17 +273,19 @@ class NewUiAssistantService
                 ->orWhereHas('organs_owner', fn (Builder $organ) => $organ->where('name', 'like', '%' . $place . '%')->orWhere('address', 'like', '%' . $place . '%'));
         });
 
-        return $query->latest('created_at')->limit(self::LIMIT)->get()->map(fn (Letter $item) => [
+        $pageResults = $query->latest('created_at')->latest('id')->paginate(self::PER_PAGE, ['*'], 'assistant_page', $page);
+        $pageResults->setCollection($pageResults->getCollection()->map(fn (Letter $item) => [
             'id' => $item->id,
             'title' => $item->subject ?: 'نامه بدون موضوع',
             'meta' => ($item->kind ? 'صادره' : 'وارده') . ' · ' . ($item->type?->name ?? 'بدون نوع') . ' · ' . $this->jalali($item->created_at),
             'summary' => mb_substr(trim(strip_tags((string) ($item->summary ?? ''))), 0, 180),
             'content' => mb_substr(trim(strip_tags(trim((string) ($item->description ?? '') . "\n" . (string) ($item->summary ?? '')))), 0, 1200),
             'url' => url('/newui/letter/' . $item->id),
-        ])->values();
+        ])->values());
+        return $pageResults;
     }
 
-    private function tasks(User $user, ?string $term, ?string $place, ?array $range)
+    private function tasks(User $user, ?string $term, ?string $place, ?array $range, int $page = 1): LengthAwarePaginator
     {
         $query = Task::query()->with(['project', 'city', 'organ']);
         if (!$user->can('restore_any_task')) $query->where('Responsible_id', $user->id);
@@ -246,17 +299,19 @@ class NewUiAssistantService
                 ->orWhereHas('organ', fn (Builder $organ) => $organ->where('name', 'like', '%' . $place . '%')->orWhere('address', 'like', '%' . $place . '%'));
         });
 
-        return $query->latest('created_at')->limit(self::LIMIT)->get()->map(fn (Task $item) => [
+        $pageResults = $query->latest('created_at')->latest('id')->paginate(self::PER_PAGE, ['*'], 'assistant_page', $page);
+        $pageResults->setCollection($pageResults->getCollection()->map(fn (Task $item) => [
             'id' => $item->id,
             'title' => $item->name ?: 'فعالیت بدون عنوان',
             'meta' => ($item->completed ? 'انجام‌شده' : 'انجام‌نشده') . ' · ' . $this->jalali($item->started_at ?: $item->created_at),
             'summary' => mb_substr(trim(strip_tags((string) ($item->description ?? ''))), 0, 180),
             'content' => mb_substr(trim(strip_tags((string) ($item->description ?? ''))), 0, 1200),
             'url' => url('/newui/task/' . $item->id),
-        ])->values();
+        ])->values());
+        return $pageResults;
     }
 
-    private function minutes(User $user, ?string $term, ?string $place, ?array $range)
+    private function minutes(User $user, ?string $term, ?string $place, ?array $range, int $page = 1): LengthAwarePaginator
     {
         $query = Minutes::query()->with(['projects', 'organ'])->withCount('tasks');
         if (!$user->can('restore_any_minutes')) $query->where('typer_id', $user->id);
@@ -268,14 +323,16 @@ class NewUiAssistantService
                 ->orWhereHas('organ', fn (Builder $organ) => $organ->where('name', 'like', '%' . $place . '%'));
         });
 
-        return $query->latest('date')->limit(self::LIMIT)->get()->map(fn (Minutes $item) => [
+        $pageResults = $query->latest('date')->latest('id')->paginate(self::PER_PAGE, ['*'], 'assistant_page', $page);
+        $pageResults->setCollection($pageResults->getCollection()->map(fn (Minutes $item) => [
             'id' => $item->id,
             'title' => $item->title ?: 'صورت‌جلسه بدون عنوان',
             'meta' => 'صورت‌جلسه · ' . $this->jalali($item->date) . ' · ' . $item->tasks_count . ' فعالیت',
             'summary' => mb_substr(trim(strip_tags((string) ($item->text ?? ''))), 0, 180),
             'content' => mb_substr(trim(strip_tags((string) ($item->text ?? ''))), 0, 1200),
             'url' => url('/newui/minute/' . $item->id),
-        ])->values();
+        ])->values());
+        return $pageResults;
     }
 
     private function dateRange(array $plan, string $question): ?array

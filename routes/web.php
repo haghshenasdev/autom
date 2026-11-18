@@ -64,6 +64,14 @@ Route::post('/newui/cartable/letters/{cartable}/checked', [NewUiController::clas
     ->middleware('auth')->name('newui.cartable.letters.checked');
 Route::post('/newui/cartable/tasks/{task}', [NewUiController::class, 'updateCartableTask'])
     ->middleware('auth')->name('newui.cartable.tasks.update');
+Route::get('/newui/letters/{letterId}/timeline', [NewUiController::class, 'letterTimeline'])
+    ->middleware('auth')->name('newui.letters.timeline');
+Route::post('/newui/notifications/{notificationId}/open', [NewUiController::class, 'openNotification'])
+    ->middleware('auth')->name('newui.notifications.open');
+Route::post('/newui/notifications/{notificationId}/read', [NewUiController::class, 'setNotificationRead'])
+    ->middleware('auth')->name('newui.notifications.read');
+Route::delete('/newui/notifications/{notificationId}', [NewUiController::class, 'deleteNotification'])
+    ->middleware('auth')->name('newui.notifications.delete');
 Route::get('/newui/assistant', [NewUiAssistantController::class, 'index'])->middleware('auth')->name('newui.assistant');
 Route::post('/newui/assistant/message', [NewUiAssistantController::class, 'message'])->middleware(['auth', 'throttle:12,1'])->name('newui.assistant.message');
 Route::get('/newui/calendar/events', [NewUiController::class, 'calendarEvents'])

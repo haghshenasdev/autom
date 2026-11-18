@@ -20,15 +20,21 @@ class NewUiAssistantController extends Controller
     public function message(Request $request, NewUiAssistantService $assistant): JsonResponse
     {
         $user = $this->authorizeAssistant($request);
+        $resultsPage = $request->boolean('results_page');
         $shareContent = $request->boolean('share_content');
         $cancelConsent = $request->boolean('cancel_content');
-        $data = $request->validate($cancelConsent
-            ? ['cancel_content' => ['required', 'accepted'], 'consent_token' => ['required', 'string', 'size:64']]
-            : ($shareContent
-                ? ['share_content' => ['required', 'accepted'], 'consent_token' => ['required', 'string', 'size:64']]
-                : ['message' => ['required', 'string', 'max:1200']]));
+        $data = $request->validate($resultsPage
+            ? ['results_page' => ['required', 'accepted'], 'search_token' => ['required', 'string', 'size:64'], 'page' => ['required', 'integer', 'min:1', 'max:100000']]
+            : ($cancelConsent
+                ? ['cancel_content' => ['required', 'accepted'], 'consent_token' => ['required', 'string', 'size:64']]
+                : ($shareContent
+                    ? ['share_content' => ['required', 'accepted'], 'consent_token' => ['required', 'string', 'size:64']]
+                    : ['message' => ['required', 'string', 'max:1200']])));
 
         try {
+            if ($resultsPage) {
+                return response()->json($assistant->resultsPage($user, $request->session(), $data['search_token'], (int) $data['page']));
+            }
             if ($cancelConsent) {
                 $key = 'newui_assistant_consent.' . $data['consent_token'];
                 $pending = $request->session()->get($key);

@@ -63,7 +63,7 @@
     const button = document.getElementById('send-button');
     const status = document.getElementById('chat-status');
 
-    function addMessage(role, text, results = []) {
+    function addMessage(role, text, results = [], pagination = null) {
         const row = document.createElement('div');
         row.className = role === 'user' ? 'flex justify-start' : 'flex justify-end';
         const bubble = document.createElement('div');
@@ -100,11 +100,55 @@
                 }
                 list.appendChild(card);
             });
+            if (pagination && pagination.last_page > 1 && pagination.search_token) {
+                const controls = document.createElement('div');
+                controls.className = 'mt-2 flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2';
+                const pageLabel = document.createElement('span');
+                pageLabel.className = 'text-[11px] text-muted';
+                pageLabel.textContent = `صفحه ${pagination.current_page} از ${pagination.last_page} · ${pagination.total} نتیجه`;
+                const buttons = document.createElement('div');
+                buttons.className = 'flex gap-2';
+                [[pagination.current_page - 1, 'قبلی'], [pagination.current_page + 1, 'بعدی']].forEach(([page, label]) => {
+                    if (page < 1 || page > pagination.last_page) return;
+                    const control = document.createElement('button');
+                    control.type = 'button';
+                    control.className = 'rounded-lg border border-slate-200 px-3 py-1 text-[11px] font-bold text-brand hover:bg-blue-50';
+                    control.textContent = label;
+                    control.addEventListener('click', () => loadResultPage(pagination.search_token, page));
+                    buttons.appendChild(control);
+                });
+                controls.append(pageLabel, buttons);
+                list.appendChild(controls);
+            }
             bubble.appendChild(list);
         }
         row.appendChild(bubble);
         messages.appendChild(row);
         messages.scrollTop = messages.scrollHeight;
+    }
+
+    async function loadResultPage(token, page) {
+        button.disabled = true;
+        status.textContent = '';
+        status.classList.add('hidden');
+        try {
+            const response = await fetch('{{ route('newui.assistant.message') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json', 'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({ results_page: true, search_token: token, page }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'دریافت صفحه نتیجه ممکن نشد.');
+            addMessage('assistant', data.text || 'نتایجی برای این صفحه وجود ندارد.', Array.isArray(data.results) ? data.results : [], data.pagination ? { ...data.pagination, search_token: data.search_token } : null);
+        } catch (error) {
+            status.textContent = error.message || 'دریافت صفحه نتیجه ممکن نشد.';
+            status.classList.remove('hidden');
+        } finally {
+            button.disabled = false;
+        }
     }
 
     function addConsentPrompt(data) {
@@ -216,7 +260,7 @@
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || 'ارسال پرسش ناموفق بود.');
-            addMessage('assistant', data.text || 'پاسخی دریافت نشد.', Array.isArray(data.results) ? data.results : []);
+            addMessage('assistant', data.text || 'پاسخی دریافت نشد.', Array.isArray(data.results) ? data.results : [], data.pagination ? { ...data.pagination, search_token: data.search_token } : null);
             if (data.consent_required && data.consent_token) addConsentPrompt(data);
         } catch (error) {
             status.textContent = error.message || 'ارتباط با دستیار برقرار نشد.';
