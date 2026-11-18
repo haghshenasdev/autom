@@ -1677,6 +1677,12 @@ EOT);
         $keyboard = ['inline_keyboard' => [[
             ['text' => 'باز کردن فعالیت در سامانه', 'url' => url(TaskResource::getUrl('edit', [$task->id]))],
         ]]];
+        if (!empty($state['origin']) && (string) $state['origin'] !== (string) $chatId) {
+            $keyboard['inline_keyboard'][] = [[
+                'text' => 'ارسال گزارش فعالیت به گروه',
+                'callback_data' => "taskgroupreport|{$task->id}|{$state['origin']}",
+            ]];
+        }
         $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
         if (!empty($state['origin']) && (string) $state['origin'] !== (string) $chatId) {
             $this->sendMessage($state['origin'], '✅ فعالیت مرتبط با رکورد گروه در سامانه ثبت شد.');
@@ -1709,6 +1715,63 @@ EOT);
 
         if (str_starts_with($callbackData, 'recordcreate|')) {
             $this->sendLinkedCreationEntry($chatId, $user, $bale_user, $callbackData);
+            Http::post('https://tapi.bale.ai/bot' . config('bale.token') . '/answerCallbackQuery', [
+                'callback_query_id' => $data['id'] ?? null,
+            ]);
+            return;
+        }
+
+        if (preg_match('/^taskgroupreport\|(\d+)\|(-?\d+)$/', $callbackData, $reportMatch)) {
+            $task = Task::query()->with(['minutes', 'letter', 'responsible'])
+                ->find((int) $reportMatch[1]);
+            $originChatId = $reportMatch[2];
+            $recordType = $task?->minutes_id ? 'minutes' : 'letter';
+            $recordId = (int) ($task?->minutes_id ?: $task?->letter_id);
+
+            if ((string) $chatId !== (string) $bale_user->bale_id
+                || !$task
+                || (int) $task->created_by !== (int) $user->id
+                || !$user->can('create_task')
+                || !$recordId
+                || !$this->canLinkWizardRecord($user, $recordType, $recordId)) {
+                $this->sendMessage($chatId, 'برای ارسال گزارش این فعالیت دسترسی ندارید.');
+                return;
+            }
+            if (!$originChatId || (string) $originChatId === (string) $chatId) {
+                $this->sendMessage($chatId, 'گروه مبدا برای ارسال گزارش در دسترس نیست.');
+                return;
+            }
+
+            $formatDate = fn ($value) => $value
+                ? Jalalian::fromDateTime($value)->format('Y/m/d')
+                : 'ثبت نشده';
+            $report = "📋 گزارش فعالیت مرتبط\nعنوان: {$task->name}\n";
+            if (trim((string) $task->description) !== '') {
+                $report .= "شرح: {$task->description}\n";
+            }
+            $report .= 'مسئول: ' . ($task->responsible?->name ?? 'تعیین نشده') . "\n"
+                . 'تاریخ شروع: ' . $formatDate($task->started_at) . "\n"
+                . 'مهلت انجام: ' . $formatDate($task->ended_at) . "\n";
+
+            $buttons = [[
+                ['text' => 'باز کردن فعالیت در سامانه', 'url' => url(TaskResource::getUrl('edit', [$task->id]))],
+            ]];
+            if ($task->minutes) {
+                $report .= "صورت‌جلسه مرتبط: {$task->minutes->title}\n";
+                $buttons[] = [[
+                    'text' => 'باز کردن صورت‌جلسه',
+                    'url' => url(MinutesResource::getUrl('edit', [$task->minutes->id])),
+                ]];
+            } elseif ($task->letter) {
+                $report .= "نامه مرتبط: {$task->letter->subject}\n";
+                $buttons[] = [[
+                    'text' => 'باز کردن نامه',
+                    'url' => url(LetterResource::getUrl('edit', [$task->letter->id])),
+                ]];
+            }
+
+            $this->sendMessageWithKeyboard($originChatId, $report, ['inline_keyboard' => $buttons]);
+            $this->sendMessage($chatId, 'گزارش فعالیت در گروه ارسال شد.');
             Http::post('https://tapi.bale.ai/bot' . config('bale.token') . '/answerCallbackQuery', [
                 'callback_query_id' => $data['id'] ?? null,
             ]);

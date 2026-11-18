@@ -66,9 +66,9 @@ class MobileApiController extends Controller
      * client from accidentally seeing records that Filament hides.
      */
     private const RESOURCES = [
-        'letters' => [Letter::class, LetterResource::class, 'letter', ['user','type','organ','daftar','customers','organs_owner','users','projects','referrals','Answer']],
+        'letters' => [Letter::class, LetterResource::class, 'letter', ['user','type','organ','daftar','customers','organs_owner','users','projects','tasks','referrals','Answer']],
         'minutes' => [Minutes::class, MinutesResource::class, 'minutes', ['typer','task_creator','organ','group','projects','tasks','approves','appendix_others']],
-        'tasks' => [Task::class, TaskResource::class, 'task', ['creator','responsible','organ','city','minutes','project','task_group','appendix_others']],
+        'tasks' => [Task::class, TaskResource::class, 'task', ['creator','responsible','organ','city','minutes','letter','project','task_group','appendix_others']],
         'projects' => [Project::class, ProjectResource::class, 'project', ['user','organ','city','group','tasks','letters']],
         'task-groups' => [TaskGroup::class, TaskGroupResource::class, 'task::group', ['parent','tasks']],
         'project-groups' => [ProjectGroup::class, ProjectGroupResource::class, 'project::group', ['parent','projects']],
@@ -136,6 +136,9 @@ class MobileApiController extends Controller
             ->all();
 
         $query->with($this->safeIncludes($model, $requestedIncludes) ?: $this->safeIncludes($model, $this->defaultIncludes($resource)));
+        if (in_array($resource, ['letters', 'minutes'], true)) {
+            $query->with('tasks.responsible');
+        }
 
         $query = $this->applyQuery($query, $model, $request);
 
@@ -179,6 +182,9 @@ class MobileApiController extends Controller
         $this->ensurePermission($request->user(), "view_{$permission}", $item);
 
         $item->load($this->safeIncludes($model, $this->defaultIncludes($resource)));
+        if (in_array($resource, ['letters', 'minutes'], true)) {
+            $item->loadMissing('tasks.responsible');
+        }
 
         return response()->json(['data' => $this->transform($item, $resource)]);
     }
@@ -1186,11 +1192,11 @@ class MobileApiController extends Controller
     private function defaultIncludes(string $resource): array
     {
         return match($resource) {
-            'letters' => ['user','type','organ','daftar','customers','organs_owner','users','projects'],
+            'letters' => ['user','type','organ','daftar','customers','organs_owner','users','projects','tasks'],
             'minutes' => ['typer','task_creator','organ','group','projects','tasks'],
             'contents' => ['group','user'],
             'content-groups' => ['parent','contents'],
-            'tasks' => ['creator','responsible','organ','city','minutes','project','task_group','appendix_others'],
+            'tasks' => ['creator','responsible','organ','city','minutes','letter','project','task_group','appendix_others'],
             'projects' => ['user','organ','city','group'],
             'referrals' => ['letter','users','by_users'],
             default => [],
@@ -1458,10 +1464,26 @@ class MobileApiController extends Controller
             $data['files'] = $this->appendixFiles($item, 'letters', $item->id);
             $data['status_title'] = Letter::getStatusLabel($item->status);
             $data['cartables'] = $item->relationLoaded('users') ? $item->users->map(fn($u)=>['id'=>$u->id,'name'=>$u->name,'avatar_url'=>$u->avatar_url])->values() : [];
+            $data['related_tasks'] = $item->relationLoaded('tasks')
+                ? $item->tasks->map(fn ($task) => [
+                    'id' => (int) $task->id,
+                    'name' => (string) $task->name,
+                    'status' => $task->status,
+                    'progress' => $task->progress,
+                    'completed' => (bool) $task->completed,
+                    'responsible' => $task->relationLoaded('responsible') && $task->responsible
+                        ? ['id' => (int) $task->responsible->id, 'name' => (string) $task->responsible->name]
+                        : null,
+                ])->values()
+                : [];
         } elseif ($item instanceof Task) {
             $data['status_title'] = Task::getStatusLabel($item->status);
             $data['files'] = $this->appendixFiles($item, 'tasks', $item->id);
             $data['status_color'] = Task::getStatusColor(Task::getStatusLabel($item->status));
+            $data['letter'] = $item->relationLoaded('letter') && $item->letter ? [
+                'id' => (int) $item->letter->id,
+                'subject' => (string) $item->letter->subject,
+            ] : null;
         } elseif ($item instanceof Project) {
             $data['status_title'] = Project::getStatusLabel($item->status);
             $data['status_color'] = Project::getStatusColor(Project::getStatusLabel($item->status));
@@ -1514,8 +1536,12 @@ class MobileApiController extends Controller
                     'name' => (string) $task->name,
                     'status' => $task->status,
                     'progress' => $task->progress,
-                    'completed' => (bool) $task->completed,
+                    'completed' => (int) (bool) $task->completed,
                     'minutes_id' => $task->minutes_id,
+                    'letter_id' => $task->letter_id,
+                    'responsible' => $task->relationLoaded('responsible') && $task->responsible
+                        ? ['id' => (int) $task->responsible->id, 'name' => (string) $task->responsible->name]
+                        : null,
                 ])->values()
                 : [];
         } elseif ($item instanceof Content) {

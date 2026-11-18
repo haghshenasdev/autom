@@ -72,6 +72,16 @@ class TaskResource extends Resource
                     ->url(fn (Forms\Get $get): string => $get('minutes_id') ? MinutesResource::getUrl('edit',[$get('minutes_id')]) : '#')
                     ->openUrlInNewTab()->icon('heroicon-o-arrow-top-right-on-square'),
             );
+        $schema[] = Forms\Components\Select::make('letter_id')->label('نامه مرتبط')
+            ->relationship('letter', 'subject')
+            ->getOptionLabelFromRecordUsing(fn (Model $record) => "{$record->id} - {$record->subject}")
+            ->searchable(['letters.id', 'letters.subject'])->preload()
+            ->live()
+            ->prefixAction(
+                Forms\Components\Actions\Action::make('openLetter')->label('نمایش')
+                    ->url(fn (Forms\Get $get): string => $get('letter_id') ? LetterResource::getUrl('edit', [$get('letter_id')]) : '#')
+                    ->openUrlInNewTab()->icon('heroicon-o-arrow-top-right-on-square'),
+            );
         return $form
             ->schema($schema);
     }
@@ -87,6 +97,8 @@ class TaskResource extends Resource
                         ->searchable()->sortable(),
                     Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
                     Tables\Columns\TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks(),
+                    Tables\Columns\TextColumn::make('letter.subject')->label('نامه مرتبط')->searchable()->toggleable(),
+                    Tables\Columns\TextColumn::make('minutes.title')->label('صورت‌جلسه مرتبط')->searchable()->toggleable(),
                     Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
                         ->toggleable(isToggledHiddenByDefault: true),
                     Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')
@@ -137,6 +149,8 @@ class TaskResource extends Resource
                     ->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('name')->label('عنوان')->words(10)->searchable(),
                 Tables\Columns\TextColumn::make('project.name')->label('دستورکار')->listWithLineBreaks()->words(7)->toggleable(isToggledHiddenByDefault: false),
+                Tables\Columns\TextColumn::make('letter.subject')->label('نامه مرتبط')->searchable()->toggleable(),
+                Tables\Columns\TextColumn::make('minutes.title')->label('صورت‌جلسه مرتبط')->searchable()->toggleable(),
                 Tables\Columns\TextColumn::make('creator.name')->label('ایجاد کننده')
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('Responsible.name')->label('مسئول')

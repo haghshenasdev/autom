@@ -6,6 +6,7 @@ use App\Filament\Resources\LetterResource;
 use App\Filament\Resources\MinutesResource;
 use App\Filament\Resources\TaskResource;
 use App\Models\Letter;
+use App\Models\Cartable;
 use App\Models\Minutes;
 use App\Models\Project;
 use App\Models\Task;
@@ -16,6 +17,31 @@ use Illuminate\Http\Request;
 
 class NewUiController extends Controller
 {
+    public function updateCartableChecked(Request $request, Cartable $cartable)
+    {
+        abort_unless($request->user()->can('update_cartable'), 403);
+        abort_unless((int) $cartable->user_id === (int) $request->user()->id, 403);
+        $data = $request->validate(['checked' => ['required', 'boolean']]);
+        $cartable->update(['checked' => $data['checked']]);
+
+        return redirect()->route('newui', ['view' => 'cartable'])->with('success', 'وضعیت نامه به‌روزرسانی شد.');
+    }
+
+    public function updateCartableTask(Request $request, Task $task)
+    {
+        $user = $request->user();
+        $this->authorize('update', $task);
+        abort_unless((int) $task->Responsible_id === (int) $user->id || $user->can('restore_any_task'), 403);
+
+        $data = $request->validate([
+            'progress' => ['required', 'integer', 'min:0', 'max:100'],
+            'completed' => ['required', 'boolean'],
+        ]);
+        $task->update($data);
+
+        return redirect()->route('newui', ['view' => 'cartable'])->with('success', 'فعالیت به‌روزرسانی شد.');
+    }
+
     public function __invoke(Request $request)
     {
         $user = $request->user();
@@ -23,7 +49,7 @@ class NewUiController extends Controller
         abort_unless($panel && $user->canAccessPanel($panel), 403);
 
         $activeView = $request->query('view', 'home');
-        abort_unless(in_array($activeView, ['home', 'tasks', 'letters', 'minutes', 'calendar'], true), 404);
+        abort_unless(in_array($activeView, ['home', 'tasks', 'letters', 'minutes', 'calendar', 'cartable'], true), 404);
         $taskStatus = $request->query('task_status', $activeView === 'calendar' ? 'all' : 'pending');
         abort_unless(in_array($taskStatus, ['pending', 'done', 'all'], true), 404);
         $jalaliDateParser = app(\App\Services\PersianJalaliDateParser::class);
@@ -45,6 +71,8 @@ class NewUiController extends Controller
             'letter_status' => ['nullable', 'integer'],
             'letter_type_id' => ['nullable', 'integer', 'exists:types,id'],
             'author_id' => ['nullable', 'integer', 'exists:users,id'],
+            'cartable_checked' => ['nullable', 'in:all,unread,checked'],
+            'task_due' => ['nullable', 'in:all,open,overdue,today,upcoming,completed,without_deadline'],
             'date_from' => ['nullable', 'string', 'max:30', function ($attribute, $value, $fail) use ($parseFilterDate) {
                 if ($value !== null && !$parseFilterDate($value)) $fail('تاریخ شروع را به‌صورت شمسی مانند ۱۴۰۵/۰۱/۰۱ وارد کنید.');
             }],
@@ -63,11 +91,13 @@ class NewUiController extends Controller
         $canTasks = $user->can('view_any_task');
         $canLetters = $user->can('view_any_letter');
         $canMinutes = $user->can('view_any_minutes');
+        $canCartable = $user->can('view_any_cartable');
         $canAssistant = $canTasks || $canLetters || $canMinutes;
         abort_if($activeView === 'tasks' && !$canTasks, 403);
         abort_if($activeView === 'calendar' && !$canTasks, 403);
         abort_if($activeView === 'letters' && !$canLetters, 403);
         abort_if($activeView === 'minutes' && !$canMinutes, 403);
+        abort_if($activeView === 'cartable' && !$canCartable && !$canTasks, 403);
 
         $tasks = Task::query()->with(['project', 'task_group', 'minutes', 'responsible']);
         if (!$canTasks) $tasks->whereRaw('1 = 0');
@@ -131,6 +161,45 @@ class NewUiController extends Controller
         $letterCount = (clone $letters)->count();
         $minuteCount = (clone $minutes)->count();
 
+        $cartableChecked = $request->query('cartable_checked', 'unread');
+        $taskDue = $request->query('task_due', 'open');
+        $cartableLetters = Cartable::query()->where('user_id', $user->id)
+            ->with(['letter.organ', 'letter.daftar', 'letter.projects']);
+        if (!$canCartable) $cartableLetters->whereRaw('1 = 0');
+        if ($cartableChecked === 'unread') $cartableLetters->where('checked', false);
+        elseif ($cartableChecked === 'checked') $cartableLetters->where('checked', true);
+        if ($search !== '') {
+            $cartableLetters->whereHas('letter', fn ($query) => $query
+                ->where('subject', 'like', "%{$search}%")
+                ->orWhere('id', is_numeric($search) ? (int) $search : -1));
+        }
+        $cartableLetters = $cartableLetters->latest('cartables.id')
+            ->paginate(10, ['*'], 'cartable_letters_page')->withQueryString();
+
+        $cartableTasks = clone $tasks;
+        if (!$canTasks) $cartableTasks->whereRaw('1 = 0');
+        if ($taskDue === 'open') {
+            $cartableTasks->where(fn ($query) => $query->whereNull('completed')->orWhere('completed', 0));
+        } elseif ($taskDue === 'overdue') {
+            $cartableTasks->whereNotNull('ended_at')->where('ended_at', '<', now())
+                ->where(fn ($query) => $query->whereNull('completed')->orWhere('completed', '!=', 1));
+        } elseif ($taskDue === 'today') {
+            $cartableTasks->whereDate('ended_at', today())
+                ->where(fn ($query) => $query->whereNull('completed')->orWhere('completed', '!=', 1));
+        } elseif ($taskDue === 'upcoming') {
+            $cartableTasks->whereNotNull('ended_at')->where('ended_at', '>', now())
+                ->where(fn ($query) => $query->whereNull('completed')->orWhere('completed', '!=', 1));
+        } elseif ($taskDue === 'completed') {
+            $cartableTasks->where('completed', 1);
+        } elseif ($taskDue === 'without_deadline') {
+            $cartableTasks->whereNull('ended_at')
+                ->where(fn ($query) => $query->whereNull('completed')->orWhere('completed', '!=', 1));
+        }
+        $cartableTasks = $cartableTasks->with(['letter', 'minutes', 'task_group', 'project'])
+            ->orderByRaw('CASE WHEN ended_at IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('ended_at')->latest('id')
+            ->paginate(10, ['*'], 'cartable_tasks_page')->withQueryString();
+
         $items = collect();
         if ($activeView === 'tasks') {
             $taskList = clone $tasks;
@@ -183,8 +252,15 @@ class NewUiController extends Controller
             'letterCount' => $letterCount,
             'minuteCount' => $minuteCount,
             'canTasks' => $canTasks,
+            'canUpdateTasks' => $user->can('update_task'),
             'canLetters' => $canLetters,
             'canMinutes' => $canMinutes,
+            'canCartable' => $canCartable,
+            'canUpdateCartable' => $user->can('update_cartable'),
+            'cartableLetters' => $cartableLetters,
+            'cartableTasks' => $cartableTasks,
+            'cartableChecked' => $cartableChecked,
+            'taskDue' => $taskDue,
             'canAssistant' => $canAssistant,
             'canCreateTask' => $user->can('create_task'),
             'canCreateLetter' => $user->can('create_letter'),
@@ -256,7 +332,7 @@ class NewUiController extends Controller
 
         if ($type === 'task') {
             abort_unless($user->can('view_any_task'), 403);
-            $query = Task::query()->with(['project', 'task_group', 'minutes', 'responsible', 'appendix_others']);
+            $query = Task::query()->with(['project', 'task_group', 'minutes', 'letter', 'responsible', 'appendix_others']);
             if (!$user->can('restore_any_task')) $query->where('Responsible_id', $user->id);
             $record = $query->findOrFail($recordId);
             $editUrl = TaskResource::getUrl('edit', [$record->id]);
@@ -264,7 +340,7 @@ class NewUiController extends Controller
             $title = 'فعالیت';
         } elseif ($type === 'letter') {
             abort_unless($user->can('view_any_letter'), 403);
-            $query = Letter::query()->with(['type', 'user', 'organ', 'daftar', 'letter', 'projects', 'customers', 'organs_owner', 'users', 'Answer', 'Appendix']);
+            $query = Letter::query()->with(['type', 'user', 'organ', 'daftar', 'letter', 'projects', 'customers', 'organs_owner', 'users', 'Answer', 'Appendix', 'tasks.responsible']);
             if (!$user->can('restore_any_letter')) {
                 $query->where(function ($scope) use ($user) {
                     $scope->where('user_id', $user->id)
@@ -278,7 +354,7 @@ class NewUiController extends Controller
             $title = 'نامه';
         } elseif ($type === 'minute') {
             abort_unless($user->can('view_any_minutes'), 403);
-            $query = Minutes::query()->with(['typer', 'task_creator', 'organ', 'projects', 'tasks', 'approves', 'appendix_others']);
+            $query = Minutes::query()->with(['typer', 'task_creator', 'organ', 'projects', 'tasks.responsible', 'approves', 'appendix_others']);
             if (!$user->can('restore_any_minutes')) $query->where('typer_id', $user->id);
             $record = $query->findOrFail($recordId);
             $editUrl = MinutesResource::getUrl('edit', [$record->id]);

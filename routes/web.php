@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\NewUiController;
 use App\Http\Controllers\NewUiAssistantController;
+use App\Http\Controllers\NewUiAuthController;
 
 
 /*
@@ -44,8 +45,11 @@ Route::get('/rl', function () {
 });
 
 Route::get('/', function () {
-    return redirect('admin');
+    return auth()->check() ? redirect()->route('newui') : redirect()->route('login');
 });
+Route::get('/login', [NewUiAuthController::class, 'create'])->name('login');
+Route::post('/login', [NewUiAuthController::class, 'store'])->middleware('throttle:6,1')->name('login.store');
+Route::post('/logout', [NewUiAuthController::class, 'destroy'])->middleware('auth')->name('logout');
 Route::get('/toggle-mobile-mode', function () {
 
     $current = request()->cookie('mobile_mode', 'off');
@@ -56,6 +60,10 @@ Route::get('/toggle-mobile-mode', function () {
 })->name('togglemobile');
 
 Route::get('/newui', NewUiController::class)->middleware('auth')->name('newui');
+Route::post('/newui/cartable/letters/{cartable}/checked', [NewUiController::class, 'updateCartableChecked'])
+    ->middleware('auth')->name('newui.cartable.letters.checked');
+Route::post('/newui/cartable/tasks/{task}', [NewUiController::class, 'updateCartableTask'])
+    ->middleware('auth')->name('newui.cartable.tasks.update');
 Route::get('/newui/assistant', [NewUiAssistantController::class, 'index'])->middleware('auth')->name('newui.assistant');
 Route::post('/newui/assistant/message', [NewUiAssistantController::class, 'message'])->middleware(['auth', 'throttle:12,1'])->name('newui.assistant.message');
 Route::get('/newui/calendar/events', [NewUiController::class, 'calendarEvents'])
@@ -155,12 +163,8 @@ Route::middleware('auth')->group(function () {
             ->header('Content-Disposition', 'inline; filename="' . basename($path) . '"');
     })->where('path', '.*');
 });
-Route::get('/login',function (){
-    return redirect('admin');
-})->name('login');
-
 Route::get('/register',function (){
-    return redirect('admin');
+    return redirect()->route('login');
 })->name('register');
 
 

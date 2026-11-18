@@ -38,6 +38,7 @@ class SendTasksReminderJob implements ShouldQueue
         foreach ($users as $user) {
             // تسک‌های کاربر که completed = false و ended_at <= امروز
             $tasks = Task::where('Responsible_id', $user->id)
+                ->with(['minutes', 'letter'])
                 ->where(function ($q) {
                     $q->whereNull('completed')
                         ->orWhere('completed', 0);
@@ -76,6 +77,14 @@ class SendTasksReminderJob implements ShouldQueue
                 }
 
                 $message .= $bale_bot->CreateTaskMessage($task);
+                if ($task->letter) {
+                    $message .= '[بازکردن نامه مرتبط در سامانه]('
+                        . \App\Filament\Resources\LetterResource::getUrl('edit', [$task->letter->id]) . ")\n";
+                }
+                if ($task->minutes) {
+                    $message .= '[بازکردن صورت‌جلسه مرتبط در سامانه]('
+                        . \App\Filament\Resources\MinutesResource::getUrl('edit', [$task->minutes->id]) . ")\n";
+                }
                 $message .= "⌛ فرصت انجام : {$delayText}\n";
                 $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
                 $message .= "----------------------\n";

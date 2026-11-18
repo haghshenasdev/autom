@@ -457,6 +457,7 @@ class LetterResource extends Resource
             RelationManagers\ReferralsRelationManager::class,
             RelationManagers\ReplicationsRelationManager::class,
             RelationManagers\LetterProjectRelationManager::class,
+            RelationManagers\TasksRelationManager::class,
         ];
     }
 

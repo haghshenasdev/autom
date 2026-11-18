@@ -36,6 +36,7 @@
 @php
     $nav = [
         ['id' => 'home', 'label' => 'پیشخوان', 'icon' => 'home'],
+        ['id' => 'cartable', 'label' => 'کارپوشه', 'icon' => 'briefcase'],
         ['id' => 'tasks', 'label' => 'فعالیت‌ها', 'icon' => 'check'],
         ['id' => 'letters', 'label' => 'نامه‌ها', 'icon' => 'mail'],
         ['id' => 'minutes', 'label' => 'صورت‌جلسه‌ها', 'icon' => 'document'],
@@ -64,7 +65,7 @@
         default => false,
     };
     $sectionTitle = [
-        'home' => 'پیشخوان', 'tasks' => 'فعالیت‌ها', 'letters' => 'نامه‌ها', 'minutes' => 'صورت‌جلسه‌ها', 'calendar' => 'تقویم فعالیت‌ها',
+        'home' => 'پیشخوان', 'cartable' => 'کارپوشه', 'tasks' => 'فعالیت‌ها', 'letters' => 'نامه‌ها', 'minutes' => 'صورت‌جلسه‌ها', 'calendar' => 'تقویم فعالیت‌ها',
     ][$activeView];
 @endphp
 
@@ -77,6 +78,7 @@
         <nav class="space-y-1">
             @foreach($nav as $item)
                 @if($item['id'] === 'tasks' && !$canTasks) @continue @endif
+                @if($item['id'] === 'cartable' && !$canCartable && !$canTasks) @continue @endif
                 @if($item['id'] === 'calendar' && !$canTasks) @continue @endif
                 @if($item['id'] === 'assistant' && !$canAssistant) @continue @endif
                 @if($item['id'] === 'letters' && !$canLetters) @continue @endif
@@ -111,6 +113,7 @@
             </div>
             <div class="flex items-center gap-3">
                 <a href="{{ url('/admin') }}" class="hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:border-brand hover:text-brand sm:inline-flex">پنل فیلامنت</a>
+                <form method="post" action="{{ route('logout') }}">@csrf<button class="hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:border-rose-200 hover:text-rose-600 sm:inline-flex">خروج</button></form>
                 <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-3 pr-1">
                     @if(auth()->user()->avatar_url)
                         <img src="{{ url('/profiles/'.auth()->user()->avatar_url) }}" alt="" class="h-9 w-9 rounded-full object-cover">
@@ -125,12 +128,13 @@
         <form action="{{ url('/newui') }}" method="get" class="mb-6 flex min-w-0 gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
             @if($activeView !== 'home') <input type="hidden" name="view" value="{{ $activeView }}"> @endif
             @if($activeView === 'tasks') <input type="hidden" name="task_status" value="{{ $taskStatus }}"> @endif
+            @if($activeView === 'cartable') <input type="hidden" name="cartable_checked" value="{{ $cartableChecked }}"><input type="hidden" name="task_due" value="{{ $taskDue }}"> @endif
             <span class="grid w-10 shrink-0 place-items-center text-slate-400">@include('newui.partials.icon', ['name' => 'search', 'class' => 'h-5 w-5'])</span>
             <input name="q" value="{{ $search }}" placeholder="جست‌وجو در {{ $sectionTitle }}..." class="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none ring-0 placeholder:text-slate-400 focus:ring-0">
             <button class="shrink-0 rounded-xl bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-800 sm:px-4">جست‌وجو</button>
         </form>
 
-        @if(in_array($activeView, ['tasks', 'letters', 'minutes', 'calendar'], true))
+        @if(in_array($activeView, ['tasks', 'letters', 'minutes', 'calendar', 'cartable'], true))
             <details class="mb-6 min-w-0 overflow-visible rounded-3xl border border-slate-100 bg-white shadow-sm">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 text-sm font-bold marker:hidden sm:px-5">
                     <span class="flex min-w-0 items-center gap-2"><span class="text-brand">☷</span><span>فیلتر نتایج</span></span>
@@ -139,6 +143,12 @@
                 <form action="{{ url('/newui') }}" method="get" class="min-w-0 border-t border-slate-100 p-4 sm:p-5">
                     <input type="hidden" name="view" value="{{ $activeView }}">
                     @if($search !== '') <input type="hidden" name="q" value="{{ $search }}"> @endif
+                    @if($activeView === 'cartable')
+                        <div class="mb-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                            @if($canCartable)<label class="min-w-0 text-xs font-semibold text-slate-600">نامه‌های کارپوشه<select name="cartable_checked" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm"><option value="unread" @selected($cartableChecked === 'unread')>خوانده‌نشده</option><option value="checked" @selected($cartableChecked === 'checked')>خوانده‌شده</option><option value="all" @selected($cartableChecked === 'all')>همه نامه‌ها</option></select></label>@endif
+                            @if($canTasks)<label class="min-w-0 text-xs font-semibold text-slate-600">فعالیت‌ها<select name="task_due" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm">@foreach(['open' => 'باز', 'overdue' => 'عقب‌افتاده', 'today' => 'امروز', 'upcoming' => 'آینده', 'without_deadline' => 'بدون مهلت', 'completed' => 'انجام‌شده', 'all' => 'همه'] as $key => $label)<option value="{{ $key }}" @selected($taskDue === $key)>{{ $label }}</option>@endforeach</select></label>@endif
+                        </div>
+                    @endif
                     <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     @if(in_array($activeView, ['tasks', 'calendar'], true))
                         <label class="min-w-0 text-xs font-semibold text-slate-600">وضعیت انجام
@@ -170,7 +180,7 @@
                         </label>
                         <label class="min-w-0 text-xs font-semibold text-slate-600">از تاریخ<input type="text" name="date_from" value="{{ $filterDateValues['date_from'] }}" placeholder="۱۴۰۵/۰۱/۰۱" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datepicker class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-sm focus:border-brand focus:ring-brand"></label>
                         <label class="min-w-0 text-xs font-semibold text-slate-600">تا تاریخ<input type="text" name="date_to" value="{{ $filterDateValues['date_to'] }}" placeholder="۱۴۰۵/۰۱/۰۱" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datepicker class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-left text-sm focus:border-brand focus:ring-brand"></label>
-                    @else
+                    @elseif($activeView === 'minutes')
                         @if($filterOptions['authors']->isNotEmpty())
                             <label class="min-w-0 text-xs font-semibold text-slate-600">نویسنده
                                 <select name="author_id" class="mt-1.5 w-full rounded-xl border-slate-200 bg-slate-50 text-sm focus:border-brand focus:ring-brand"><option value="">همه نویسندگان</option>@foreach($filterOptions['authors'] as $id => $name)<option value="{{ $id }}" @selected(($filters['author_id'] ?? '') == $id)>{{ $name }}</option>@endforeach</select>
@@ -281,6 +291,43 @@
                     </section>
                 @endif
             </div>
+        @elseif($activeView === 'cartable')
+            @if(session('success'))<div class="mb-5 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{{ session('success') }}</div>@endif
+            <section class="mb-5 flex flex-wrap items-end justify-between gap-3"><div><p class="text-xs text-muted">نامه‌های ارجاع‌شده و پیگیری‌های من</p><h2 class="mt-1 text-xl font-extrabold">کارپوشه</h2></div></section>
+            @if($canCartable)
+                <section class="mb-8">
+                    <div class="mb-3 flex items-center justify-between"><h3 class="font-extrabold">نامه‌های ارجاع‌شده</h3><span class="text-xs text-muted">{{ $cartableLetters->total() }} نامه</span></div>
+                    @forelse($cartableLetters as $entry)
+                        @if($entry->letter)
+                            <article class="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+                                <a href="{{ $showLetter($entry->letter) }}" class="min-w-0 flex-1"><span class="block break-words font-bold text-slate-800 hover:text-brand">{{ $entry->letter->subject ?: 'نامه شماره '.$entry->letter->id }}</span><span class="mt-1 block text-xs text-muted">{{ $entry->letter->kind ? 'صادره' : 'وارده' }} · {{ $dateText($entry->letter->created_at) }} · {{ $entry->letter->organ?->name }}</span></a>
+                                @if($canUpdateCartable)<form method="post" action="{{ route('newui.cartable.letters.checked', $entry->id) }}" class="shrink-0">@csrf<input type="hidden" name="checked" value="{{ $entry->checked ? 0 : 1 }}"><button class="rounded-xl px-3 py-2 text-xs font-bold {{ $entry->checked ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700' }}">{{ $entry->checked ? 'علامت‌گذاری به‌عنوان خوانده‌نشده' : 'علامت‌گذاری به‌عنوان خوانده‌شده' }}</button></form>@endif
+                            </article>
+                        @endif
+                    @empty
+                        <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-muted">نامه‌ای در این بخش نیست.</div>
+                    @endforelse
+                    <div class="mt-4">{{ $cartableLetters->links() }}</div>
+                </section>
+            @endif
+            @if($canTasks)
+                <section>
+                    <div class="mb-3 flex items-center justify-between"><h3 class="font-extrabold">فعالیت‌های من</h3><span class="text-xs text-muted">{{ $cartableTasks->total() }} فعالیت</span></div>
+                    @forelse($cartableTasks as $task)
+                        <article class="mb-3 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+                            <div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0 flex-1"><a href="{{ $showTask($task) }}" class="block break-words font-bold text-slate-800 hover:text-brand">{{ $task->name }}</a><span class="mt-1 block text-xs text-muted">مهلت: {{ $dateText($task->ended_at) }}@if($task->letter) · <a class="text-brand" href="{{ $showLetter($task->letter) }}">نامه: {{ $task->letter->subject ?: 'شماره '.$task->letter->id }}</a>@endif @if($task->minutes) · <a class="text-brand" href="{{ $showMinutes($task->minutes) }}">صورت‌جلسه: {{ $task->minutes->title }}</a>@endif</span></div><span class="rounded-full px-3 py-1 text-[11px] font-bold {{ $task->completed ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">{{ $task->completed ? 'انجام‌شده' : 'در حال انجام' }}</span></div>
+                            @if($canUpdateTasks)<form method="post" action="{{ route('newui.cartable.tasks.update', $task->id) }}" class="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">@csrf
+                                <label class="flex min-w-[180px] flex-1 items-center gap-3 text-xs text-slate-600"><span>پیشرفت</span><input name="progress" type="range" min="0" max="100" value="{{ $task->progress ?? 0 }}" class="h-2 flex-1 accent-blue-700" oninput="this.nextElementSibling.value=this.value+'%'"/><output class="w-10 text-left" dir="ltr">{{ $task->progress ?? 0 }}%</output></label>
+                                <label class="flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="hidden" name="completed" value="0"><input type="checkbox" name="completed" value="1" @checked($task->completed) class="rounded border-slate-300 text-brand focus:ring-brand"> انجام شد</label>
+                                <button class="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white">ذخیره</button>
+                            </form>@endif
+                        </article>
+                    @empty
+                        <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-muted">فعالیتی برای نمایش نیست.</div>
+                    @endforelse
+                    <div class="mt-4">{{ $cartableTasks->links() }}</div>
+                </section>
+            @endif
         @elseif($activeView === 'calendar')
             <section class="mb-5 flex flex-wrap items-end justify-between gap-3">
                 <div><p class="text-xs text-muted">برنامه‌ریزی و پیگیری</p><h2 class="mt-1 text-xl font-extrabold">تقویم فعالیت‌ها</h2></div>
@@ -387,6 +434,7 @@
     <div class="mx-auto flex max-w-lg items-center justify-start gap-1 overflow-x-auto">
         @foreach($nav as $item)
             @if($item['id'] === 'tasks' && !$canTasks) @continue @endif
+            @if($item['id'] === 'cartable' && !$canCartable && !$canTasks) @continue @endif
                 @if($item['id'] === 'calendar' && !$canTasks) @continue @endif
             @if($item['id'] === 'assistant' && !$canAssistant) @continue @endif
             @if($item['id'] === 'letters' && !$canLetters) @continue @endif

@@ -32,6 +32,7 @@
     $pairs = match ($type) {
         'task' => [
             ['عنوان فعالیت', $record->name], ['وضعیت', $record->completed ? 'انجام شده' : 'انجام نشده'],
+            ['نامه مرتبط', $record->letter?->subject ?? 'ندارد'], ['صورت‌جلسه مرتبط', $record->minutes?->title ?? 'ندارد'],
             ['درصد پیشرفت', is_null($record->progress) ? 'ثبت نشده' : $record->progress.'٪'],
             ['مسئول', $record->responsible?->name ?? 'تعیین نشده'],
             ['دستورکار', $record->project->pluck('name')->filter()->implode('، ') ?: 'بدون دستورکار'],
@@ -115,6 +116,20 @@
         </section>
     </div>
 
+    @if($type === 'task' && ($record->letter || $record->minutes))
+        <section class="mt-5 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-card sm:p-7">
+            <h2 class="mb-4 font-extrabold">نامه و صورت‌جلسه مرتبط</h2>
+            <div class="space-y-2">
+                @if($record->letter)
+                    <a href="{{ url('/newui/letter/'.$record->letter->id) }}" class="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold hover:bg-blue-50"><span>نامه: {{ $record->letter->subject }}</span><span class="shrink-0 text-xs text-brand">باز کردن ←</span></a>
+                @endif
+                @if($record->minutes)
+                    <a href="{{ url('/newui/minute/'.$record->minutes->id) }}" class="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold hover:bg-blue-50"><span>صورت‌جلسه: {{ $record->minutes->title }}</span><span class="shrink-0 text-xs text-brand">باز کردن ←</span></a>
+                @endif
+            </div>
+        </section>
+    @endif
+
     @if($type === 'letter' && $record->Appendix->isNotEmpty())
         <section class="mt-5 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-card sm:p-7"><h2 class="mb-4 font-extrabold">ضمیمه‌ها</h2><div class="space-y-2">
             @foreach($record->Appendix as $appendix)
@@ -133,9 +148,9 @@
         </div></section>
     @endif
 
-    @if($type === 'minute' && $record->tasks->isNotEmpty())
+    @if(in_array($type, ['letter', 'minute'], true) && $record->tasks->isNotEmpty())
         <section class="mt-5 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-card sm:p-7"><h2 class="mb-4 font-extrabold">فعالیت‌های مرتبط</h2><div class="space-y-2">
-            @foreach($record->tasks as $task)<a href="{{ url('/newui/task/'.$task->id) }}" class="flex min-w-0 items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold hover:bg-blue-50"><span class="min-w-0 break-words">{{ $task->name }}</span><span class="shrink-0 text-xs text-muted">{{ $task->completed ? 'انجام شده' : 'در انتظار' }} ←</span></a>@endforeach
+            @foreach($record->tasks as $task)<a href="{{ url('/newui/task/'.$task->id) }}" class="flex min-w-0 items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold hover:bg-blue-50"><span class="min-w-0 break-words"><span class="block">{{ $task->name }}</span><span class="mt-1 block text-xs font-normal text-muted">مسئول: {{ $task->responsible?->name ?? 'تعیین نشده' }}</span></span><span class="shrink-0 text-xs text-muted">{{ $task->completed ? 'انجام شده' : 'در انتظار' }} ←</span></a>@endforeach
         </div></section>
     @endif
 </main>
