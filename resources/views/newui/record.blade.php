@@ -68,9 +68,17 @@
         <a href="{{ url('/newui') }}" class="flex min-w-0 items-center gap-3"><img src="{{ asset('karnama2.png') }}" alt="کارنما" class="h-11 w-11 shrink-0 rounded-2xl bg-white p-1 shadow-sm"><span class="min-w-0"><span class="block text-xs text-muted">کارنما</span><span class="block break-words font-extrabold">{{ $title }}</span></span></a>
         <div class="flex shrink-0 items-center gap-2">
             <a href="{{ $backUrl }}" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-600 hover:border-blue-200 hover:text-brand">بازگشت</a>
+            @if($type === 'letter')<button type="button" data-open-letter-timeline data-url="{{ route('newui.letters.timeline', $record->id) }}" class="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5 text-xs font-bold text-brand hover:bg-blue-100">نمایش تایم‌لاین</button>@endif
             @if($canEdit)<a href="{{ $editUrl }}" class="rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-800">ویرایش</a>@endif
         </div>
     </header>
+
+    @if($type === 'letter')
+        <dialog data-letter-timeline-dialog class="w-[min(92vw,42rem)] max-h-[85vh] overflow-hidden rounded-3xl p-0 shadow-2xl backdrop:bg-slate-950/40">
+            <div class="flex items-start justify-between gap-4 border-b border-slate-100 p-5"><div><p class="text-xs text-muted">روند نامه</p><h2 class="mt-1 font-extrabold">تایم‌لاین تغییرات نامه</h2></div><button type="button" data-close-letter-timeline class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600" aria-label="بستن">×</button></div>
+            <div data-letter-timeline-content class="max-h-[65vh] space-y-4 overflow-y-auto p-5"><p class="text-sm text-muted">برای نمایش رویدادها دکمه تایم‌لاین را بزنید.</p></div>
+        </dialog>
+    @endif
 
     @if(session('success'))<div class="mb-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm font-semibold text-blue-800">{{ session('success') }}</div>@endif
 
@@ -157,6 +165,67 @@
 <nav class="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/80 bg-white/95 px-4 pt-2 shadow-[0_-8px_30px_rgba(23,36,58,.06)] backdrop-blur sm:hidden"><a href="{{ $backUrl }}" class="mx-auto flex max-w-sm items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold text-brand">← بازگشت به فهرست</a></nav>
 <script>
 (() => {
+    const dialog = document.querySelector('[data-letter-timeline-dialog]');
+    const timelineButton = document.querySelector('[data-open-letter-timeline]');
+    const timelineContent = dialog?.querySelector('[data-letter-timeline-content]');
+    if (dialog && timelineButton && timelineContent && !timelineButton.dataset.bound) {
+        timelineButton.dataset.bound = '1';
+        timelineButton.addEventListener('click', async () => {
+            timelineContent.replaceChildren();
+            const loading = document.createElement('p');
+            loading.className = 'text-sm text-muted';
+            loading.textContent = 'در حال دریافت رویدادها…';
+            timelineContent.appendChild(loading);
+            dialog.showModal();
+            try {
+                const response = await fetch(timelineButton.dataset.url, { headers: { Accept: 'application/json' } });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.message || 'دریافت تایم‌لاین ممکن نشد.');
+                timelineContent.replaceChildren();
+                (payload.data || []).forEach((event) => {
+                    const item = document.createElement('article');
+                    item.className = 'relative border-r-2 border-blue-200 pr-4';
+                    const heading = document.createElement('h3');
+                    heading.className = 'font-bold text-slate-800';
+                    heading.textContent = event.title || 'رویداد نامه';
+                    const date = document.createElement('p');
+                    date.className = 'mt-1 text-[11px] text-muted';
+                    date.textContent = event.created_at ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.created_at)) : '';
+                    const description = document.createElement('p');
+                    description.className = 'mt-2 whitespace-pre-line break-words text-sm leading-7 text-slate-600';
+                    description.textContent = event.description || '';
+                    item.append(heading, date, description);
+                    if (event.user) {
+                        const actor = document.createElement('p');
+                        actor.className = 'mt-2 text-xs text-slate-500';
+                        actor.textContent = 'ثبت‌کننده: ' + event.user;
+                        item.appendChild(actor);
+                    }
+                    if (event.changes && Object.keys(event.changes).length) Object.values(event.changes).forEach((change) => {
+                        const detail = document.createElement('p');
+                        detail.className = 'mt-1 text-xs text-slate-500';
+                        detail.textContent = `${change.label || 'تغییر'}: ${change.old ?? '—'} ← ${change.new ?? '—'}`;
+                        item.appendChild(detail);
+                    });
+                    timelineContent.appendChild(item);
+                });
+                if (!timelineContent.childElementCount) {
+                    const empty = document.createElement('p');
+                    empty.className = 'text-sm text-muted';
+                    empty.textContent = 'رویدادی برای این نامه ثبت نشده است.';
+                    timelineContent.appendChild(empty);
+                }
+            } catch (error) {
+                timelineContent.replaceChildren();
+                const message = document.createElement('p');
+                message.className = 'text-sm text-rose-600';
+                message.textContent = error.message || 'خطا در دریافت تایم‌لاین.';
+                timelineContent.appendChild(message);
+            }
+        });
+        dialog.querySelector('[data-close-letter-timeline]')?.addEventListener('click', () => dialog.close());
+        dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    }
     document.querySelectorAll('[data-preview-content]').forEach((preview) => {
         const loader = preview.closest('[data-preview-shell]')?.querySelector('[data-preview-loading]');
         const finish = () => loader?.classList.add('hidden');

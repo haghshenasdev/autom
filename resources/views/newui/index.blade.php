@@ -129,16 +129,45 @@
                 <h1 class="mt-1 text-2xl font-extrabold">{{ $sectionTitle }}</h1>
             </div>
             <div class="flex items-center gap-3">
-                <a href="{{ url('/admin') }}" class="hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:border-brand hover:text-brand sm:inline-flex">پنل فیلامنت</a>
-                <form method="post" action="{{ route('logout') }}">@csrf<button class="hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:border-rose-200 hover:text-rose-600 sm:inline-flex">خروج</button></form>
-                <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-3 pr-1">
-                    @if(auth()->user()->avatar_url)
-                        <img src="{{ url('/profiles/'.auth()->user()->avatar_url) }}" alt="" class="h-9 w-9 rounded-full object-cover">
-                    @else
-                        <span class="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand">{{ mb_substr(auth()->user()->name, 0, 1) }}</span>
-                    @endif
-                    <span class="hidden max-w-28 truncate text-xs font-bold sm:block">{{ auth()->user()->name }}</span>
-                </div>
+                <details class="relative order-2">
+                    <summary class="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="اعلان‌ها">
+                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4.5-5.8V4a1.5 1.5 0 0 0-3 0v1.2A6 6 0 0 0 6 11v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0"/></svg>
+                        @if($unreadNotificationCount)<span class="absolute -left-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{{ min($unreadNotificationCount, 99) }}</span>@endif
+                    </summary>
+                    <section class="absolute left-0 top-full z-50 mt-3 max-h-[75vh] w-[min(92vw,26rem)] overflow-y-auto rounded-3xl border border-slate-100 bg-white p-4 shadow-2xl sm:p-5">
+                        <div class="mb-4 flex items-center justify-between gap-2"><div><h2 class="font-extrabold">آخرین اعلان‌ها</h2><p class="mt-1 text-xs text-muted">اعلان‌های اخیر حساب شما</p></div><span class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-brand">{{ $unreadNotificationCount }} خوانده‌نشده</span></div>
+                        @forelse($notifications as $notification)
+                            @php
+                                $notificationData = is_array($notification->data) ? $notification->data : [];
+                                $notificationType = strtolower((string) ($notificationData['resource_type'] ?? ''));
+                                $notificationHasRecord = !empty($notificationData['resource_id']) && in_array($notificationType, ['letters', 'letter', 'minutes', 'minute', 'tasks', 'task'], true);
+                            @endphp
+                            <article class="mb-3 rounded-2xl border {{ $notification->read_at ? 'border-slate-100 bg-slate-50/70' : 'border-blue-100 bg-blue-50/40' }} p-3 last:mb-0">
+                                <div class="flex items-start gap-3"><span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full {{ $notification->read_at ? 'bg-slate-300' : 'bg-blue-600' }}"></span><div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="break-words text-sm font-bold">{{ $notificationData['title'] ?? 'اعلان جدید' }}</h3><span class="text-[11px] text-muted">{{ $dateText($notification->created_at) }}</span></div>
+                                    <p class="mt-1 whitespace-pre-line break-words text-xs leading-6 text-slate-600">{{ \Illuminate\Support\Str::limit(strip_tags((string) ($notificationData['body'] ?? $notificationData['message'] ?? '')), 240) }}</p>
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        @if($notificationHasRecord)<form method="post" action="{{ route('newui.notifications.open', $notification->id) }}">@csrf<button class="rounded-xl bg-brand px-3 py-2 text-[11px] font-bold text-white">بازکردن رکورد مرتبط</button></form>@endif
+                                        <form method="post" action="{{ route('newui.notifications.read', $notification->id) }}">@csrf<input type="hidden" name="read" value="{{ $notification->read_at ? 0 : 1 }}"><button class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600">{{ $notification->read_at ? 'خوانده‌نشده بماند' : 'علامت‌گذاری به‌عنوان خوانده‌شده' }}</button></form>
+                                        <form method="post" action="{{ route('newui.notifications.delete', $notification->id) }}" onsubmit="return confirm('این اعلان حذف شود؟')">@csrf @method('DELETE')<button class="rounded-xl border border-rose-100 bg-white px-3 py-2 text-[11px] font-bold text-rose-600">حذف</button></form>
+                                    </div>
+                                </div></div>
+                            </article>
+                        @empty
+                            <p class="rounded-2xl bg-slate-50 p-5 text-center text-xs text-muted">اعلانی برای نمایش وجود ندارد.</p>
+                        @endforelse
+                    </section>
+                </details>
+                <details class="relative order-1">
+                    <summary class="flex cursor-pointer list-none items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-3 pr-1 shadow-sm">
+                        @if(auth()->user()->avatar_url)<img src="{{ url('/profiles/'.auth()->user()->avatar_url) }}" alt="" class="h-9 w-9 rounded-full object-cover">@else<span class="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand">{{ mb_substr(auth()->user()->name, 0, 1) }}</span>@endif
+                        <span class="hidden max-w-28 truncate text-xs font-bold sm:block">{{ auth()->user()->name }}</span>
+                    </summary>
+                    <div class="absolute left-0 top-full z-50 mt-3 w-56 rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl">
+                        <a href="{{ url('/admin') }}" class="block rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50">پنل فیلامنت</a>
+                        <form method="post" action="{{ route('logout') }}">@csrf<button class="w-full rounded-xl px-3 py-2.5 text-right text-xs font-bold text-rose-600 hover:bg-rose-50">خروج از حساب</button></form>
+                    </div>
+                </details>
             </div>
         </header>
 
@@ -253,36 +282,6 @@
             </section>
 
             @if(session('status'))<div class="mb-5 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">{{ session('status') }}</div>@endif
-            <section class="mb-8 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:p-5">
-                <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-                    <div><h2 class="font-extrabold">آخرین اعلان‌ها</h2><p class="mt-1 text-xs text-muted">اعلان‌های اخیر حساب شما</p></div>
-                    <span class="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-brand">{{ $unreadNotificationCount }} خوانده‌نشده</span>
-                </div>
-                @forelse($notifications as $notification)
-                    @php
-                        $notificationData = is_array($notification->data) ? $notification->data : [];
-                        $notificationType = strtolower((string) ($notificationData['resource_type'] ?? ''));
-                        $notificationHasRecord = !empty($notificationData['resource_id']) && in_array($notificationType, ['letters', 'letter', 'minutes', 'minute', 'tasks', 'task'], true);
-                    @endphp
-                    <article class="mb-3 rounded-2xl border {{ $notification->read_at ? 'border-slate-100 bg-slate-50/70' : 'border-blue-100 bg-blue-50/40' }} p-4 last:mb-0">
-                        <div class="flex items-start gap-3">
-                            <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full {{ $notification->read_at ? 'bg-slate-300' : 'bg-blue-600' }}"></span>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="break-words text-sm font-bold">{{ $notificationData['title'] ?? 'اعلان جدید' }}</h3><span class="text-[11px] text-muted">{{ $dateText($notification->created_at) }}</span></div>
-                                <p class="mt-1 whitespace-pre-line break-words text-xs leading-6 text-slate-600">{{ \Illuminate\Support\Str::limit(strip_tags((string) ($notificationData['body'] ?? $notificationData['message'] ?? '')), 240) }}</p>
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    @if($notificationHasRecord)<form method="post" action="{{ route('newui.notifications.open', $notification->id) }}">@csrf<button class="rounded-xl bg-brand px-3 py-2 text-[11px] font-bold text-white">بازکردن رکورد مرتبط</button></form>@endif
-                                    <form method="post" action="{{ route('newui.notifications.read', $notification->id) }}">@csrf<input type="hidden" name="read" value="{{ $notification->read_at ? 0 : 1 }}"><button class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600">{{ $notification->read_at ? 'خوانده‌نشده بماند' : 'علامت‌گذاری به‌عنوان خوانده‌شده' }}</button></form>
-                                    <form method="post" action="{{ route('newui.notifications.delete', $notification->id) }}" onsubmit="return confirm('این اعلان حذف شود؟')">@csrf @method('DELETE')<button class="rounded-xl border border-rose-100 bg-white px-3 py-2 text-[11px] font-bold text-rose-600">حذف</button></form>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                @empty
-                    <p class="rounded-2xl bg-slate-50 p-5 text-center text-xs text-muted">اعلانی برای نمایش وجود ندارد.</p>
-                @endforelse
-            </section>
-
             <div class="mb-4 flex items-center justify-between">
                 <div><h2 class="text-lg font-extrabold">کارهای پیش رو</h2><p class="mt-1 text-xs text-muted">فعالیت‌های انجام‌نشدهٔ شما</p></div>
                 @if($canTasks)<a href="{{ url('/newui?view=tasks') }}" class="text-xs font-bold text-brand">همه فعالیت‌ها <span>←</span></a>@endif
@@ -350,7 +349,6 @@
                             <article class="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
                                 <a href="{{ $showLetter($entry->letter) }}" class="min-w-0 flex-1"><span class="block break-words font-bold text-slate-800 hover:text-brand">{{ $entry->letter->subject ?: 'نامه شماره '.$entry->letter->id }}</span><span class="mt-1 block text-xs text-muted">{{ $entry->letter->kind ? 'صادره' : 'وارده' }} · {{ $dateText($entry->letter->created_at) }} · {{ $entry->letter->organ?->name }}</span></a>
                                 <div class="flex shrink-0 flex-wrap gap-2">
-                                    @if($canLetters)<button type="button" data-letter-timeline data-url="{{ route('newui.letters.timeline', $entry->letter->id) }}" data-title="{{ $entry->letter->subject ?: 'نامه شماره '.$entry->letter->id }}" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:border-brand hover:text-brand">تایم‌لاین</button>@endif
                                     @if($canUpdateCartable)<form method="post" action="{{ route('newui.cartable.letters.checked', $entry->id) }}">@csrf<input type="hidden" name="checked" value="{{ $entry->checked ? 0 : 1 }}"><button class="rounded-xl px-3 py-2 text-xs font-bold {{ $entry->checked ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700' }}">{{ $entry->checked ? 'علامت‌گذاری به‌عنوان خوانده‌نشده' : 'علامت‌گذاری به‌عنوان خوانده‌شده' }}</button></form>@endif
                                 </div>
                             </article>
@@ -478,10 +476,6 @@
                 <div class="mt-6">{{ $items->links() }}</div>
             @endif
         @endif
-        <dialog id="letter-timeline-dialog" class="w-[min(92vw,42rem)] max-h-[85vh] overflow-hidden rounded-3xl p-0 shadow-2xl backdrop:bg-slate-950/40">
-            <div class="flex items-start justify-between gap-4 border-b border-slate-100 p-5"><div><p class="text-xs text-muted">روند نامه</p><h2 id="letter-timeline-title" class="mt-1 font-extrabold">تایم‌لاین</h2></div><button type="button" data-close-timeline class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600" aria-label="بستن">×</button></div>
-            <div id="letter-timeline-content" class="max-h-[65vh] space-y-4 overflow-y-auto p-5"><p class="text-sm text-muted">در حال دریافت رویدادها…</p></div>
-        </dialog>
     </main>
 </div>
 
@@ -500,72 +494,6 @@
         @endforeach
     </div>
 </nav>
-<script>
-(() => {
-    const dialog = document.getElementById('letter-timeline-dialog');
-    const title = document.getElementById('letter-timeline-title');
-    const content = document.getElementById('letter-timeline-content');
-    if (!dialog) return;
-    document.querySelectorAll('[data-letter-timeline]').forEach((button) => button.addEventListener('click', async () => {
-        title.textContent = button.dataset.title || 'تایم‌لاین نامه';
-        content.replaceChildren();
-        const loading = document.createElement('p');
-        loading.className = 'text-sm text-muted';
-        loading.textContent = 'در حال دریافت رویدادها…';
-        content.appendChild(loading);
-        dialog.showModal();
-        try {
-            const response = await fetch(button.dataset.url, { headers: { 'Accept': 'application/json' } });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.message || 'دریافت تایم‌لاین ممکن نشد.');
-            content.replaceChildren();
-            (payload.data || []).forEach((event) => {
-                const item = document.createElement('article');
-                item.className = 'relative border-r-2 border-blue-200 pr-4';
-                const heading = document.createElement('h3');
-                heading.className = 'font-bold text-slate-800';
-                heading.textContent = event.title || 'رویداد نامه';
-                const date = document.createElement('p');
-                date.className = 'mt-1 text-[11px] text-muted';
-                date.textContent = event.created_at ? new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.created_at)) : '';
-                const description = document.createElement('p');
-                description.className = 'mt-2 whitespace-pre-line break-words text-sm leading-7 text-slate-600';
-                description.textContent = event.description || '';
-                item.append(heading, date, description);
-                if (event.user) {
-                    const actor = document.createElement('p');
-                    actor.className = 'mt-2 text-xs text-slate-500';
-                    actor.textContent = 'ثبت‌کننده: ' + event.user;
-                    item.appendChild(actor);
-                }
-                if (event.changes && Object.keys(event.changes).length) {
-                    Object.values(event.changes).forEach((change) => {
-                        const detail = document.createElement('p');
-                        detail.className = 'mt-1 text-xs text-slate-500';
-                        detail.textContent = `${change.label || 'تغییر'}: ${change.old ?? '—'} ← ${change.new ?? '—'}`;
-                        item.appendChild(detail);
-                    });
-                }
-                content.appendChild(item);
-            });
-            if (!content.childElementCount) {
-                const empty = document.createElement('p');
-                empty.className = 'text-sm text-muted';
-                empty.textContent = 'رویدادی برای این نامه ثبت نشده است.';
-                content.appendChild(empty);
-            }
-        } catch (error) {
-            content.replaceChildren();
-            const message = document.createElement('p');
-            message.className = 'text-sm text-rose-700';
-            message.textContent = error.message || 'دریافت تایم‌لاین ممکن نشد.';
-            content.appendChild(message);
-        }
-    }));
-    dialog.querySelector('[data-close-timeline]')?.addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
-})();
-</script>
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
