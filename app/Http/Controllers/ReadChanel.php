@@ -95,27 +95,64 @@ class ReadChanel extends Controller
         }
     }
 
-    /** Pick the first meaningful, classifiable title from any line in a post. */
+    /** Rank classifiable title candidates and prefer lines describing the actual event. */
     private function extractTaskTitle(string $content): string
     {
         $predictor = new CategoryPredictor();
         $lines = array_values(array_filter(array_map(
-            static fn ($line) => trim(preg_replace('/\s+/u', ' ', $line) ?? ''),
+            static fn ($line) => trim(preg_replace('/^[^\p{L}\p{N}@]+/u', '', trim(preg_replace('/\s+/u', ' ', $line) ?? '')) ?? ''),
             preg_split('/\R/u', $content) ?: []
         ), static fn ($line) => $line !== ''));
+
+        // اگر متن‌خوانی ایتا شکست خط را حذف کرده باشد، متن اصلی پس از دونقطه را جدا می‌کنیم.
+        $lines = array_values(array_filter(array_map(static function ($line) {
+            if (preg_match(
+                '/^(?:با|به)\s+دعوت.*?(?:صورت\s+گرفت|انجام\s+شد|برگزار\s+شد)\s*[:：]\s*(.+)$/u',
+                $line,
+                $matches
+            )) {
+                return trim($matches[1]);
+            }
+
+            return $line;
+        }, $lines), static fn ($line) => $line !== ''));
+
+        // خبرهای کانال گاهی با یک مقدمه ثابت شروع می‌شوند؛ این عبارت مقدمه است، نه عنوان رویداد.
+        $lines = array_values(array_filter($lines, static fn ($line) => !preg_match(
+            '/^(?:با|به)\s+دعوت(?:\s|$).*(?:صورت\s+گرفت|انجام\s+شد|برگزار\s+شد)\s*[:：،؛.!؟]*$/u',
+            $line
+        )));
+
+        $eventWords = ['بازدید', 'افتتاح', 'دیدار', 'بررسی', 'پیگیری', 'برگزاری', 'آغاز', 'بهره‌برداری', 'تأکید', 'تاکید', 'امضا', 'توافق'];
+        $bestTitle = null;
+        $bestScore = -1;
 
         foreach ($lines as $index => $line) {
             foreach ([1, 2, 3] as $span) {
                 $candidate = trim(implode(' ', array_slice($lines, $index, $span)));
                 if ($candidate === '') continue;
-                $prediction = $predictor->predictWithCity($candidate);
-                if ($prediction && !empty($prediction['categories'])) {
-                    return $candidate;
+
+                // فقط عنوان‌های قابل دسته‌بندی نامزد می‌شوند؛ اما اولین تطبیق را فوراً انتخاب نمی‌کنیم.
+                $categoryScores = $predictor->predict($candidate, 20);
+                if (empty($categoryScores)) continue;
+
+                $score = array_sum($categoryScores);
+                foreach ($eventWords as $word) {
+                    if (mb_strpos($candidate, $word) !== false) {
+                        $score += $word === 'بازدید' ? 5 : 2;
+                    }
+                }
+
+                // اگر امتیاز محتوایی برابر بود، عبارت کوتاه‌تر و متمرکزتر اولویت دارد.
+                $score -= max(0, $span - 1) * 0.25;
+                if ($score > $bestScore) {
+                    $bestScore = $score;
+                    $bestTitle = $candidate;
                 }
             }
         }
 
-        return $lines[0] ?? '';
+        return $bestTitle ?? ($lines[0] ?? '');
     }
 
     function removeExactDuplicateTitlesKeepHigherId(array $posts): array
