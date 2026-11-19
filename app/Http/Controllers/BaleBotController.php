@@ -91,6 +91,7 @@ class BaleBotController extends Controller
                         'url' => "https://ble.ir/karnama_Bot?start={$type}_{$chatId}",
                     ]]]]
                 );
+                $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
                 $this->sendMessageWithKeyboard($chatId, "برای ثبت {$label} روی دکمه بزنید؛ ادامهٔ فرم در گفت‌وگوی خصوصی انجام می‌شود.", $keyboard);
                 return response('wizard link sent');
             }
@@ -1068,6 +1069,14 @@ class BaleBotController extends Controller
             'text' => $text,
         ];
 
+        $wizardUser = BaleUser::query()->where('bale_id', (string) $chatId)->first();
+        if ($wizardUser && str_starts_with((string) $wizardUser->state, 'wizard:')
+            && !str_starts_with((string) $text, '✅')) {
+            $payload['reply_markup'] = json_encode(['inline_keyboard' => [[
+                ['text' => '❌ انصراف از ایجاد', 'callback_data' => 'wizcancel'],
+            ]]], JSON_UNESCAPED_UNICODE);
+        }
+
         if (empty($token)) {
             Log::error('Bale sendMessage skipped: BALE_BOT_TOKEN is not configured.');
             return null;
@@ -1360,7 +1369,9 @@ EOT);
         $prompt = "برای {$labels[$kind]} روی دکمه بزنید؛ رکورد پس از ثبت به مورد مبدا متصل می‌شود.";
         $this->sendMessageWithKeyboard($baleUser->bale_id, $prompt, $keyboard);
         if ((string) $chatId !== (string) $baleUser->bale_id) {
-            $this->sendMessageWithKeyboard($chatId, $prompt, $keyboard);
+            $groupKeyboard = $keyboard;
+            $groupKeyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
+            $this->sendMessageWithKeyboard($chatId, $prompt, $groupKeyboard);
         }
     }
 
@@ -1517,6 +1528,7 @@ EOT);
         if ($page > 1) $navigation[] = ['text' => 'صفحه قبل', 'callback_data' => "wizpage|{$field}|" . ($page - 1)];
         if ($items->hasMorePages()) $navigation[] = ['text' => 'صفحه بعد', 'callback_data' => "wizpage|{$field}|" . ($page + 1)];
         if ($navigation) $keyboard['inline_keyboard'][] = $navigation;
+        $keyboard['inline_keyboard'][] = [['text' => '❌ انصراف از ایجاد', 'callback_data' => 'wizcancel']];
         $prompt = match ($field) {
             'city' => 'شهر دستورکار را انتخاب کنید:',
             'organ' => 'ارگان دستورکار را انتخاب کنید:',
@@ -1542,6 +1554,16 @@ EOT);
     {
         $state = $this->decodeCreationWizard($baleUser);
         if (!$state) return false;
+        if ($callbackData === 'wizcancel') {
+            $baleUser->update(['state' => '1']);
+            Http::post('https://tapi.bale.ai/bot' . config('bale.token') . '/editMessageText', [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => '❌ فرایند ایجاد لغو شد.',
+                'reply_markup' => json_encode(['inline_keyboard' => []], JSON_UNESCAPED_UNICODE),
+            ]);
+            return true;
+        }
         if (!empty($state['record_type'])) {
             $permission = match ($state['kind'] ?? '') {
                 'project' => 'create_project',
