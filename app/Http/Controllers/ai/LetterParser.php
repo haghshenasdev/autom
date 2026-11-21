@@ -475,6 +475,7 @@ EOT],
         $line = preg_replace('/\b\d{4}\/\d{1,2}\/\d{1,2}\b/u', '', $line);
         $line = str_replace('مورخ', '', $line);
         $line = preg_replace('/^#?(?:نامه|مکاتبه)\s*/u', '', trim($line));
+        $line = preg_replace('/^#(?=دستور)/u', '', $line);
         return trim($line);
     }
 

@@ -16,6 +16,7 @@ use App\Models\Cartable;
 use App\Models\Content;
 use App\Models\ContentGroup;
 use App\Models\City;
+use App\Models\Customer;
 use App\Models\Organ;
 use App\Models\Project;
 use App\Models\Referral;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Http;
@@ -138,10 +140,6 @@ class BaleBotController extends Controller
                 $lines = explode("\n", $text);
                 $firstLine = $lines[0] ?? '';
                 $secondLine = $lines[1] ?? '';
-                // Treat #دستور as a letter alias, preserving the existing parser/OCR flow.
-                $text = preg_replace('/^#دستور/u', '#نامه', $text, 1);
-                $firstLine = preg_replace('/^#دستور/u', '#نامه', $firstLine, 1);
-
                 if (str_starts_with($firstLine, '/کارپوشه')) {
                     if (!$user->can('view_cartable')) {
                         $this->sendMessage($chatId, '❌ شما به کارپوشه دسترسی ندارید!');
@@ -518,7 +516,7 @@ class BaleBotController extends Controller
                     return response('صورت‌جلسه ارسال شد');
 
                 }
-                elseif (str_starts_with($firstLine, '#نامه') || str_starts_with($firstLine, '#مکاتبه')) {
+                elseif (str_starts_with($firstLine, '#نامه') || str_starts_with($firstLine, '#مکاتبه') || str_starts_with($firstLine, '#دستور')) {
                     if (str_contains($text, '#متن')) {
                         $ltp = new LetterParser();
                         $dataLetter = $ltp->mixedParse($text);
@@ -535,7 +533,7 @@ class BaleBotController extends Controller
                                 $this->LetterFileAdd($record, $doc, $media_group_id, $bale_user);
                             }
                         } else {
-                            $this->sendMessage($chatId, 'لطفاً دستور #نامه را در پاسخ به فایل یا تصویر نامه ارسال کنید.');
+                            $this->sendMessage($chatId, 'لطفاً #نامه یا #دستور را در پاسخ به فایل یا تصویر نامه ارسال کنید.');
                         }
                     }
                 }
@@ -673,9 +671,6 @@ class BaleBotController extends Controller
                 // تشخیص هشتگ‌ها
                 $hashtags = ['#یادداشت', '#صورتجلسه', '#صورت', '#صورت-جلسه', '#نامه', '#مکاتبه', '#دستور', '#کار', '#جلسه', '#گزارش'];
                 $matched = collect($hashtags)->filter(fn($tag) => str_contains($caption, $tag))->first();
-                $caption = preg_replace('/^#دستور/u', '#نامه', $caption, 1);
-
-
                 // ذخیره در مدل مناسب
                 $record = null;
                 if ($matched === '#یادداشت') {
@@ -1832,11 +1827,12 @@ EOT);
             $letter = Letter::find((int) ($parts[1] ?? 0));
             $field = $parts[2] ?? '';
             $value = (int) ($parts[3] ?? 0);
-            if ($letter && $user->can('create_letter') && in_array($field, ['daftar_id', 'organ_id', 'organ_owner'], true)) {
+            if ($letter && $user->can('create_letter') && in_array($field, ['daftar_id', 'organ_id', 'organ_owner', 'customer_owner'], true)) {
                 $organ = Organ::find($value);
                 $validOffice = $field === 'daftar_id' && $organ && (int) $organ->organ_type_id === 20;
                 $validRecipient = $field === 'organ_id' && $organ && (int) $organ->organ_type_id !== 20 && (int) $letter->kind === 1;
-                $validOwner = $field === 'organ_owner' && $organ && (int) $organ->organ_type_id !== 20 && (int) $letter->kind === 0;
+                $validOwner = $field === 'organ_owner' && $organ && (int) $organ->organ_type_id !== 20;
+                $customer = $field === 'customer_owner' ? Customer::find($value) : null;
                 if ($validOffice) {
                     $letter->update(['daftar_id' => $value]);
                 } elseif ($validRecipient) {
@@ -1844,6 +1840,9 @@ EOT);
                 } elseif ($validOwner) {
                     $exists = $letter->organs_owner()->where('organs.id', $value)->exists();
                     $exists ? $letter->organs_owner()->detach($value) : $letter->organs_owner()->syncWithoutDetaching([$value]);
+                } elseif ($field === 'customer_owner' && $customer) {
+                    $exists = $letter->customers()->where('customers.id', $value)->exists();
+                    $exists ? $letter->customers()->detach($value) : $letter->customers()->syncWithoutDetaching([$value]);
                 } else {
                     return;
                 }
@@ -3421,8 +3420,10 @@ EOT);
                 'trace' => $parseException->getTraceAsString(),
             ]);
             $firstLine = trim((preg_split('/\R/u', $sourceText)[0] ?? ''));
+            $fallbackTitle = trim(preg_replace('/^#(?:نامه|مکاتبه)\s*/u', '', $firstLine));
+            $fallbackTitle = preg_replace('/^#(?=دستور)/u', '', $fallbackTitle);
             $dataLetter = [
-                'title' => trim(preg_replace('/^#(?:نامه|مکاتبه)\s*/u', '', $firstLine)) ?: 'نامه ثبت‌شده از ربات بله',
+                'title' => $fallbackTitle ?: 'نامه ثبت‌شده از ربات بله',
                 'title_date' => null,
                 'organ_id' => null,
                 'user_id' => [],
@@ -3467,14 +3468,8 @@ EOT);
                     $dataLetter['mokatebe'] = $dataLetter['mokatebe'] ?? ($aiData['mokatebe'] ?? null);
                     $dataLetter['organ_id'] = $dataLetter['organ_id'] ?? ($aiData['organ_id'] ?? null);
                     $dataLetter['kind'] = $dataLetter['kind'] ?? ($aiData['kind'] ?? 1);
-                    $dataLetter['organ_owners'] = array_values(array_unique(array_merge(
-                        $dataLetter['organ_owners'] ?? [],
-                        $aiData['organ_owners'] ?? []
-                    )));
-                    $dataLetter['customer_owners'] = array_values(array_unique(array_merge(
-                        $dataLetter['customer_owners'] ?? [],
-                        $aiData['customer_owners'] ?? []
-                    )));
+                    $dataLetter['suggested_organ_owners'] = array_values(array_unique($aiData['organ_owners'] ?? []));
+                    $dataLetter['suggested_customer_owners'] = array_values(array_unique($aiData['customer_owners'] ?? []));
                 }
             } catch (\Throwable $aiException) {
                 Log::warning('Bale letter AI enrichment failed; local parser data retained.', [
@@ -3492,6 +3487,7 @@ EOT);
         if (trim((string) ($dataLetter['title'] ?? '')) === '') {
             $firstLine = trim((preg_split('/\R/u', $sourceText)[0] ?? ''));
             $fallbackTitle = trim(preg_replace('/^#(?:نامه|مکاتبه)\s*/u', '', $firstLine));
+            $fallbackTitle = preg_replace('/^#(?=دستور)/u', '', $fallbackTitle);
             $dataLetter['title'] = $fallbackTitle ?: 'نامه ثبت‌شده از ربات بله';
         }
 
@@ -3562,8 +3558,8 @@ EOT);
         $this->sendMessage($chatId, trim($message));
     }
 
-    /** پیشنهاد گیرنده فقط از میان ارگان‌های موجود و با رتبه‌بندی مبتنی بر متن کامل نامه. */
-    private function findLetterOrganSuggestions(Letter $letter)
+    /** پیشنهاد صاحب یا گیرنده فقط از میان ارگان‌های موجود و با رتبه‌بندی متن کامل نامه. */
+    private function findLetterOrganSuggestions(Letter $letter, ?int $kind = null)
     {
         $text = trim(($letter->subject ?? '') . "\n" . ($letter->description ?? ''));
         if ($text === '') return collect();
@@ -3604,7 +3600,7 @@ EOT);
                 'name' => $organ->name,
             ])->all();
             $rankedIds = app(\App\Services\BaleLetterTextAiService::class)
-                ->rankOrganCandidates($text, $rankInput, 3, (int) $letter->kind);
+                ->rankOrganCandidates($text, $rankInput, 3, $kind ?? (int) $letter->kind);
             if (!empty($rankedIds)) {
                 return $candidates->whereIn('id', $rankedIds)
                     ->sortBy(fn ($organ) => array_search((int) $organ->id, $rankedIds, true))
@@ -3627,6 +3623,17 @@ EOT);
     private function sendLetterSuggestions($chatId, Letter $letter, array $parsed = [], $messageId = null): void
     {
         $keyboard = ['inline_keyboard' => []];
+        $ownerSuggestionCacheKey = "bale_letter_owner_suggestions_{$letter->id}";
+        $ownerSuggestionIds = Cache::get($ownerSuggestionCacheKey, ['organs' => [], 'customers' => []]);
+        $ownerSuggestionIds['organs'] = array_values(array_unique(array_merge(
+            $ownerSuggestionIds['organs'] ?? [],
+            array_map('intval', $parsed['suggested_organ_owners'] ?? [])
+        )));
+        $ownerSuggestionIds['customers'] = array_values(array_unique(array_merge(
+            $ownerSuggestionIds['customers'] ?? [],
+            array_map('intval', $parsed['suggested_customer_owners'] ?? [])
+        )));
+        Cache::put($ownerSuggestionCacheKey, $ownerSuggestionIds, now()->addHours(12));
         $kindLabel = (int) $letter->kind === 1 ? 'صادره' : 'وارده';
         $keyboard['inline_keyboard'][] = [[
             'text' => "نوع نامه: {$kindLabel} (تغییر)",
@@ -3657,7 +3664,8 @@ EOT);
         $organCandidates = $organCandidates->unique('id')->take(3);
 
         if ($organCandidates->isNotEmpty()) {
-            $keyboard['inline_keyboard'][] = [['text' => '--- 🏛 گیرنده / ارگان ---', 'callback_data' => '__noop__']];
+            $organLabel = (int) $letter->kind === 0 ? 'صاحب نامه / فرستنده پیشنهادی' : 'گیرنده اصلی پیشنهادی';
+            $keyboard['inline_keyboard'][] = [['text' => "--- 🏛 {$organLabel} ---", 'callback_data' => '__noop__']];
             foreach ($organCandidates as $item) {
                 $isIncoming = (int) $letter->kind === 0;
                 $selected = $isIncoming
@@ -3667,6 +3675,42 @@ EOT);
                 $keyboard['inline_keyboard'][] = [[
                     'text' => ($selected ? '✅ ' : '') . $item->id . ' - ' . mb_substr($item->name, 0, 38),
                     'callback_data' => "letter_set|{$letter->id}|{$field}|{$item->id}",
+                ]];
+            }
+        }
+
+        try {
+            $ownerCandidates = (int) $letter->kind === 1
+                ? $this->findLetterOrganSuggestions($letter, 0)->unique('id')->take(3)
+                : collect();
+        } catch (\Throwable $ownerSuggestionException) {
+            Log::warning('Bale letter owner suggestions failed.', [
+                'letter_id' => $letter->id,
+                'error' => $ownerSuggestionException->getMessage(),
+            ]);
+            $ownerCandidates = collect();
+        }
+        $ownerSuggestionIds['organs'] = array_values(array_unique(array_merge(
+            $ownerSuggestionIds['organs'] ?? [],
+            $ownerCandidates->pluck('id')->map(fn ($id) => (int) $id)->all()
+        )));
+        Cache::put($ownerSuggestionCacheKey, $ownerSuggestionIds, now()->addHours(12));
+        $suggestedOwnerOrgans = Organ::query()->whereIn('id', $ownerSuggestionIds['organs'] ?? [])->where('organ_type_id', '!=', 20)->get();
+        $suggestedOwnerCustomers = Customer::query()->whereIn('id', $ownerSuggestionIds['customers'] ?? [])->get();
+        if ($suggestedOwnerOrgans->isNotEmpty() || $suggestedOwnerCustomers->isNotEmpty()) {
+            $keyboard['inline_keyboard'][] = [['text' => '--- 👤 صاحب‌های پیشنهادی از متن ---', 'callback_data' => '__noop__']];
+            foreach ($suggestedOwnerOrgans as $item) {
+                $selected = $letter->organs_owner()->where('organs.id', $item->id)->exists();
+                $keyboard['inline_keyboard'][] = [[
+                    'text' => ($selected ? '✅ ' : '➕ ') . 'ارگان: ' . $item->id . ' - ' . mb_substr($item->name, 0, 32),
+                    'callback_data' => "letter_set|{$letter->id}|organ_owner|{$item->id}",
+                ]];
+            }
+            foreach ($suggestedOwnerCustomers as $item) {
+                $selected = $letter->customers()->where('customers.id', $item->id)->exists();
+                $keyboard['inline_keyboard'][] = [[
+                    'text' => ($selected ? '✅ ' : '➕ ') . 'شخص: ' . $item->id . ' - ' . mb_substr($item->name, 0, 32),
+                    'callback_data' => "letter_set|{$letter->id}|customer_owner|{$item->id}",
                 ]];
             }
         }
@@ -3715,7 +3759,7 @@ EOT);
 
         $keyboard['inline_keyboard'][] = [['text' => '❌ حذف پیام', 'callback_data' => 'delete_message']];
         $message = "📌 پیشنهادهای تکمیلی نامه شماره {$letter->id}\n";
-        $message .= "دفتر، گیرنده و دستورکار را بررسی کنید؛ با لمس گزینه‌ها می‌توانید مقدار را انتخاب یا تغییر دهید.";
+        $message .= "دفتر، صاحب نامه، گیرنده و دستورکار را بررسی کنید؛ با لمس گزینه‌ها می‌توانید مقدار را انتخاب یا تغییر دهید.";
         if ($messageId === null) {
             $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
         } else {
