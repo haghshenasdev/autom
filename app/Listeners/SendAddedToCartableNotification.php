@@ -35,7 +35,7 @@ class SendAddedToCartableNotification
                 $message = "یک نامه جدید توسط {$na} به کارتابل شما افزوده شد: " . "\n";
                 $message .= $bale_bot->createCartableMessage($cartable);
                 $bale_bot->sendNotifBale($cartable->user_id, $message .
-                    '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$cartable->letter->id]) . ')' . "\n"
+                    '[بازکردن در سامانه](' . route('newui.record', ['type' => 'letter', 'recordId' => $cartable->letter->id]) . ')' . "\n"
                 );
                 // ارسال به پنل سامانه
                 $user = User::query()->find($cartable->user_id);

@@ -36,6 +36,8 @@ use App\Models\MinutesGroup;
 use App\Models\Letter;
 use App\Models\Task;
 use App\Models\BaleUser;
+use App\Models\User;
+use App\Services\NewUiAssistantService;
 use Illuminate\Support\Facades\Storage;
 use Morilog\Jalali\CalendarUtils;
 use Morilog\Jalali\Jalalian;
@@ -110,15 +112,12 @@ class BaleBotController extends Controller
                 }
             }
 
-            // A private file sent without a caption has no text/caption branch below.
-            // Route it through normal letter creation and attach the original file.
+            // Private uncaptained files are OCRed and presented as a registration draft;
+            // group file/hashtag handling below remains unchanged.
             if ($isPrivateChat && $text === '' && $caption === '' && !$media_group_id) {
                 $directAttachment = $this->getBaleAttachmentFromMessage($data['message']);
-                if ($directAttachment && $user->can('create_letter')) {
-                    $record = $this->handleLetter_create('', $chatId, $user, true, $directAttachment);
-                    if ($record instanceof Letter) {
-                        $this->LetterFileAdd($record, $directAttachment, null, $bale_user);
-                    }
+                if ($directAttachment) {
+                    $this->startPrivateFileRegistrationProposal($chatId, $user, $directAttachment);
                     return response('direct file processed');
                 }
             }
@@ -192,7 +191,7 @@ class BaleBotController extends Controller
                             $letter->save();
                         }
                         $message .= $this->createCartableMessage($letter);
-                        $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letter->letter->id]) . ')' . "\n";
+                        $message .= '[بازکردن در سامانه](' . route('newui.record', ['type' => 'letter', 'recordId' => $letter->letter->id]) . ')' . "\n";
                         $message .= "----------------------\n";
                     }
 
@@ -295,7 +294,7 @@ class BaleBotController extends Controller
                             $letter->save();
                         }
                         $message .= $this->CreateReferralMessage($letter);
-                        $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letter->letter->id]) . ')' . "\n";
+                        $message .= '[بازکردن در سامانه](' . route('newui.record', ['type' => 'letter', 'recordId' => $letter->letter->id]) . ')' . "\n";
                         $message .= "----------------------\n";
                     }
 
@@ -345,7 +344,7 @@ class BaleBotController extends Controller
                             }
 
                             $message .= $this->CreateTaskMessage($task, $user);
-                            $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
+                            $message .= "\n" . '[بازکردن در سامانه](' . route('newui.record', ['type' => 'task', 'recordId' => $task->id]) . ')' . "\n\n";
                             $message .= "----------------------\n";
                         }
 
@@ -466,12 +465,12 @@ class BaleBotController extends Controller
 
                                     //ایجاد پیام
                                     $message .= $this->CreateTaskMessage($task, $user);
-                                    $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n\n";
+                                    $message .= "\n" . '[بازکردن در سامانه](' . route('newui.record', ['type' => 'task', 'recordId' => $task->id]) . ')' . "\n\n";
                                     $message .= "----------------------\n";
                                 }
 
                                 if (!$isPrivateChat){
-                                    $message = '📋 ['.count($parsedData['approves']).' مصوبه به صورتجلسه "'.$minute->title.'" اظافه شد .]('. MinutesResource::getUrl('edit',[$minute->id]).')';
+                                    $message = '📋 ['.count($parsedData['approves']).' مصوبه به صورتجلسه "'.$minute->title.'" اظافه شد .]('. route('newui.record', ['type' => 'minute', 'recordId' => $minute->id]).')';
                                 }
                                 $this->sendMessage($chatId, $message);
                                 return response('مصوبه ها ایجاد شدند');
@@ -505,7 +504,7 @@ class BaleBotController extends Controller
                     [$query, $queryText,$minutes] = $handle_res;
 
                     if (count($minutes) == 1) {
-                        $message = '[بازکردن در سامانه](' . MinutesResource::getUrl('edit', [$minutes[0]->id]) . ')' . "\n\n";
+                        $message = '[بازکردن در سامانه](' . route('newui.record', ['type' => 'minute', 'recordId' => $minutes[0]->id]) . ')' . "\n\n";
                         $message .= $this->createMinuteMessage($minutes[0],$user);
                         $path = $minutes[0]->getFilePath();
                         $this->sendDocumentFromContent($chatId, Storage::disk('private_appendix_other')->get($path), basename($path), $this->getMimeTypeFromExtension($path), $message);
@@ -593,7 +592,7 @@ class BaleBotController extends Controller
                     [$query, $queryText,$letters] = $handle_res;
 
                     if (count($letters) == 1) {
-                        $message = '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$letters[0]->id]) . ')' . "\n\n";
+                        $message = '[بازکردن در سامانه](' . route('newui.record', ['type' => 'letter', 'recordId' => $letters[0]->id]) . ')' . "\n\n";
                         $message .= $this->CreateLetterMessage($letters[0]);
                         $path = $letters[0]->getFilePath();
                         $this->sendDocumentFromContent($chatId, Storage::disk('private')->get($path), basename($path), $this->getMimeTypeFromExtension($path), $message);
@@ -663,7 +662,7 @@ class BaleBotController extends Controller
                     return response("آمار ارسال شد .");
                 }
                 else if ($isPrivateChat) {
-                    $this->HandleAiChat($chatId, $text);
+                    $this->HandleAiChat($chatId, $text, $user);
                 }
 
             } elseif ($caption != '') {
@@ -743,9 +742,13 @@ class BaleBotController extends Controller
                 }
                 elseif ($matched === null && $isPrivateChat && $this->getBaleAttachmentFromMessage($data['message'])) {
                     $doc = $this->getBaleAttachmentFromMessage($data['message']);
-                    $record = $this->handleLetter_create($caption, $chatId, $user, true, $doc);
-                    if ($record instanceof Letter) {
-                        $this->LetterFileAdd($record, $doc, $media_group_id, $bale_user);
+                    if (trim((string) $caption) === '') {
+                        $this->startPrivateFileRegistrationProposal($chatId, $user, $doc);
+                    } else {
+                        $record = $this->handleLetter_create($caption, $chatId, $user, true, $doc);
+                        if ($record instanceof Letter) {
+                            $this->LetterFileAdd($record, $doc, $media_group_id, $bale_user);
+                        }
                     }
                 }
                 // ارسال پیام تأیید
@@ -952,7 +955,7 @@ class BaleBotController extends Controller
         $record->loadMissing(['tasks', 'typer', 'organ', 'task_creator']);
         $message = "✅ صورت‌جلسه با موفقیت ثبت شد.\n\n" . $this->createMinuteMessage($record, $user);
         $this->sendMessageWithKeyboard($chatId, $message, ['inline_keyboard' => [[
-            ['text' => 'باز کردن در سامانه', 'url' => url(MinutesResource::getUrl('edit', [$record->id]))],
+            ['text' => 'باز کردن در سامانه', 'url' => route('newui.record', ['type' => 'minute', 'recordId' => $record->id])],
         ]]]);
     }
 
@@ -1111,46 +1114,189 @@ class BaleBotController extends Controller
      * @return void
      * @throws Exception
      */
-    public function HandleAiChat(mixed $chatId, string $text): void
+    public function HandleAiChat(mixed $chatId, string $text, User $user): void
     {
-        $processMessageID = $this->sendMessage($chatId, '🔁 درحال پردازش ...');
-
+        $processMessageId = $this->sendMessage($chatId, '🔁 در حال بررسی پرسش و جست‌وجو در اطلاعات مجاز شما…');
         try {
-
-            $references = $this->HelpHandler('')
-            ."\n----------------\n";
-            if (str_contains($text,'صورتجلسه') || str_contains($text,'صورت جلسه')) {
-                $references .= $this->HelpHandler('صورتجلسه');
-                $references .= "\n----------------\n";
-            }
-            if (str_contains($text,'نامه')) {
-                $references .= $this->HelpHandler('نامه');
-                $references .= "\n----------------\n";
-            }
-            if (str_contains($text,'کار')) {
-                $references .= $this->HelpHandler('کار');
-                $references .= "\n----------------\n";
-            }
-
-            $content = $this->AiChat(<<<EOT
-برام جواب مناسب برای پیام کاربر را با توجه به اطلاعات زیر بفرست، بدون هیچ توضیح اضافی.
-این پیام را از طرف ربات کارنما که می تواند به کاربر کمک کند بتوانید به راحتی و سریع ترین حالت ممکن از سامانه کارنما استفاده کند و کار ها و صورت جلسه های خود را مدیریت کنید.
-
-پیام کاربر:
-{$text}
-
-اطلاعات :
-{$references}
-
-EOT);
-
-            $this->sendMessage($chatId, $content);
-        } catch (Exception $exception) {
-            $this->sendMessage($chatId, 'متاسفانه ارتباط با هوش مصنوعی با مشکل مواجه شد . لطفا ساعاتی دیگر پیام دهید .');
-            throw $exception;
+            $result = app(NewUiAssistantService::class)->answerForBale($user, trim($text));
+            $this->sendBaleAssistantResponse($chatId, $result);
+        } catch (\Throwable $exception) {
+            Log::warning('Bale private assistant request failed.', [
+                'user_id' => $user->id,
+                'exception' => get_class($exception),
+                'message' => $exception->getMessage(),
+            ]);
+            $this->sendMessage($chatId, trim((string) config('services.gapgpt.api_key')) === ''
+                ? 'کلید دستیار هوشمند روی سرور تنظیم نشده است.'
+                : 'در پاسخ‌گویی دستیار مشکلی پیش آمد. لطفاً کمی بعد دوباره بپرسید.');
         } finally {
-            $this->deleteMessage($chatId,$processMessageID);
+            $this->deleteMessage($chatId, $processMessageId);
         }
+    }
+
+    private function sendBaleAssistantResponse($chatId, array $result): void
+    {
+        $message = trim((string) ($result['text'] ?? 'پاسخی برای این پرسش پیدا نشد.'));
+        $keyboard = ['inline_keyboard' => []];
+
+        if (!empty($result['consent_required']) && !empty($result['consent_token'])) {
+            foreach (($result['consent_preview'] ?? []) as $index => $document) {
+                $message .= "\n\n" . ($index + 1) . ') ' . ($document['title'] ?? 'سند');
+                $message .= "\n" . ($document['date_and_type'] ?? '');
+                if (!empty($document['content_excerpt'])) $message .= "\n" . mb_substr($document['content_excerpt'], 0, 500);
+            }
+            $token = $result['consent_token'];
+            $keyboard['inline_keyboard'][] = [[
+                ['text' => 'اجازه می‌دهم و پاسخ را بگیر', 'callback_data' => "bai_yes|{$token}"],
+                ['text' => 'خیر', 'callback_data' => "bai_no|{$token}"],
+            ]];
+        } else {
+            foreach (($result['results'] ?? []) as $index => $item) {
+                $message .= "\n\n" . ($index + 1) . ') ' . ($item['title'] ?? 'مورد');
+                if (!empty($item['meta'])) $message .= "\n" . $item['meta'];
+                if (!empty($item['summary'])) $message .= "\n" . mb_substr($item['summary'], 0, 220);
+                if (!empty($item['url'])) {
+                    $keyboard['inline_keyboard'][] = [[
+                        'text' => 'باز کردن ' . mb_substr((string) ($item['title'] ?? 'مورد'), 0, 45),
+                        'url' => $item['url'],
+                    ]];
+                }
+            }
+            $pagination = $result['pagination'] ?? null;
+            $token = $result['search_token'] ?? null;
+            if (is_array($pagination) && $token) {
+                $navigation = [];
+                if ((int) $pagination['current_page'] > 1) $navigation[] = ['text' => 'صفحهٔ قبل', 'callback_data' => "bai_page|{$token}|" . ((int) $pagination['current_page'] - 1)];
+                if ((int) $pagination['current_page'] < (int) $pagination['last_page']) $navigation[] = ['text' => 'صفحهٔ بعد', 'callback_data' => "bai_page|{$token}|" . ((int) $pagination['current_page'] + 1)];
+                if ($navigation) $keyboard['inline_keyboard'][] = $navigation;
+            }
+        }
+
+        if (!$keyboard['inline_keyboard']) {
+            $this->sendMessage($chatId, $message);
+        } else {
+            $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+        }
+    }
+
+    private function startPrivateFileRegistrationProposal($chatId, User $user, array $attachment): void
+    {
+        if (!$user->can('create_letter') && !$user->can('create_minutes') && !$user->can('create_task') && !$user->can('create_content')) {
+            $this->sendMessage($chatId, 'برای ثبت فایل در هیچ‌یک از انواع نامه، صورت‌جلسه، فعالیت یا یادداشت دسترسی ندارید.');
+            return;
+        }
+
+        $progressId = $this->sendMessage($chatId, '📄 فایل دریافت شد؛ در حال استخراج متن با OCR…');
+        try {
+            $fileContents = $this->getFile($attachment['file_id'] ?? '');
+            if (!is_string($fileContents) || $fileContents === '') throw new \RuntimeException('دریافت فایل از بله ناموفق بود.');
+            $ocrText = app(\App\Services\BaleLetterOcrService::class)->extract($fileContents, $attachment['file_name'] ?? 'document.pdf');
+            $token = \Illuminate\Support\Str::random(20);
+            Cache::put('bale_private_ocr.' . $token, [
+                'user_id' => (int) $user->id,
+                'file' => $attachment,
+                'ocr_text' => mb_substr(trim($ocrText), 0, 24000),
+                'expires_at' => now()->addMinutes(20)->timestamp,
+            ], now()->addMinutes(20));
+
+            $keyboard = ['inline_keyboard' => [[
+                ['text' => 'ارسال متن به دستیار و پیشنهاد نوع ثبت', 'callback_data' => "bocr_ai|{$token}"],
+                ['text' => 'لغو', 'callback_data' => "bocr_no|{$token}"],
+            ]]];
+            $this->sendMessageWithKeyboard(
+                $chatId,
+                "متن فایل استخراج شد. برای تشخیص نوع ثبت (نامه، صورت‌جلسه، فعالیت یا یادداشت)، متن OCR به دستیار GapGPT فرستاده می‌شود. اجازه می‌دهید؟\n\nپیش‌نمایش:\n" . mb_substr($ocrText, 0, 1200),
+                $keyboard
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Bale private file OCR failed.', ['user_id' => $user->id, 'error' => $exception->getMessage()]);
+            $this->sendMessage($chatId, 'متن فایل با OCR استخراج نشد. فایل را دوباره بفرستید یا آن را همراه کپشن و هشتگ نوع ثبت ارسال کنید.');
+        } finally {
+            $this->deleteMessage($chatId, $progressId);
+        }
+    }
+
+    private function getPrivateOcrState(string $token, User $user): array
+    {
+        $state = Cache::get('bale_private_ocr.' . $token);
+        abort_unless(is_array($state)
+            && (int) ($state['user_id'] ?? 0) === (int) $user->id
+            && (int) ($state['expires_at'] ?? 0) >= now()->timestamp, 410);
+        return $state;
+    }
+
+    private function pullPrivateOcrState(string $token, User $user): void
+    {
+        $this->getPrivateOcrState($token, $user);
+        Cache::forget('bale_private_ocr.' . $token);
+    }
+
+    private function sendPrivateOcrTypeChoices($chatId, string $token, array $state, User $user): void
+    {
+        $labels = ['letter' => 'نامه', 'minute' => 'صورتجلسه', 'task' => 'فعالیت', 'content' => 'یادداشت'];
+        $permissions = ['letter' => 'create_letter', 'minute' => 'create_minutes', 'task' => 'create_task', 'content' => 'create_content'];
+        $suggested = $state['suggestion']['type'] ?? 'letter';
+        $keyboard = ['inline_keyboard' => []];
+        foreach ($labels as $type => $label) {
+            if (!$user->can($permissions[$type])) continue;
+            $prefix = $type === $suggested ? '⭐ پیشنهاد: ' : '';
+            $keyboard['inline_keyboard'][] = [[
+                'text' => $prefix . $label,
+                'callback_data' => "bocr_reg|{$token}|{$type}",
+            ]];
+        }
+
+        if (!$keyboard['inline_keyboard']) {
+            $this->sendMessage($chatId, 'در حال حاضر مجوز ثبت این فایل را ندارید.');
+            return;
+        }
+        $title = trim(preg_replace('/[\r\n]+/u', ' ', (string) ($state['suggestion']['title'] ?? '')));
+        $reason = trim((string) ($state['suggestion']['reason'] ?? ''));
+        $message = "نوع ثبت پیشنهادی: {$labels[$suggested]}.\nعنوان پیشنهادی: " . ($title ?: 'از متن فایل')
+            . ($reason !== '' ? "\nدلیل: {$reason}" : '')
+            . "\n\nنوع ثبت را انتخاب کنید:";
+        $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+    }
+
+    private function registerPrivateOcrFile($chatId, User $user, BaleUser $baleUser, string $token, string $type, array $state): bool
+    {
+        $permissions = ['letter' => 'create_letter', 'minute' => 'create_minutes', 'task' => 'create_task', 'content' => 'create_content'];
+        if (!isset($permissions[$type]) || !$user->can($permissions[$type])) {
+            $this->sendMessage($chatId, 'برای ثبت این نوع مورد دسترسی ندارید.');
+            return false;
+        }
+        $file = $state['file'] ?? null;
+        $ocrText = trim((string) ($state['ocr_text'] ?? ''));
+        if (!is_array($file) || empty($file['file_id']) || $ocrText === '' || empty($state['suggestion'])) return false;
+
+        $title = trim((string) ($state['suggestion']['title'] ?? ''));
+        $lines = preg_split('/\R/u', $ocrText) ?: [];
+        if ($title === '') $title = trim((string) (array_shift($lines) ?? ''));
+        $body = trim(implode("\n", $lines));
+        if ($body === '') $body = $ocrText;
+
+        $record = false;
+        if ($type === 'letter') {
+            $record = $this->handleLetter_create("#نامه {$title}\n{$body}", $chatId, $user, true, $file, $ocrText);
+            if ($record instanceof Letter) $this->LetterFileAdd($record, $file, null, $baleUser);
+        } elseif ($type === 'minute') {
+            $record = $this->handleMinute_create("{$title}\n{$body}", $chatId, $user, true, $file);
+            if ($record instanceof Minutes) {
+                $this->MinuteFileAdd($record, $file, null, $baleUser, $chatId);
+                $this->sendMinuteCreationResult($chatId, $record, $user);
+                $this->sendClassificationSuggestion($chatId, $record, filterModelTypes: [Project::class, MinutesGroup::class]);
+            }
+        } elseif ($type === 'task') {
+            $record = $this->handleTasks_create("#کار {$title}\n{$body}", $user, $chatId, true);
+            if ($record instanceof Task) $this->TaskFileAdd($record, $file, $ocrText);
+        } elseif ($type === 'content') {
+            $record = $this->handleContent_create("#یادداشت {$title}\n{$body}", $chatId, $user, $file);
+            if ($record instanceof Content) $this->sendContentGroupSuggestions($chatId, $record);
+        }
+
+        if (!$record || $record instanceof \Symfony\Component\HttpFoundation\Response) return false;
+        Cache::forget('bale_private_ocr.' . $token);
+        return true;
     }
 
     public function AiChat($comMessage)
@@ -1692,7 +1838,7 @@ EOT);
         $message = "✅ فعالیت با موفقیت ثبت و به رکورد مبدا متصل شد.\n\n" . $this->CreateTaskMessage($task, $user);
         if ($task->responsible) $message .= "مسئول: {$task->responsible->name}\n";
         $keyboard = ['inline_keyboard' => [[
-            ['text' => 'باز کردن فعالیت در سامانه', 'url' => url(TaskResource::getUrl('edit', [$task->id]))],
+            ['text' => 'باز کردن فعالیت در سامانه', 'url' => url(route('newui.record', ['type' => 'task', 'recordId' => $task->id]))],
         ]]];
         if (!empty($state['origin']) && (string) $state['origin'] !== (string) $chatId) {
             $keyboard['inline_keyboard'][] = [[
@@ -1721,6 +1867,52 @@ EOT);
             return ;
         }
         [$user,$bale_user] = $auth_res;
+
+        if (preg_match('/^(?:bai_page\|[A-Za-z0-9]{20,32}\|\d+|bai_yes\|[A-Za-z0-9]{20,32}|bai_no\|[A-Za-z0-9]{20,32}|bocr_ai\|[A-Za-z0-9]{20}|bocr_no\|[A-Za-z0-9]{20}|bocr_reg\|[A-Za-z0-9]{20}\|(letter|minute|task|content))$/', $callbackData)) {
+            $callbackId = $data['id'] ?? null;
+            $privateChat = ($data['message']['chat']['type'] ?? '') === 'private'
+                && (string) $chatId === (string) $bale_user->bale_id;
+            if (!$privateChat) {
+                $this->sendMessage($chatId, 'این گزینه فقط در گفت‌وگوی خصوصی ربات قابل استفاده است.');
+            } else {
+                try {
+                    if (str_starts_with($callbackData, 'bai_page|')) {
+                        [, $token, $page] = explode('|', $callbackData, 3);
+                        $result = app(NewUiAssistantService::class)->resultsPageForBale($user, $token, (int) $page);
+                        $this->sendBaleAssistantResponse($chatId, $result);
+                    } elseif (str_starts_with($callbackData, 'bai_yes|')) {
+                        $token = substr($callbackData, strlen('bai_yes|'));
+                        $result = app(NewUiAssistantService::class)->confirmBaleConsent($user, $token);
+                        $this->sendBaleAssistantResponse($chatId, $result);
+                    } elseif (str_starts_with($callbackData, 'bai_no|')) {
+                        $token = substr($callbackData, strlen('bai_no|'));
+                        app(NewUiAssistantService::class)->cancelBaleConsent($user, $token);
+                        $this->sendMessage($chatId, 'درخواست ارسال متن اسناد لغو شد؛ محتوایی به دستیار فرستاده نشد.');
+                    } elseif (str_starts_with($callbackData, 'bocr_no|')) {
+                        $token = substr($callbackData, strlen('bocr_no|'));
+                        $this->pullPrivateOcrState($token, $user);
+                        $this->sendMessage($chatId, 'پیشنهاد ثبت لغو شد. فایل در سامانه ذخیره نشد.');
+                    } elseif (str_starts_with($callbackData, 'bocr_ai|')) {
+                        $token = substr($callbackData, strlen('bocr_ai|'));
+                        $state = $this->getPrivateOcrState($token, $user);
+                        $suggestion = app(NewUiAssistantService::class)->suggestRegistrationType($state['ocr_text']);
+                        $state['suggestion'] = $suggestion;
+                        Cache::put('bale_private_ocr.' . $token, $state, now()->addMinutes(20));
+                        $this->sendPrivateOcrTypeChoices($chatId, $token, $state, $user);
+                    } elseif (str_starts_with($callbackData, 'bocr_reg|')) {
+                        [, $token, $type] = explode('|', $callbackData, 3);
+                        $state = $this->getPrivateOcrState($token, $user);
+                        $registered = $this->registerPrivateOcrFile($chatId, $user, $bale_user, $token, $type, $state);
+                        if (!$registered) $this->sendMessage($chatId, 'ثبت انجام نشد؛ لطفاً فایل را دوباره بفرستید.');
+                    }
+                } catch (\Throwable $exception) {
+                    Log::warning('Bale assistant callback failed.', ['user_id' => $user->id, 'callback' => $callbackData, 'error' => $exception->getMessage()]);
+                    $this->sendMessage($chatId, 'این درخواست انجام نشد یا منقضی شده است. لطفاً دوباره تلاش کنید.');
+                }
+            }
+            if ($callbackId) Http::post('https://tapi.bale.ai/bot' . config('bale.token') . '/answerCallbackQuery', ['callback_query_id' => $callbackId]);
+            return;
+        }
 
         if (str_starts_with((string) $bale_user->state, 'wizard:')
             && $this->handleCreationWizardCallback($chatId, $messageId, $callbackData, $user, $bale_user)) {
@@ -1771,19 +1963,19 @@ EOT);
                 . 'مهلت انجام: ' . $formatDate($task->ended_at) . "\n";
 
             $buttons = [[
-                ['text' => 'باز کردن فعالیت در سامانه', 'url' => url(TaskResource::getUrl('edit', [$task->id]))],
+                ['text' => 'باز کردن فعالیت در سامانه', 'url' => url(route('newui.record', ['type' => 'task', 'recordId' => $task->id]))],
             ]];
             if ($task->minutes) {
                 $report .= "صورت‌جلسه مرتبط: {$task->minutes->title}\n";
                 $buttons[] = [[
                     'text' => 'باز کردن صورت‌جلسه',
-                    'url' => url(MinutesResource::getUrl('edit', [$task->minutes->id])),
+                    'url' => route('newui.record', ['type' => 'minute', 'recordId' => $task->minutes->id]),
                 ]];
             } elseif ($task->letter) {
                 $report .= "نامه مرتبط: {$task->letter->subject}\n";
                 $buttons[] = [[
                     'text' => 'باز کردن نامه',
-                    'url' => url(LetterResource::getUrl('edit', [$task->letter->id])),
+                    'url' => url(route('newui.record', ['type' => 'letter', 'recordId' => $task->letter->id])),
                 ]];
             }
 
@@ -2687,13 +2879,13 @@ EOT);
         foreach ($items as $item) {
             if ($type === 'نامه') {
                 $message .= $this->CreateLetterMessage($item);
-                $message .= '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$item->id]) . ")\n";
+                $message .= '[بازکردن در سامانه](' . route('newui.record', ['type' => 'letter', 'recordId' => $item->id]) . ")\n";
             } elseif($type === 'کار') {
                 $message .= $this->CreateTaskMessage($item, $user);
-                $message .= '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$item->id]) . ")\n";
+                $message .= '[بازکردن در سامانه](' . route('newui.record', ['type' => 'task', 'recordId' => $item->id]) . ")\n";
             }elseif($type === 'صورتجلسه') {
                 $message .= $this->createMinuteMessage($item, $user, false);
-                $message .= '[بازکردن در سامانه]('. MinutesResource::getUrl('edit',[$item->id]).')' . "\n";
+                $message .= '[بازکردن در سامانه]('. route('newui.record', ['type' => 'minute', 'recordId' => $item->id]).')' . "\n";
             }
             $message .= "----------------------\n";
         }
@@ -3063,9 +3255,9 @@ TEXT;
             if ($isPrivateChat){
                 $message .= '🕹️ کار با مشخصات زیر ثبت شد :' . "\n";
                 $message .= $this->CreateTaskMessage($task,$user);
-                $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')';
+                $message .= "\n" . '[بازکردن در سامانه](' . route('newui.record', ['type' => 'task', 'recordId' => $task->id]) . ')';
             }else{
-                $message .= '🕹️ [کار با شماره '.$task->id.' ثبت شد .]('. TaskResource::getUrl('edit',[$task->id]).')';
+                $message .= '🕹️ [کار با شماره '.$task->id.' ثبت شد .]('. route('newui.record', ['type' => 'task', 'recordId' => $task->id]).')';
             }
             $this->sendMessage($chatId, $message);
 
@@ -3355,7 +3547,7 @@ EOT);
         }
     }
 
-    private function handleLetter_create($caption, $chatId, $user, $isPrivateChat, ?array $doc = null)
+    private function handleLetter_create($caption, $chatId, $user, $isPrivateChat, ?array $doc = null, ?string $ocrTextOverride = null)
     {
         if (!$user->can('create_letter')) {
             $this->sendMessage($chatId, '❌ شما برای ایجاد نامه دسترسی ندارید!');
@@ -3364,11 +3556,11 @@ EOT);
 
         $ltp = new LetterParser();
         $sourceText = trim((string) $caption);
-        $ocrText = '';
-        $ocrSucceeded = false;
+        $ocrText = trim((string) $ocrTextOverride);
+        $ocrSucceeded = $ocrText !== '';
 
         // OCR فقط یک منبع تکمیلی است؛ شکست آن نباید ثبت نامه را متوقف کند.
-        if ($doc && !empty($doc['file_id'])) {
+        if (!$ocrSucceeded && $doc && !empty($doc['file_id'])) {
             try {
                 $fileContents = $this->getFile($doc['file_id']);
                 if (!is_string($fileContents) || $fileContents === '') {
@@ -3519,7 +3711,7 @@ EOT);
             $message .= "\n\n🔎 متن فایل با OCR استخراج و در تحلیل نامه استفاده شد.";
         }
         $this->sendMessageWithKeyboard($chatId, $message, ['inline_keyboard' => [[
-            ['text' => 'باز کردن در سامانه', 'url' => url(LetterResource::getUrl('edit', [$record->id]))],
+            ['text' => 'باز کردن در سامانه', 'url' => url(route('newui.record', ['type' => 'letter', 'recordId' => $record->id]))],
         ]]]);
 
         $this->sendLetterSuggestions($chatId, $record, $dataLetter);

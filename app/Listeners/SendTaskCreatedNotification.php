@@ -33,7 +33,7 @@ class SendTaskCreatedNotification
             $creator_name = $task->creator->name ?? 'نا مشخص';
             $message = "فعالیت جدیدی توسط {$creator_name} برای شما ثبت شد: " . "\n";
             $message .= $bale_bot->CreateTaskMessage($task);
-            $message .= "\n" . '[بازکردن در سامانه](' . TaskResource::getUrl('edit', [$task->id]) . ')' . "\n";
+            $message .= "\n" . '[بازکردن در سامانه](' . route('newui.record', ['type' => 'task', 'recordId' => $task->id]) . ')' . "\n";
             $bale_bot->sendNotifBale($task->Responsible_id, $message);
             // ارسال به پنل سامانه
             $user = User::query()->find($task->Responsible_id);

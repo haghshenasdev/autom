@@ -32,7 +32,7 @@ class SendReferralCreatedNotification
         $message = "یک ارجاع جدید توسط {$referral->by_users->name} برای شما ثبت شد: " . "\n";
         $message .= $bale_bot->CreateReferralMessage($referral);
         $bale_bot->sendNotifBale($referral->to_user_id, $message .
-        '[بازکردن در سامانه](' . LetterResource::getUrl('edit', [$referral->letter->id]) . ')' . "\n"
+        '[بازکردن در سامانه](' . route('newui.record', ['type' => 'letter', 'recordId' => $referral->letter->id]) . ')' . "\n"
         );
         // ارسال به پنل سامانه
         $user = User::query()->find($referral->to_user_id);
