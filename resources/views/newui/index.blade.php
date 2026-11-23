@@ -605,6 +605,17 @@
         jQuery('[data-jalali-datepicker]').each(function () {
             if (this.dataset.vueInitialized === 'true') return;
             this.dataset.vueInitialized = 'true';
+            this.addEventListener('input', function () {
+                const digits = this.value
+                    .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+                    .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+                    .replace(/\D/g, '').slice(0, 8);
+                this.value = digits.length > 6
+                    ? digits.slice(0, 4) + '/' + digits.slice(4, 6) + '/' + digits.slice(6)
+                    : digits.length > 4
+                        ? digits.slice(0, 4) + '/' + digits.slice(4)
+                        : digits;
+            });
             jQuery(this).persianDatepicker({
             format: 'YYYY/MM/DD',
             initialValue: false,

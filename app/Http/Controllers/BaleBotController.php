@@ -3387,32 +3387,13 @@ TEXT;
                 'task_id' => $parsedData['task_id'],
             ];
 
-            // Persist the minutes, its relations and generated tasks atomically.
-            // If one step fails, the database is rolled back instead of leaving a
-            // half-created minutes record with only some of its approvals.
+            // Persist the minutes and its relations atomically. Approval text stays in the minutes record; this flow does not create child tasks.
             $record = DB::transaction(function () use ($mdata, $parsedData, $user) {
                 $record = Minutes::create($mdata);
                 $record->organ()->attach($parsedData['organs'] ?? []);
                 $record->group()->attach(1);
 
-                foreach (($parsedData['approves'] ?? []) as $approve) {
-                    $cp = new \App\Http\Controllers\ai\CategoryPredictor();
-                    $keywords = $cp->extractKeywords($approve['text'] ?? '');
-                    $task = Task::create([
-                        'name' => $approve['text'] ?? '',
-                        'started_at' => $mdata['date'],
-                        'created_at' => $mdata['date'],
-                        'amount' => $approve['amount'] ?? null,
-                        'ended_at' => $approve['due_at'] ?? null,
-                        'Responsible_id' => $approve['user']['id'] ?? $user->id,
-                        'created_by' => $user->id,
-                        'minutes_id' => $record->id,
-                        'city_id' => $cp->detectCity($keywords),
-                        'organ_id' => $cp->detectOrgan($keywords),
-                    ]);
-                    $task->group()->attach([33, 32]); // دسته بندی هوش مصنوعی و مصوبه
-                    $task->project()->attach($approve['projects'] ?: ($parsedData['global_projects'] ?? []));
-                }
+
 
                 return $record;
             });

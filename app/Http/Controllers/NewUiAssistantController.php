@@ -45,7 +45,11 @@ class NewUiAssistantController extends Controller
             return response()->json($assistant->answer($user, trim($data['message']), $request->session()));
         } catch (\Throwable $exception) {
             if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpException) throw $exception;
-            Log::warning('New UI assistant request failed', ['exception' => get_class($exception)]);
+            Log::warning('New UI assistant request failed', [
+                'exception' => get_class($exception),
+                'message' => $exception->getMessage(),
+                'user_id' => $user->id,
+            ]);
 
             return response()->json([
                 'message' => trim((string) config('services.gapgpt.api_key')) === ''
