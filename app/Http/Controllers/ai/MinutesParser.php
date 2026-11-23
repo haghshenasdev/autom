@@ -73,7 +73,7 @@ class MinutesParser
 
                     $approves[] = $approve;
                 }
-                else if (preg_match('/(?:ایجاد\s*جلسه|جلسه)(.*)/u', $line, $m)) {
+                else if ($this->readChanelTasks && preg_match('/(?:ایجاد\s*جلسه|جلسه)(.*)/u', $line, $m)) {
                     $after = trim($m[1]);
                     $meetingTitle = null;
                     if ($after and $after != '') {

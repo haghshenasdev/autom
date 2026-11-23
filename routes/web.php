@@ -74,6 +74,8 @@ Route::delete('/newui/notifications/{notificationId}', [NewUiController::class, 
     ->middleware('auth')->name('newui.notifications.delete');
 Route::get('/newui/assistant', [NewUiAssistantController::class, 'index'])->middleware('auth')->name('newui.assistant');
 Route::post('/newui/assistant/message', [NewUiAssistantController::class, 'message'])->middleware(['auth', 'throttle:12,1'])->name('newui.assistant.message');
+Route::post('/newui/assistant/file', [NewUiAssistantController::class, 'analyzeFile'])->middleware(['auth', 'throttle:6,1'])->name('newui.assistant.file');
+Route::post('/newui/assistant/file/register', [NewUiAssistantController::class, 'registerFile'])->middleware(['auth', 'throttle:6,1'])->name('newui.assistant.file.register');
 Route::get('/newui/calendar/events', [NewUiController::class, 'calendarEvents'])
     ->middleware('auth')->name('newui.calendar.events');
 Route::post('/newui/{type}/{recordId}', [NewUiController::class, 'updateRecord'])

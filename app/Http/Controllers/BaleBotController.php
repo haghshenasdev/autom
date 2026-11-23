@@ -112,6 +112,16 @@ class BaleBotController extends Controller
                 }
             }
 
+            if ($isPrivateChat && str_starts_with((string) $bale_user->state, 'ocr_title:') && trim($text) !== '') {
+                $token = substr((string) $bale_user->state, strlen('ocr_title:'));
+                $state = $this->getPrivateOcrState($token, $user);
+                $state['suggestion']['title'] = mb_substr(trim($text), 0, 180);
+                Cache::put('bale_private_ocr.' . $token, $state, now()->addMinutes(20));
+                $bale_user->update(['state' => '1']);
+                $this->sendPrivateOcrTypeChoices($chatId, $token, $state, $user);
+                return response('OCR title updated');
+            }
+
             // Private uncaptained files are OCRed and presented as a registration draft;
             // group file/hashtag handling below remains unchanged.
             if ($isPrivateChat && $text === '' && $caption === '' && !$media_group_id) {
@@ -1198,16 +1208,22 @@ class BaleBotController extends Controller
                 'ocr_text' => mb_substr(trim($ocrText), 0, 24000),
                 'expires_at' => now()->addMinutes(20)->timestamp,
             ], now()->addMinutes(20));
-
-            $keyboard = ['inline_keyboard' => [[
-                ['text' => 'ارسال متن به دستیار و پیشنهاد نوع ثبت', 'callback_data' => "bocr_ai|{$token}"],
-                ['text' => 'لغو', 'callback_data' => "bocr_no|{$token}"],
-            ]]];
-            $this->sendMessageWithKeyboard(
-                $chatId,
-                "متن فایل استخراج شد. برای تشخیص نوع ثبت (نامه، صورت‌جلسه، فعالیت یا یادداشت)، متن OCR به دستیار GapGPT فرستاده می‌شود. اجازه می‌دهید؟\n\nپیش‌نمایش:\n" . mb_substr($ocrText, 0, 1200),
-                $keyboard
-            );
+            $state = $this->getPrivateOcrState($token, $user);
+            try {
+                $state['suggestion'] = app(NewUiAssistantService::class)->suggestRegistrationType($state['ocr_text']);
+            } catch (\Throwable $aiException) {
+                Log::warning('Bale private OCR AI analysis failed; local title suggestion used.', [
+                    'user_id' => $user->id,
+                    'error' => $aiException->getMessage(),
+                ]);
+                $state['suggestion'] = [
+                    'type' => $user->can('create_letter') ? 'letter' : ($user->can('create_minutes') ? 'minute' : ($user->can('create_task') ? 'task' : 'content')),
+                    'title' => trim((preg_split('/\\R/u', $state['ocr_text'])[0] ?? '')),
+                    'reason' => 'دستیار در دسترس نبود؛ نوع ثبت را انتخاب کنید.',
+                ];
+            }
+            Cache::put('bale_private_ocr.' . $token, $state, now()->addMinutes(20));
+            $this->sendPrivateOcrTypeChoices($chatId, $token, $state, $user);
         } catch (\Throwable $exception) {
             Log::warning('Bale private file OCR failed.', ['user_id' => $user->id, 'error' => $exception->getMessage()]);
             $this->sendMessage($chatId, 'متن فایل با OCR استخراج نشد. فایل را دوباره بفرستید یا آن را همراه کپشن و هشتگ نوع ثبت ارسال کنید.');
@@ -1252,9 +1268,19 @@ class BaleBotController extends Controller
         }
         $title = trim(preg_replace('/[\r\n]+/u', ' ', (string) ($state['suggestion']['title'] ?? '')));
         $reason = trim((string) ($state['suggestion']['reason'] ?? ''));
+        $summary = trim((string) ($state['suggestion']['summary'] ?? ''));
         $message = "نوع ثبت پیشنهادی: {$labels[$suggested]}.\nعنوان پیشنهادی: " . ($title ?: 'از متن فایل')
             . ($reason !== '' ? "\nدلیل: {$reason}" : '')
+            . ($summary !== '' ? "\n\nخلاصهٔ متن فایل: " . mb_substr($summary, 0, 700) : '')
             . "\n\nنوع ثبت را انتخاب کنید:";
+        $keyboard['inline_keyboard'][] = [[
+            'text' => 'ویرایش عنوان پیشنهادی',
+            'callback_data' => "bocr_edit|{$token}",
+        ]];
+        $keyboard['inline_keyboard'][] = [[
+            'text' => 'لغو',
+            'callback_data' => "bocr_no|{$token}",
+        ]];
         $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
     }
 
@@ -1868,7 +1894,7 @@ class BaleBotController extends Controller
         }
         [$user,$bale_user] = $auth_res;
 
-        if (preg_match('/^(?:bai_page\|[A-Za-z0-9]{20,32}\|\d+|bai_yes\|[A-Za-z0-9]{20,32}|bai_no\|[A-Za-z0-9]{20,32}|bocr_ai\|[A-Za-z0-9]{20}|bocr_no\|[A-Za-z0-9]{20}|bocr_reg\|[A-Za-z0-9]{20}\|(letter|minute|task|content))$/', $callbackData)) {
+        if (preg_match('/^(?:bai_page\|[A-Za-z0-9]{20,32}\|\d+|bai_yes\|[A-Za-z0-9]{20,32}|bai_no\|[A-Za-z0-9]{20,32}|bocr_ai\|[A-Za-z0-9]{20}|bocr_edit\|[A-Za-z0-9]{20}|bocr_no\|[A-Za-z0-9]{20}|bocr_reg\|[A-Za-z0-9]{20}\|(letter|minute|task|content))$/', $callbackData)) {
             $callbackId = $data['id'] ?? null;
             $privateChat = ($data['message']['chat']['type'] ?? '') === 'private'
                 && (string) $chatId === (string) $bale_user->bale_id;
@@ -1899,6 +1925,11 @@ class BaleBotController extends Controller
                         $state['suggestion'] = $suggestion;
                         Cache::put('bale_private_ocr.' . $token, $state, now()->addMinutes(20));
                         $this->sendPrivateOcrTypeChoices($chatId, $token, $state, $user);
+                    } elseif (str_starts_with($callbackData, 'bocr_edit|')) {
+                        $token = substr($callbackData, strlen('bocr_edit|'));
+                        $this->getPrivateOcrState($token, $user);
+                        $bale_user->update(['state' => 'ocr_title:' . $token]);
+                        $this->sendMessage($chatId, 'عنوان جایگزین را در همین گفت‌وگوی خصوصی بفرستید.');
                     } elseif (str_starts_with($callbackData, 'bocr_reg|')) {
                         [, $token, $type] = explode('|', $callbackData, 3);
                         $state = $this->getPrivateOcrState($token, $user);
@@ -3376,7 +3407,7 @@ TEXT;
         $message = '';
 
         try {
-            $mp = new \App\Http\Controllers\ai\MinutesParser();
+            $mp = new \App\Http\Controllers\ai\MinutesParser(false);
             $parsedData = $mp->parse($caption, $user->id);
 
             $mdata = [

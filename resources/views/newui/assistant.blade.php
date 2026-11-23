@@ -46,12 +46,15 @@
     <div id="chat-status" class="hidden shrink-0 px-4 pb-2 text-xs text-rose-700 sm:px-6" role="status"></div>
     <form id="chat-form" class="safe-bottom shrink-0 border-t border-slate-100 bg-white px-3 py-3 sm:px-6 sm:py-4">
         <div class="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100">
-            <textarea id="chat-input" rows="1" maxlength="1200" required placeholder="سؤالت را دربارهٔ اطلاعات کارنما بنویس…" class="max-h-36 min-h-11 min-w-0 flex-1 resize-y border-0 bg-transparent px-2 py-2 text-sm leading-6 outline-none focus:ring-0" aria-label="متن پرسش"></textarea>
+            <input id="assistant-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff,application/pdf,image/*" class="hidden">
+            <button id="choose-file" type="button" class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600" aria-label="انتخاب فایل برای ثبت" title="PDF یا تصویر"><span aria-hidden="true">📎</span></button>
+            <textarea id="chat-input" rows="1" maxlength="1200" placeholder="سؤالت را دربارهٔ اطلاعات کارنما بنویس…" class="max-h-36 min-h-11 min-w-0 flex-1 resize-y border-0 bg-transparent px-2 py-2 text-sm leading-6 outline-none focus:ring-0" aria-label="متن پرسش"></textarea>
             <button id="send-button" type="submit" class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand text-white transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-50" aria-label="ارسال پرسش">
                 <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 14-7-4 14-3-6-7-1Z"/><path d="m12 13 4-8"/></svg>
             </button>
         </div>
-        <p class="mt-2 text-center text-[10px] leading-5 text-slate-400">برای ساخت فیلتر جست‌وجو، متن پرسش به GapGPT ارسال می‌شود؛ متن و فایل اسناد به سرویس ارسال نمی‌شود.</p>
+        <p id="file-name" class="hidden mt-2 text-center text-[10px] text-slate-500"></p>
+        <p class="mt-2 text-center text-[10px] leading-5 text-slate-400">فایل بدون نیاز به کپشن OCR می‌شود؛ متن استخراج‌شده برای پیشنهاد نوع و عنوان ثبت به GapGPT فرستاده می‌شود.</p>
     </form>
 </main>
 
@@ -62,6 +65,97 @@
     const input = document.getElementById('chat-input');
     const button = document.getElementById('send-button');
     const status = document.getElementById('chat-status');
+    const fileInput = document.getElementById('assistant-file');
+    const fileName = document.getElementById('file-name');
+
+    document.getElementById('choose-file').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+        fileName.textContent = fileInput.files[0]?.name || '';
+        fileName.classList.toggle('hidden', !fileInput.files.length);
+    });
+
+    async function analyzeUploadedFile(file) {
+        const row = document.createElement('div');
+        row.className = 'flex justify-start';
+        const bubble = document.createElement('div');
+        bubble.className = 'rounded-2xl bg-brand px-4 py-3 text-sm text-white';
+        bubble.textContent = 'فایل: ' + file.name;
+        row.appendChild(bubble);
+        messages.appendChild(row);
+        messages.scrollTop = messages.scrollHeight;
+        button.disabled = true;
+        status.classList.add('hidden');
+        const payload = new FormData();
+        payload.append('file', file);
+        try {
+            const response = await fetch('{{ route('newui.assistant.file') }}', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                body: payload,
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'پردازش فایل ناموفق بود.');
+            addDocumentDraft(data);
+        } catch (error) {
+            status.textContent = error.message || 'پردازش فایل ناموفق بود.';
+            status.classList.remove('hidden');
+        } finally {
+            button.disabled = false;
+            fileInput.value = '';
+            fileName.textContent = '';
+            fileName.classList.add('hidden');
+        }
+    }
+
+    function addDocumentDraft(draft) {
+        const row = document.createElement('div');
+        row.className = 'flex justify-end';
+        const card = document.createElement('div');
+        card.className = 'w-full max-w-[96%] rounded-2xl bg-slate-50 p-4 text-sm text-slate-800 sm:max-w-[88%]';
+        const heading = document.createElement('p');
+        heading.className = 'font-bold';
+        heading.textContent = 'متن فایل OCR شد؛ نوع و عنوان پیشنهادی را بررسی و در صورت نیاز ویرایش کنید.';
+        const summary = document.createElement('p');
+        summary.className = 'mt-2 whitespace-pre-wrap break-words text-xs leading-6 text-slate-700';
+        summary.textContent = draft.summary || draft.reason || '';
+        const preview = document.createElement('p');
+        preview.className = 'mt-2 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white p-3 text-xs leading-6 text-slate-600';
+        preview.textContent = draft.preview || '';
+        const title = document.createElement('input');
+        title.type = 'text'; title.maxLength = 255; title.value = (draft.title || '').slice(0, 255);
+        title.className = 'mt-3 w-full rounded-xl border-slate-200 text-sm';
+        title.setAttribute('aria-label', 'عنوان پیشنهادی');
+        const type = document.createElement('select');
+        type.className = 'mt-2 w-full rounded-xl border-slate-200 text-sm';
+        [['letter', 'نامه'], ['minute', 'صورت‌جلسه']].forEach(([value, label]) => {
+            const option = document.createElement('option'); option.value = value; option.textContent = label;
+            option.selected = value === draft.type; type.appendChild(option);
+        });
+        const submit = document.createElement('button');
+        submit.type = 'button'; submit.className = 'mt-3 rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white';
+        submit.textContent = 'ثبت رکورد';
+        submit.addEventListener('click', async () => {
+            submit.disabled = true;
+            try {
+                const response = await fetch('{{ route('newui.assistant.file.register') }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify({ token: draft.token, type: type.value, title: title.value.trim() }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'ثبت رکورد ناموفق بود.');
+                const done = document.createElement('a'); done.href = result.url;
+                done.className = 'mt-3 block rounded-xl bg-emerald-50 px-4 py-3 font-bold text-emerald-700';
+                done.textContent = '✅ ' + result.message + ' مشاهده رکورد ←';
+                submit.replaceWith(done);
+            } catch (error) {
+                status.textContent = error.message || 'ثبت رکورد ناموفق بود.';
+                status.classList.remove('hidden'); submit.disabled = false;
+            }
+        });
+        card.append(heading, summary, preview, title, type, submit);
+        row.appendChild(card); messages.appendChild(row); messages.scrollTop = messages.scrollHeight;
+    }
 
     function addMessage(role, text, results = [], pagination = null) {
         const row = document.createElement('div');
@@ -239,6 +333,10 @@
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (fileInput.files.length) {
+            await analyzeUploadedFile(fileInput.files[0]);
+            return;
+        }
         const question = input.value.trim();
         if (!question) return;
 
