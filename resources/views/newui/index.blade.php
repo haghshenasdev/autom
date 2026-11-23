@@ -28,7 +28,13 @@
         input, button, a { font: inherit; }
         details > summary::-webkit-details-marker { display: none; }
         details[open] [data-filter-chevron] { transform: rotate(180deg); }
-        .datepicker-plot-area { z-index: 100 !important; font-family: Vazirmatn, sans-serif !important; }
+        .datepicker-container { z-index: 99999 !important; }
+        .datepicker-plot-area { z-index: 100000 !important; font-family: Vazirmatn, sans-serif !important; }
+        @media (max-width: 640px) {
+            .datepicker-container { z-index: 99999 !important; }
+            .datepicker-plot-area { max-width: calc(100vw - 24px) !important; }
+            [data-jalali-datepicker] { scroll-margin-bottom: 16rem; }
+        }
     </style>
 </head>
 <body class="min-h-screen text-ink antialiased">
@@ -379,22 +385,39 @@
             @endif
         @elseif($activeView === 'calendar')
             <section class="mb-5 flex flex-wrap items-end justify-between gap-3">
-                <div><p class="text-xs text-muted">برنامه‌ریزی و پیگیری</p><h2 class="mt-1 text-xl font-extrabold">تقویم فعالیت‌ها</h2></div>
-                <span class="rounded-full bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">روی هر فعالیت بزنید تا جزئیات آن باز شود</span>
+                <div><p class="text-xs text-muted">نمای ماهانه، مینیمال و فارسی</p><h2 class="mt-1 text-xl font-extrabold">تقویم کارنما</h2></div>
+                <div class="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1.5 text-blue-700"><span>✓</span> فعالیت</span>
+                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1.5 text-emerald-700"><span>✉</span> نامه</span>
+                    <span class="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1.5 text-orange-700"><span>▤</span> صورت‌جلسه</span>
+                </div>
             </section>
+            <div class="mb-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="فیلتر نوع رویداد">
+                @foreach(['all' => 'همه', 'tasks' => 'فعالیت‌ها', 'letters' => 'نامه‌ها', 'minutes' => 'صورت‌جلسه‌ها'] as $calendarType => $calendarLabel)
+                    @if(($calendarType === 'tasks' && !$canTasks) || ($calendarType === 'letters' && !$canLetters) || ($calendarType === 'minutes' && !$canMinutes)) @continue @endif
+                    <button type="button" data-calendar-type="{{ $calendarType }}" aria-pressed="{{ $calendarType === 'all' ? 'true' : 'false' }}" class="shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition {{ $calendarType === 'all' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600' }}">{{ $calendarLabel }}</button>
+                @endforeach
+            </div>
             <section class="min-w-0 overflow-hidden rounded-3xl border border-slate-100 bg-white p-3 shadow-card sm:p-5">
-                <div id="calendar-feedback" class="mb-3 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-800" role="status" aria-live="polite">در حال بارگذاری فعالیت‌ها…</div>
+                <div id="calendar-feedback" class="mb-3 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-800" role="status" aria-live="polite">در حال بارگذاری رویدادها…</div>
                 <div id="newui-calendar" class="min-h-[520px] min-w-0"></div>
             </section>
+            <dialog id="calendar-day-dialog" class="w-[min(94vw,38rem)] max-h-[82vh] overflow-hidden rounded-3xl border-0 p-0 shadow-2xl backdrop:bg-slate-950/40">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4"><div><p class="text-xs text-muted">رویدادهای روز</p><h3 id="calendar-day-title" class="mt-1 font-extrabold"></h3></div><button type="button" data-calendar-close class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-lg" aria-label="بستن">×</button></div>
+                <div id="calendar-day-items" class="max-h-[65vh] space-y-2 overflow-y-auto p-4"></div>
+            </dialog>
             <style>
-                #newui-calendar { min-width: 0; max-width: 100%; overflow-x: auto; --fc-border-color: #e8edf5; --fc-button-bg-color: #1d4ed8; --fc-button-border-color: #1d4ed8; --fc-button-hover-bg-color: #1e40af; --fc-button-hover-border-color: #1e40af; --fc-button-active-bg-color: #1e40af; --fc-button-active-border-color: #1e40af; --fc-today-bg-color: #eff6ff; }
+                #newui-calendar { min-width: 0; max-width: 100%; --fc-border-color: #edf0f5; --fc-button-bg-color: #fff; --fc-button-border-color: #e2e8f0; --fc-button-text-color: #334155; --fc-button-hover-bg-color: #eff6ff; --fc-button-hover-border-color: #bfdbfe; --fc-button-active-bg-color: #1d4ed8; --fc-button-active-border-color: #1d4ed8; --fc-today-bg-color: #f5f8ff; }
                 #newui-calendar .fc-toolbar { gap: .75rem; flex-wrap: wrap; }
                 #newui-calendar .fc-toolbar-chunk { min-width: 0; }
                 #newui-calendar .fc-scrollgrid { min-width: 0; }
                 #newui-calendar .fc-toolbar-title { font-family: Vazirmatn, sans-serif; font-size: 1.05rem; font-weight: 800; }
-                #newui-calendar .fc-button { border-radius: .75rem; font-family: Vazirmatn, sans-serif; font-size: .75rem; }
-                #newui-calendar .fc-event { border-radius: .5rem; padding: 2px 4px; border: 0; }
-                @media (max-width: 640px) { #newui-calendar .fc-toolbar-title { font-size: .9rem; } #newui-calendar .fc-toolbar-chunk { display: flex; justify-content: center; flex-wrap: wrap; } #newui-calendar .fc .fc-button { padding: .35rem .5rem; font-size: .7rem; } }
+                #newui-calendar .fc-button { border-radius: .75rem; font-family: Vazirmatn, sans-serif; font-size: .75rem; box-shadow: none !important; }
+                #newui-calendar .fc-event { border-radius: .55rem; padding: 2px 4px; border: 0; font-size: .7rem; }
+                #newui-calendar .calendar-event-icon { display:inline-grid; place-items:center; width:1.15rem; height:1.15rem; margin-inline-end:.25rem; border-radius:999px; background:rgba(255,255,255,.2); font-weight:800; }
+                #newui-calendar .fc-daygrid-day-number { color:#475569; padding:.45rem; }
+                #newui-calendar .fc-daygrid-day-frame { min-height:5.3rem; }
+                @media (max-width: 640px) { #newui-calendar .fc-toolbar-title { font-size:.9rem; } #newui-calendar .fc-toolbar-chunk { display:flex; justify-content:center; flex-wrap:wrap; } #newui-calendar .fc .fc-button { padding:.35rem .5rem; font-size:.7rem; } #newui-calendar .fc-daygrid-day-frame { min-height:3.7rem; } #newui-calendar .fc-daygrid-day-number { padding:.25rem; font-size:.72rem; } #newui-calendar .fc-event { margin:1px 0; padding:1px 2px; font-size:.62rem; } #newui-calendar .calendar-event-icon { width:1rem; height:1rem; margin-inline-end:.1rem; } }
             </style>
             <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.22/index.global.min.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.22/locales-all.global.min.js"></script>
@@ -405,6 +428,13 @@
                     if (calendarElement.dataset.vueInitialized === 'true') return;
                     calendarElement.dataset.vueInitialized = 'true';
                     const feedbackElement = document.getElementById('calendar-feedback');
+                    const dayDialog = document.getElementById('calendar-day-dialog');
+                    const dayTitle = document.getElementById('calendar-day-title');
+                    const dayItems = document.getElementById('calendar-day-items');
+                    const dayTypeButtons = Array.from(document.querySelectorAll('[data-calendar-type]'));
+                    let selectedCalendarType = 'all';
+                    document.querySelector('[data-calendar-close]')?.addEventListener('click', () => dayDialog.close());
+                    dayDialog?.addEventListener('click', (event) => { if (event.target === dayDialog) dayDialog.close(); });
                     if (!window.FullCalendar) {
                         feedbackElement.textContent = 'کتابخانهٔ تقویم بارگذاری نشد. اتصال اینترنت یا دسترسی به CDN را بررسی کنید.';
                         feedbackElement.className = 'mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800';
@@ -416,12 +446,13 @@
                         initialView: 'dayGridMonth',
                         height: 'auto',
                         fixedWeekCount: false,
-                        headerToolbar: { start: 'prev,next today', center: 'title', end: 'dayGridMonth,timeGridWeek,listMonth' },
-                        buttonText: { today: 'امروز', month: 'ماه', week: 'هفته', list: 'فهرست' },
+                        headerToolbar: { start: 'prev,next today', center: 'title', end: '' },
+                        buttonText: { today: 'امروز' },
+                        dayMaxEvents: 2,
                         events: async function (info) {
-                            const params = new URLSearchParams({ start: info.startStr, end: info.endStr, task_status: @json($taskStatus) });
+                            const params = new URLSearchParams({ start: info.startStr, end: info.endStr, task_status: @json($taskStatus), type: selectedCalendarType });
                             if (@json($search) !== '') params.set('q', @json($search));
-                            @foreach(['group_id', 'project_id'] as $filterKey)
+                            @foreach(['group_id', 'project_id', 'letter_kind', 'letter_status', 'letter_type_id', 'author_id'] as $filterKey)
                                 if (@json($filters[$filterKey] ?? null)) params.set(@json($filterKey), @json($filters[$filterKey] ?? null));
                             @endforeach
                             const response = await fetch('{{ url('/newui/calendar/events') }}?' + params.toString(), { headers: { 'Accept': 'application/json' } });
@@ -429,12 +460,69 @@
                             return await response.json();
                         },
                         eventsSet: function (events) {
-                            feedbackElement.textContent = events.length ? events.length + ' فعالیت در این بازه نمایش داده می‌شود.' : 'در این بازه فعالیت زمان‌بندی‌شده‌ای پیدا نشد.';
+                            feedbackElement.textContent = events.length ? events.length + ' مورد در این بازه نمایش داده می‌شود. برای دیدن فهرست روز، روی تاریخ بزنید.' : 'در این بازه موردی پیدا نشد.';
                             feedbackElement.className = 'mb-3 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-800';
                         },
                         eventSourceFailure: function (error) {
                             feedbackElement.textContent = error?.message || 'دریافت فعالیت‌ها با خطا روبه‌رو شد.';
                             feedbackElement.className = 'mb-3 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800';
+                        },
+                        eventContent: function (arg) {
+                            const types = { task: ['✓', '#2563eb'], letter: ['✉', '#16a34a'], minute: ['▤', '#ea580c'] };
+                            const [icon, color] = types[arg.event.extendedProps.type] || types.task;
+                            const wrap = document.createElement('span');
+                            wrap.className = 'inline-flex min-w-0 items-center';
+                            const badge = document.createElement('span');
+                            badge.className = 'calendar-event-icon';
+                            badge.style.color = color;
+                            badge.textContent = icon;
+                            const title = document.createElement('span');
+                            title.className = 'truncate';
+                            title.textContent = arg.event.title;
+                            wrap.append(badge, title);
+                            return { domNodes: [wrap] };
+                        },
+                        dateClick: function (info) {
+                            const dayEvents = calendar.getEvents().filter((event) => {
+                                if (!event.start) return false;
+                                const day = info.dateStr.slice(0, 10);
+                                const start = event.startStr.slice(0, 10);
+                                const end = event.endStr ? event.endStr.slice(0, 10) : null;
+                                return start <= day && (!end || end > day);
+                            });
+                            dayTitle.textContent = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'full' }).format(info.date);
+                            dayItems.replaceChildren();
+                            if (!dayEvents.length) {
+                                const empty = document.createElement('p');
+                                empty.className = 'rounded-2xl bg-slate-50 p-5 text-center text-sm text-muted';
+                                empty.textContent = 'برای این روز موردی ثبت نشده است.';
+                                dayItems.appendChild(empty);
+                            }
+                            dayEvents.forEach((event) => {
+                                const types = { task: ['✓', 'فعالیت', 'bg-blue-50 text-blue-700'], letter: ['✉', 'نامه', 'bg-emerald-50 text-emerald-700'], minute: ['▤', 'صورت‌جلسه', 'bg-orange-50 text-orange-700'] };
+                                const [icon, label, style] = types[event.extendedProps.type] || types.task;
+                                const link = document.createElement('a');
+                                link.href = event.url || '#';
+                                link.className = 'flex items-center gap-3 rounded-2xl border border-slate-100 p-3 transition hover:border-blue-200 hover:bg-slate-50';
+                                const badge = document.createElement('span');
+                                badge.className = 'grid h-10 w-10 shrink-0 place-items-center rounded-xl ' + style;
+                                badge.textContent = icon;
+                                const details = document.createElement('span');
+                                details.className = 'min-w-0 flex-1';
+                                const name = document.createElement('span');
+                                name.className = 'block break-words text-sm font-bold text-slate-800';
+                                name.textContent = event.title;
+                                const meta = document.createElement('span');
+                                meta.className = 'mt-1 block text-[11px] text-muted';
+                                meta.textContent = label + (event.allDay ? '' : ' · ' + event.start.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
+                                details.append(name, meta);
+                                const arrow = document.createElement('span');
+                                arrow.className = 'text-brand'; arrow.textContent = '←';
+                                link.append(badge, details, arrow);
+                                link.addEventListener('click', () => dayDialog.close(), { once: true });
+                                dayItems.appendChild(link);
+                            });
+                            dayDialog.showModal();
                         },
                         eventClick: function (info) {
                             if (info.event.url) {
@@ -444,6 +532,20 @@
                             }
                         },
                     });
+                    dayTypeButtons.forEach((button) => button.addEventListener('click', () => {
+                        selectedCalendarType = button.dataset.calendarType || 'all';
+                        dayTypeButtons.forEach((item) => {
+                            const active = item === button;
+                            item.setAttribute('aria-pressed', active ? 'true' : 'false');
+                            item.classList.toggle('border-blue-600', active);
+                            item.classList.toggle('bg-blue-600', active);
+                            item.classList.toggle('text-white', active);
+                            item.classList.toggle('border-slate-200', !active);
+                            item.classList.toggle('bg-white', !active);
+                            item.classList.toggle('text-slate-600', !active);
+                        });
+                        calendar.refetchEvents();
+                    }));
                     calendar.render();
                 };
                 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeCalendar, { once: true });

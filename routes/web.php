@@ -76,6 +76,8 @@ Route::get('/newui/assistant', [NewUiAssistantController::class, 'index'])->midd
 Route::post('/newui/assistant/message', [NewUiAssistantController::class, 'message'])->middleware(['auth', 'throttle:12,1'])->name('newui.assistant.message');
 Route::get('/newui/calendar/events', [NewUiController::class, 'calendarEvents'])
     ->middleware('auth')->name('newui.calendar.events');
+Route::post('/newui/{type}/{recordId}', [NewUiController::class, 'updateRecord'])
+    ->whereIn('type', ['task', 'letter', 'minute'])->middleware('auth')->name('newui.record.update');
 Route::get('/newui/{type}/{recordId}', [NewUiController::class, 'showRecord'])
     ->whereIn('type', ['task', 'letter', 'minute'])
     ->middleware('auth')->name('newui.record');
