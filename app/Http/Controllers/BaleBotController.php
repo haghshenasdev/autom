@@ -1167,39 +1167,52 @@ class BaleBotController extends Controller
     {
         $message = trim((string) ($result['text'] ?? 'پاسخی برای این پرسش پیدا نشد.'));
         $items = $result['results'] ?? [];
-        $this->sendMessage($chatId, $message . ($items ? "\n\n📚 موارد مرتبط:" : ''));
+
+        if (is_array($items) && $items) {
+            $message .= "\n\n📚 موارد مرتبط";
+            $keyboard = ['inline_keyboard' => []];
+            foreach (array_values($items) as $index => $item) {
+                $path = parse_url((string) ($item['url'] ?? ''), PHP_URL_PATH) ?: '';
+                preg_match('#^/newui/(letter|minute|task)/(\d+)$#', $path, $match);
+                $recordId = $match[2] ?? null;
+                $type = match ($match[1] ?? '') {
+                    'letter' => '📨 نامه',
+                    'minute' => '📋 صورت‌جلسه',
+                    'task' => '🧩 فعالیت',
+                    default => '📄 مورد',
+                };
+                $title = mb_substr(trim((string) ($item['title'] ?? 'بدون عنوان')), 0, 180);
+                $meta = mb_substr(trim((string) ($item['meta'] ?? '')), 0, 120);
+                $summary = mb_substr(trim((string) ($item['summary'] ?? '')), 0, 220);
+                $card = "\n\n" . ($index + 1) . ") {$type}" . ($recordId ? " | شماره ثبت: {$recordId}" : '')
+                    . "\n📝 عنوان: {$title}"
+                    . ($meta !== '' ? "\n📅 اطلاعات: {$meta}" : '')
+                    . ($summary !== '' ? "\n💬 خلاصه: {$summary}" : '');
+
+                if (mb_strlen($message . $card) > 3800) {
+                    $card = "\n\n" . ($index + 1) . ") {$type}" . ($recordId ? " | شماره ثبت: {$recordId}" : '')
+                        . "\n📝 عنوان: " . mb_substr($title, 0, 100);
+                    if (mb_strlen($message . $card) > 3900) break;
+                }
+                $message .= $card;
+
+                if ($recordId && !empty($item['url'])) {
+                    $keyboard['inline_keyboard'][] = [[
+                        'text' => "بازکردن {$type} {$recordId}",
+                        'url' => $item['url'],
+                    ]];
+                }
+            }
+            $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+        } else {
+            $this->sendMessage($chatId, $message);
+        }
 
         if (is_array($result['chart'] ?? null)) {
             $png = app(\App\Services\NewUiStatisticsService::class)->renderPng($result['chart']);
             if ($png) $this->sendPhotoFromContent($chatId, $png, 'karnama-statistics.png', 'نمودار آماری بر اساس مواردی که مجوز مشاهدهٔ آن‌ها را دارید');
             else $this->sendMessage($chatId, 'ساخت تصویر نمودار انجام نشد؛ آمار متنی در پیام بالا موجود است.');
         }
-
-        foreach ($items as $index => $item) {
-            $path = parse_url((string) ($item['url'] ?? ''), PHP_URL_PATH) ?: '';
-            preg_match('#^/newui/(letter|minute|task)/(\d+)$#', $path, $match);
-            $type = match ($match[1] ?? '') {
-                'letter' => '📨 نامه',
-                'minute' => '📝 صورت‌جلسه',
-                'task' => '🧩 فعالیت',
-                default => '📄 مورد',
-            };
-            $card = $type . ' ' . ($index + 1) . "\n"
-                . (!empty($match[2]) ? 'شماره ثبت: ' . $match[2] . "\n" : '')
-                . 'عنوان: ' . ($item['title'] ?? 'بدون عنوان') . "\n"
-                . (!empty($item['meta']) ? 'اطلاعات: ' . $item['meta'] . "\n" : '')
-                . (!empty($item['summary']) ? 'خلاصه: ' . mb_substr((string) $item['summary'], 0, 600) : '');
-            $keyboard = ['inline_keyboard' => []];
-            if (!empty($item['url']) && isset($match[1])) {
-                $keyboard['inline_keyboard'][] = [[
-                    'text' => 'باز کردن در پنل نیو یوآی',
-                    'url' => $item['url'],
-                ]];
-            }
-            if ($keyboard['inline_keyboard']) $this->sendMessageWithKeyboard($chatId, trim($card), $keyboard);
-            else $this->sendMessage($chatId, trim($card));
-        }
-
         $pagination = $result['pagination'] ?? null;
         $token = $result['search_token'] ?? null;
         if (is_array($pagination) && $token) {
