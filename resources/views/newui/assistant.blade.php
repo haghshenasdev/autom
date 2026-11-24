@@ -221,6 +221,17 @@
         messages.scrollTop = messages.scrollHeight;
     }
 
+    function addAssistantLoading() {
+        const row = document.createElement('div');
+        row.className = 'flex justify-end';
+        row.setAttribute('role', 'status');
+        row.setAttribute('aria-live', 'polite');
+        row.innerHTML = '<div class="flex items-center gap-3 rounded-2xl rounded-tl-sm border border-blue-100 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm"><span class="relative grid h-8 w-8 place-items-center"><span class="absolute inset-0 animate-ping rounded-full bg-blue-100 opacity-70"></span><span class="relative h-3 w-3 animate-pulse rounded-full bg-brand"></span></span><span>دستیار در حال بررسی و آماده‌کردن پاسخ است…</span></div>';
+        messages.appendChild(row);
+        messages.scrollTop = messages.scrollHeight;
+        return row;
+    }
+
     async function loadResultPage(token, page) {
         button.disabled = true;
         status.textContent = '';
@@ -245,92 +256,6 @@
         }
     }
 
-    function addConsentPrompt(data) {
-        const row = document.createElement('div');
-        row.className = 'flex justify-end';
-        const card = document.createElement('div');
-        card.className = 'max-w-[96%] min-w-0 rounded-2xl rounded-tl-sm border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-slate-800 sm:max-w-[88%]';
-        const heading = document.createElement('p');
-        heading.className = 'font-bold';
-        heading.textContent = 'اجازهٔ ارسال این متن‌ها به ' + data.consent_destination + ' را می‌دهید؟';
-        card.appendChild(heading);
-        const explanation = document.createElement('p');
-        explanation.className = 'mt-1 text-xs text-slate-600';
-        explanation.textContent = 'فقط پرسش شما و عنوان، تاریخ/نوع و متن دقیقِ نمایش‌داده‌شده برای هر سند ارسال می‌شود. فایل‌های پیوست ارسال نمی‌شوند. تأیید فقط برای همین فهرست معتبر است و تا ۵ دقیقه استفاده می‌شود.';
-        card.appendChild(explanation);
-        (data.consent_preview || []).forEach((doc) => {
-            const item = document.createElement('div');
-            item.className = 'mt-3 rounded-xl border border-amber-100 bg-white p-3';
-            const title = document.createElement('p');
-            title.className = 'font-bold';
-            title.textContent = doc.title || 'سند';
-            item.appendChild(title);
-            const meta = document.createElement('p');
-            meta.className = 'text-[11px] text-slate-500';
-            meta.textContent = doc.date_and_type || '';
-            item.appendChild(meta);
-            const content = document.createElement('p');
-            content.className = 'mt-2 whitespace-pre-wrap break-words text-xs text-slate-700';
-            content.textContent = doc.content_excerpt || 'متنی برای پیش‌نمایش ندارد.';
-            item.appendChild(content);
-            card.appendChild(item);
-        });
-        const actions = document.createElement('div');
-        actions.className = 'mt-4 flex flex-wrap gap-2';
-        const approve = document.createElement('button');
-        approve.type = 'button';
-        approve.className = 'rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white hover:bg-blue-800';
-        approve.textContent = 'بله، همین موارد ارسال شوند';
-        const decline = document.createElement('button');
-        decline.type = 'button';
-        decline.className = 'rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50';
-        decline.textContent = 'خیر، ارسال نشود';
-        decline.addEventListener('click', async () => {
-            approve.disabled = true;
-            decline.disabled = true;
-            try {
-                await fetch('{{ route('newui.assistant.message') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json', 'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    },
-                    body: JSON.stringify({ cancel_content: true, consent_token: data.consent_token }),
-                });
-            } finally {
-            addMessage('assistant', 'درخواست ارسال متن اسناد لغو شد؛ هیچ محتوایی برای GapGPT فرستاده نشد.');
-            }
-        });
-        approve.addEventListener('click', async () => {
-            approve.disabled = true;
-            decline.disabled = true;
-            button.disabled = true;
-            try {
-                const response = await fetch('{{ route('newui.assistant.message') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json', 'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    },
-                    body: JSON.stringify({ share_content: true, consent_token: data.consent_token }),
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.message || 'ارسال پس از تأیید ناموفق بود.');
-                addMessage('assistant', result.text || 'پاسخی دریافت نشد.', Array.isArray(result.results) ? result.results : []);
-            } catch (error) {
-                status.textContent = error.message || 'ارسال پس از تأیید ناموفق بود.';
-                status.classList.remove('hidden');
-            } finally {
-                button.disabled = false;
-            }
-        });
-        actions.append(approve, decline);
-        card.appendChild(actions);
-        row.appendChild(card);
-        messages.appendChild(row);
-        messages.scrollTop = messages.scrollHeight;
-    }
-
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (fileInput.files.length) {
@@ -341,6 +266,7 @@
         if (!question) return;
 
         addMessage('user', question);
+        const loading = addAssistantLoading();
         input.value = '';
         status.textContent = '';
         status.classList.add('hidden');
@@ -358,11 +284,11 @@
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || 'ارسال پرسش ناموفق بود.');
+            loading.remove();
             addMessage('assistant', data.text || 'پاسخی دریافت نشد.', Array.isArray(data.results) ? data.results : [], data.pagination ? { ...data.pagination, search_token: data.search_token } : null);
-            if (data.consent_required && data.consent_token) addConsentPrompt(data);
         } catch (error) {
-            status.textContent = error.message || 'ارتباط با دستیار برقرار نشد.';
-            status.classList.remove('hidden');
+            loading.remove();
+            addMessage('assistant', error.message || 'ارتباط با دستیار برقرار نشد.');
         } finally {
             button.disabled = false;
             input.focus();

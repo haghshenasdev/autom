@@ -35,6 +35,7 @@ class NewUiController extends Controller
 
         $commonIds = ['nullable', 'array'];
         if ($type === 'task') {
+            $this->normalizeRecordDates($request, ['started_at', 'ended_at', 'completed_at']);
             $data = $request->validate([
                 'name' => ['required', 'string', 'max:255'], 'description' => ['nullable', 'string'],
                 'completed' => ['nullable', 'boolean'], 'repeat' => ['nullable', 'boolean'],
@@ -52,6 +53,7 @@ class NewUiController extends Controller
             if (array_key_exists('task_group_ids', $data)) $record->task_group()->sync($data['task_group_ids'] ?? []);
             if (array_key_exists('project_ids', $data)) $record->project()->sync($data['project_ids'] ?? []);
         } elseif ($type === 'letter') {
+            $this->normalizeRecordDates($request, ['created_at']);
             $data = $request->validate([
                 'subject' => ['required', 'string', 'max:1000'], 'mokatebe' => ['nullable', 'string', 'max:255'],
                 'description' => ['nullable', 'string'], 'summary' => ['nullable', 'string'],
@@ -64,6 +66,7 @@ class NewUiController extends Controller
             $record->fill(collect($data)->except('project_ids')->all())->save();
             if (array_key_exists('project_ids', $data)) $record->projects()->sync($data['project_ids'] ?? []);
         } else {
+            $this->normalizeRecordDates($request, ['date']);
             $data = $request->validate([
                 'title' => ['required', 'string', 'max:255'], 'text' => ['nullable', 'string'],
                 'date' => ['required', 'date'], 'task_id' => ['required', 'exists:tasks,id'],
@@ -78,6 +81,25 @@ class NewUiController extends Controller
         }
 
         return redirect()->route('newui.record', ['type' => $type, 'recordId' => $recordId])->with('success', 'تغییرات ذخیره شد.');
+    }
+
+    private function normalizeRecordDates(Request $request, array $fields): void
+    {
+        $parser = app(\App\Services\PersianJalaliDateParser::class);
+        $normalized = [];
+        foreach ($fields as $field) {
+            $value = trim((string) $request->input($field, ''));
+            if ($value === '' || preg_match('/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/', $value)) continue;
+            $date = $parser->parse($value);
+            if (!$date) continue;
+            $digits = strtr($value, ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
+            if (preg_match('/(?:[ T])(\d{1,2}:\d{2}(?::\d{2})?)$/', $digits, $time)) {
+                $parts = array_map('intval', explode(':', $time[1]));
+                $date->setTime($parts[0] ?? 0, $parts[1] ?? 0, $parts[2] ?? 0);
+            }
+            $normalized[$field] = $date->format('Y-m-d H:i:s');
+        }
+        if ($normalized) $request->merge($normalized);
     }
 
     public function updateCartableChecked(Request $request, Cartable $cartable)
@@ -557,6 +579,29 @@ class NewUiController extends Controller
             abort(404);
         }
 
+        $editOptions = $request->boolean('edit') ? [
+            'types' => Type::query()->orderBy('name')->pluck('name', 'id'),
+            'organs' => Organ::query()->orderBy('name')->pluck('name', 'id'),
+            'projects' => Project::query()->orderBy('name')->pluck('name', 'id'),
+            'cities' => City::query()->orderBy('name')->pluck('name', 'id'),
+            'taskGroups' => TaskGroup::query()->orderBy('name')->pluck('name', 'id'),
+            'minuteGroups' => MinutesGroup::query()->orderBy('name')->pluck('name', 'id'),
+            'users' => $user->can('restore_any_task') ? User::query()->orderBy('name')->pluck('name', 'id') : collect(),
+            'tasks' => Task::query()->orderByDesc('id')->limit(500)->pluck('name', 'id'),
+            'letters' => Letter::query()->orderByDesc('id')->limit(500)->pluck('subject', 'id'),
+            'minutes' => Minutes::query()->orderByDesc('id')->limit(500)->pluck('title', 'id'),
+        ] : [];
+        if ($editOptions) {
+            if ($type === 'task') {
+                if ($record->minutes && !$editOptions['minutes']->has($record->minutes->id)) $editOptions['minutes']->put($record->minutes->id, $record->minutes->title);
+                if ($record->letter && !$editOptions['letters']->has($record->letter->id)) $editOptions['letters']->put($record->letter->id, $record->letter->subject);
+            } elseif ($type === 'letter' && $record->letter && !$editOptions['letters']->has($record->letter->id)) {
+                $editOptions['letters']->put($record->letter->id, $record->letter->subject);
+            } elseif ($type === 'minute' && $record->task_creator && !$editOptions['tasks']->has($record->task_creator->id)) {
+                $editOptions['tasks']->put($record->task_creator->id, $record->task_creator->name);
+            }
+        }
+
         return view('newui.record', [
             'type' => $type,
             'title' => $title,
@@ -565,18 +610,7 @@ class NewUiController extends Controller
             'editUrl' => $editUrl,
             'canEdit' => $user->can('update_' . $type),
             'editing' => $request->boolean('edit') && $user->can('update_' . $type),
-            'editOptions' => $request->boolean('edit') ? [
-                'types' => Type::query()->orderBy('name')->pluck('name', 'id'),
-                'organs' => Organ::query()->orderBy('name')->pluck('name', 'id'),
-                'projects' => Project::query()->orderBy('name')->pluck('name', 'id'),
-                'cities' => City::query()->orderBy('name')->pluck('name', 'id'),
-                'taskGroups' => TaskGroup::query()->orderBy('name')->pluck('name', 'id'),
-                'minuteGroups' => MinutesGroup::query()->orderBy('name')->pluck('name', 'id'),
-                'users' => $user->can('restore_any_task') ? User::query()->orderBy('name')->pluck('name', 'id') : collect(),
-                'tasks' => Task::query()->orderByDesc('id')->limit(500)->pluck('name', 'id'),
-                'letters' => Letter::query()->orderByDesc('id')->limit(500)->pluck('subject', 'id'),
-                'minutes' => Minutes::query()->orderByDesc('id')->limit(500)->pluck('title', 'id'),
-            ] : [],
+            'editOptions' => $editOptions,
         ]);
     }
 }

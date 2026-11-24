@@ -488,7 +488,10 @@
                                 const day = info.dateStr.slice(0, 10);
                                 const start = event.startStr.slice(0, 10);
                                 const end = event.endStr ? event.endStr.slice(0, 10) : null;
-                                return start <= day && (!end || end > day);
+                                // FullCalendar treats event.end as exclusive. Events without an
+                                // end are rendered on their start day only, so don't let them
+                                // appear in every later day's dialog.
+                                return start <= day && (end ? end > day : start === day);
                             });
                             dayTitle.textContent = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'full' }).format(info.date);
                             dayItems.replaceChildren();

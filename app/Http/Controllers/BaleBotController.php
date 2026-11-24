@@ -1147,45 +1147,45 @@ class BaleBotController extends Controller
     private function sendBaleAssistantResponse($chatId, array $result): void
     {
         $message = trim((string) ($result['text'] ?? 'پاسخی برای این پرسش پیدا نشد.'));
-        $keyboard = ['inline_keyboard' => []];
+        $items = $result['results'] ?? [];
+        $this->sendMessage($chatId, $message . ($items ? "\n\n📚 موارد مرتبط:" : ''));
 
-        if (!empty($result['consent_required']) && !empty($result['consent_token'])) {
-            foreach (($result['consent_preview'] ?? []) as $index => $document) {
-                $message .= "\n\n" . ($index + 1) . ') ' . ($document['title'] ?? 'سند');
-                $message .= "\n" . ($document['date_and_type'] ?? '');
-                if (!empty($document['content_excerpt'])) $message .= "\n" . mb_substr($document['content_excerpt'], 0, 500);
+        foreach ($items as $index => $item) {
+            $path = parse_url((string) ($item['url'] ?? ''), PHP_URL_PATH) ?: '';
+            preg_match('#^/newui/(letter|minute|task)/(\d+)$#', $path, $match);
+            $type = match ($match[1] ?? '') {
+                'letter' => '📨 نامه',
+                'minute' => '📝 صورت‌جلسه',
+                'task' => '🧩 فعالیت',
+                default => '📄 مورد',
+            };
+            $card = $type . ' ' . ($index + 1) . "\n"
+                . (!empty($match[2]) ? 'شماره ثبت: ' . $match[2] . "\n" : '')
+                . 'عنوان: ' . ($item['title'] ?? 'بدون عنوان') . "\n"
+                . (!empty($item['meta']) ? 'اطلاعات: ' . $item['meta'] . "\n" : '')
+                . (!empty($item['summary']) ? 'خلاصه: ' . mb_substr((string) $item['summary'], 0, 600) : '');
+            $keyboard = ['inline_keyboard' => []];
+            if (!empty($item['url']) && isset($match[1])) {
+                $keyboard['inline_keyboard'][] = [[
+                    'text' => 'باز کردن در پنل نیو یوآی',
+                    'url' => $item['url'],
+                ]];
             }
-            $token = $result['consent_token'];
-            $keyboard['inline_keyboard'][] = [[
-                ['text' => 'اجازه می‌دهم و پاسخ را بگیر', 'callback_data' => "bai_yes|{$token}"],
-                ['text' => 'خیر', 'callback_data' => "bai_no|{$token}"],
-            ]];
-        } else {
-            foreach (($result['results'] ?? []) as $index => $item) {
-                $message .= "\n\n" . ($index + 1) . ') ' . ($item['title'] ?? 'مورد');
-                if (!empty($item['meta'])) $message .= "\n" . $item['meta'];
-                if (!empty($item['summary'])) $message .= "\n" . mb_substr($item['summary'], 0, 220);
-                if (!empty($item['url'])) {
-                    $keyboard['inline_keyboard'][] = [[
-                        'text' => 'باز کردن ' . mb_substr((string) ($item['title'] ?? 'مورد'), 0, 45),
-                        'url' => $item['url'],
-                    ]];
-                }
-            }
-            $pagination = $result['pagination'] ?? null;
-            $token = $result['search_token'] ?? null;
-            if (is_array($pagination) && $token) {
-                $navigation = [];
-                if ((int) $pagination['current_page'] > 1) $navigation[] = ['text' => 'صفحهٔ قبل', 'callback_data' => "bai_page|{$token}|" . ((int) $pagination['current_page'] - 1)];
-                if ((int) $pagination['current_page'] < (int) $pagination['last_page']) $navigation[] = ['text' => 'صفحهٔ بعد', 'callback_data' => "bai_page|{$token}|" . ((int) $pagination['current_page'] + 1)];
-                if ($navigation) $keyboard['inline_keyboard'][] = $navigation;
-            }
+            if ($keyboard['inline_keyboard']) $this->sendMessageWithKeyboard($chatId, trim($card), $keyboard);
+            else $this->sendMessage($chatId, trim($card));
         }
 
-        if (!$keyboard['inline_keyboard']) {
-            $this->sendMessage($chatId, $message);
-        } else {
-            $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+        $pagination = $result['pagination'] ?? null;
+        $token = $result['search_token'] ?? null;
+        if (is_array($pagination) && $token) {
+            $navigation = [];
+            if ((int) $pagination['current_page'] > 1) $navigation[] = ['text' => 'صفحهٔ قبل', 'callback_data' => "bai_page|{$token}|" . ((int) $pagination['current_page'] - 1)];
+            if ((int) $pagination['current_page'] < (int) $pagination['last_page']) $navigation[] = ['text' => 'صفحهٔ بعد', 'callback_data' => "bai_page|{$token}|" . ((int) $pagination['current_page'] + 1)];
+            if ($navigation) $this->sendMessageWithKeyboard(
+                $chatId,
+                "📑 صفحه {$pagination['current_page']} از {$pagination['last_page']} · {$pagination['total']} نتیجه",
+                ['inline_keyboard' => [$navigation]]
+            );
         }
     }
 

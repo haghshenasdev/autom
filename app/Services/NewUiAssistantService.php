@@ -32,8 +32,7 @@ class NewUiAssistantService
         $plan = $this->plan($question, $allowed);
         $results = $this->search($user, $question, $allowed, $plan);
 
-        // On a miss, retry with a different filter plan. Only the question and
-        // the previous filter values are sent; no record data leaves the app.
+        // On a miss, retry with a different filter plan before searching again.
         if ($results->getCollection()->isEmpty()) {
             $plan = $this->plan($question, $allowed, $plan);
             $results = $this->search($user, $question, $allowed, $plan);
@@ -48,33 +47,25 @@ class NewUiAssistantService
         if ($results->getCollection()->isEmpty()) {
             $candidates = $this->findConsentCandidates($user, $question, $allowed, $plan);
             if ($candidates->isNotEmpty()) {
-                $destination = 'GapGPT (api.gapgpt.ir)';
                 $documents = $candidates->map(fn (array $item) => [
                     'title' => $item['title'],
                     'date_and_type' => $item['meta'],
                     'content_excerpt' => $item['content'],
                 ])->values()->all();
                 $recordIds = $candidates->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
-                $bound = ['question' => $question, 'entity' => $entity, 'documents' => $documents, 'record_ids' => $recordIds, 'destination' => $destination];
-                $token = Str::random(64);
-                $session->put('newui_assistant_consent.' . $token, [
-                    'user_id' => $user->id,
-                    ...$bound,
-                    'expires_at' => now()->addMinutes(5)->timestamp,
-                    'fingerprint' => hash('sha256', json_encode($bound, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
-                ]);
-
-                return [
-                    'text' => 'با فیلترهای جایگزین نتیجهٔ دقیقی پیدا نشد. موارد نزدیک زیر را بررسی کنید. در صورت تأیید شما، همین متن‌های نمایش‌داده‌شده برای پاسخ به GapGPT فرستاده می‌شوند.',
-                    'results' => [],
-                    'consent_required' => true,
-                    'consent_token' => $token,
-                    'consent_destination' => $destination,
-                    'consent_preview' => $documents,
-                ];
+                $consent = $this->makeConsent($user, $question, $entity, $documents, $recordIds);
+                return $this->completeConsent($user, $consent);
             }
             return ['text' => "در مواردی که دسترسی مشاهده‌شان را دارید، {$label}ای با این مشخصات پیدا نشد.", 'results' => []];
         }
+
+        $documents = $results->getCollection()->take(5)->map(fn (array $item) => [
+            'title' => $item['title'],
+            'date_and_type' => $item['meta'],
+            'content_excerpt' => $item['content'],
+        ])->values()->all();
+        $recordIds = $results->getCollection()->take(5)->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+        $answer = $this->completeConsent($user, $this->makeConsent($user, $question, $entity, $documents, $recordIds));
 
         $token = Str::random(64);
         $session->put('newui_assistant_results.' . $token, [
@@ -85,7 +76,14 @@ class NewUiAssistantService
             'expires_at' => now()->addMinutes(20)->timestamp,
         ]);
 
-        return $this->formatResultPage($results, $label, $token);
+        $answer['text'] = $answer['text'] ?: "{$label}های مرتبط پیدا شدند.";
+        $answer['search_token'] = $token;
+        $answer['pagination'] = [
+            'current_page' => $results->currentPage(),
+            'last_page' => $results->lastPage(),
+            'total' => $results->total(),
+        ];
+        return $answer;
     }
 
     /** Use the same read-only search and answer pipeline for the Bale private chat. */
@@ -315,7 +313,7 @@ class NewUiAssistantService
         return collect();
     }
 
-    /** Validates the single-use consent and sends only the exact previewed payload. */
+    /** Validates access to the selected records and sends their prepared excerpts to the assistant. */
     public function confirmConsent(User $user, Store $session, string $token): array
     {
         $consent = $session->pull('newui_assistant_consent.' . $token);
@@ -342,7 +340,7 @@ class NewUiAssistantService
             if (!$this->canViewRecord($user, $entity, (int) $id)) abort(403);
         }
 
-        // These document objects are the same objects returned in consent_preview.
+        // Only the record excerpts selected by the permission-scoped search are sent; attachments stay local.
         $response = Http::timeout(30)->withToken(trim((string) config('services.gapgpt.api_key')))->acceptJson()->post('https://api.gapgpt.ir/v1/chat/completions', [
             'model' => 'gpt-4o', 'temperature' => 0.2,
             'messages' => [
@@ -358,6 +356,7 @@ class NewUiAssistantService
             $results[] = [
                 'title' => $document['title'],
                 'meta' => $document['date_and_type'],
+                'summary' => mb_substr((string) ($document['content_excerpt'] ?? ''), 0, 240),
                 'url' => url('/newui/' . $routeType . '/' . $consent['record_ids'][$index]),
             ];
         }
