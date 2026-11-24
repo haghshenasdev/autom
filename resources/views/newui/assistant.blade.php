@@ -86,6 +86,7 @@
         messages.scrollTop = messages.scrollHeight;
         button.disabled = true;
         status.classList.add('hidden');
+        const loading = addAssistantLoading();
         const payload = new FormData();
         payload.append('file', file);
         try {
@@ -101,6 +102,7 @@
             status.textContent = error.message || 'پردازش فایل ناموفق بود.';
             status.classList.remove('hidden');
         } finally {
+            loading.remove();
             button.disabled = false;
             fileInput.value = '';
             fileName.textContent = '';

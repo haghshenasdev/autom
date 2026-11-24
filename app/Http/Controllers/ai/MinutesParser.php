@@ -42,7 +42,7 @@ class MinutesParser
 
                     // استخراج @ها از approve
                     preg_match_all('/@\s*([^\s]+)/u', $rawLine, $matches);
-                    foreach ($matches[1] as $mention) {
+                    foreach (($matches[1] ?? []) as $mention) {
                         $name = trim(str_replace(['_','-'], ' ', $mention));
                         $user = User::where('name', 'like', "%$name%")
                             ->orWhere('id', $mention)
@@ -149,7 +149,7 @@ class MinutesParser
                 'global_projects' => $globalProjects,
             ];
         } catch (Exception $exception) {
-            throw new $exception;
+            throw $exception;
         }
     }
 

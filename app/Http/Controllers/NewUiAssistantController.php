@@ -98,15 +98,25 @@ class NewUiAssistantController extends Controller
         $contents = Storage::disk('local')->get($temporaryPath);
         $title = trim($data['title']);
         $body = trim((string) $state['text']);
+        $aiSummary = trim((string) ($state['suggestion']['summary'] ?? ''));
+        $description = ($aiSummary !== '' ? "خلاصه:\n{$aiSummary}\n\n" : '')
+            . ($body !== '' ? "متن استخراج‌شده:\n{$body}" : '');
         $extension = preg_replace('/[^a-z0-9]/i', '', (string) $state['extension']) ?: 'pdf';
 
         if ($data['type'] === 'letter') {
-            $parsed = (new \App\Http\Controllers\ai\LetterParser())->parse("#نامه {$title}\n{$body}");
+            try {
+                $parsed = (new \App\Http\Controllers\ai\LetterParser())->parse("#نامه {$title}\n{$body}");
+            } catch (\Throwable $exception) {
+                Log::warning('New UI assistant letter parser failed; registering OCR text as description.', [
+                    'user_id' => $user->id, 'exception' => get_class($exception), 'message' => $exception->getMessage(),
+                ]);
+                $parsed = [];
+            }
             $record = \App\Models\Letter::create([
                 'subject' => $title,
                 'created_at' => $parsed['title_date'] ?? now(),
-                'description' => $parsed['description'] ?? $body,
-                'summary' => $parsed['summary'] ?? '',
+                'description' => $description,
+                'summary' => trim((string) ($parsed['summary'] ?? '')) ?: $aiSummary,
                 'mokatebe' => $parsed['mokatebe'] ?? null,
                 'daftar_id' => $parsed['daftar'] ?? 461,
                 'kind' => $parsed['kind'] ?? 1,
@@ -123,11 +133,18 @@ class NewUiAssistantController extends Controller
             Storage::disk('private')->put($record->getFilePath(), $contents);
             $url = url('/newui/letter/' . $record->id);
         } else {
-            $parsed = (new \App\Http\Controllers\ai\MinutesParser(false))->parse("{$title}\n{$body}", $user->id);
+            try {
+                $parsed = (new \App\Http\Controllers\ai\MinutesParser(false))->parse("{$title}\n{$body}", $user->id);
+            } catch (\Throwable $exception) {
+                Log::warning('New UI assistant minute parser failed; registering OCR text as description.', [
+                    'user_id' => $user->id, 'exception' => get_class($exception), 'message' => $exception->getMessage(),
+                ]);
+                $parsed = [];
+            }
             $record = \App\Models\Minutes::create([
                 'title' => $title,
                 'date' => $parsed['title_date'] ?? now(),
-                'text' => $body,
+                'text' => $description,
                 'typer_id' => $user->id,
                 'task_id' => $parsed['task_id'] ?? null,
                 'file' => $extension,
