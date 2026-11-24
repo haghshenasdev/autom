@@ -58,6 +58,7 @@
     </form>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
 (() => {
     const messages = document.getElementById('messages');
@@ -157,7 +158,7 @@
         row.appendChild(card); messages.appendChild(row); messages.scrollTop = messages.scrollHeight;
     }
 
-    function addMessage(role, text, results = [], pagination = null) {
+    function addMessage(role, text, results = [], pagination = null, chart = window.__newuiAssistantChart || null) {
         const row = document.createElement('div');
         row.className = role === 'user' ? 'flex justify-start' : 'flex justify-end';
         const bubble = document.createElement('div');
@@ -168,6 +169,18 @@
         content.className = 'whitespace-pre-wrap break-words';
         content.textContent = text;
         bubble.appendChild(content);
+
+        if (role === 'assistant' && chart) {
+            if (window.Chart) { Chart.defaults.font.family = 'Vazirmatn'; Chart.defaults.color = '#64748b'; }
+            const chartWrap = document.createElement('div');
+            chartWrap.className = 'mt-4 h-64 w-full rounded-xl bg-white p-3';
+            const canvas = document.createElement('canvas');
+            chartWrap.appendChild(canvas);
+            bubble.appendChild(chartWrap);
+            if (window.Chart) new Chart(canvas, { ...chart, options: { responsive: true, maintainAspectRatio: false, ...(chart.options || {}), plugins: { legend: { position: 'bottom', labels: { font: { family: 'Vazirmatn' } } }, ...(chart.options?.plugins || {}) } } });
+            else chartWrap.textContent = 'برای نمایش نمودار، اتصال به کتابخانهٔ نمودار برقرار نشد.';
+        }
+        if (role === 'assistant') window.__newuiAssistantChart = null;
 
         if (role === 'assistant' && results.length) {
             const list = document.createElement('div');
@@ -284,6 +297,7 @@
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || 'ارسال پرسش ناموفق بود.');
+            window.__newuiAssistantChart = data.chart || null;
             loading.remove();
             addMessage('assistant', data.text || 'پاسخی دریافت نشد.', Array.isArray(data.results) ? data.results : [], data.pagination ? { ...data.pagination, search_token: data.search_token } : null);
         } catch (error) {

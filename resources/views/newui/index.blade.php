@@ -47,6 +47,7 @@
         ['id' => 'letters', 'label' => 'نامه‌ها', 'icon' => 'mail'],
         ['id' => 'minutes', 'label' => 'صورت‌جلسه‌ها', 'icon' => 'document'],
         ['id' => 'calendar', 'label' => 'تقویم', 'icon' => 'calendar'],
+        ['id' => 'statistics', 'label' => 'آمار و گزارش‌ها', 'icon' => 'chart'],
         ['id' => 'assistant', 'label' => 'دستیار هوشمند', 'icon' => 'spark'],
     ];
     $dateText = function ($value) {
@@ -88,7 +89,7 @@
         default => false,
     };
     $sectionTitle = [
-        'home' => 'پیشخوان', 'cartable' => 'کارپوشه', 'tasks' => 'فعالیت‌ها', 'letters' => 'نامه‌ها', 'minutes' => 'صورت‌جلسه‌ها', 'calendar' => 'تقویم فعالیت‌ها',
+        'home' => 'پیشخوان', 'cartable' => 'کارپوشه', 'tasks' => 'فعالیت‌ها', 'letters' => 'نامه‌ها', 'minutes' => 'صورت‌جلسه‌ها', 'calendar' => 'تقویم فعالیت‌ها', 'statistics' => 'آمار و گزارش‌ها',
     ][$activeView];
 @endphp
 
@@ -106,6 +107,7 @@
                 @if($item['id'] === 'assistant' && !$canAssistant) @continue @endif
                 @if($item['id'] === 'letters' && !$canLetters) @continue @endif
                 @if($item['id'] === 'minutes' && !$canMinutes) @continue @endif
+                @if($item['id'] === 'statistics' && !$canStatistics) @continue @endif
                 <a href="{{ $item['id'] === 'assistant' ? url('/newui/assistant') : url('/newui').($item['id'] === 'home' ? '' : '?view='.$item['id']) }}"
                    class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition {{ $activeView === $item['id'] ? 'bg-brand-soft text-brand' : 'text-slate-600 hover:bg-slate-50' }}">
                     @include('newui.partials.icon', ['name' => $item['icon'], 'class' => 'h-5 w-5'])
@@ -247,7 +249,48 @@
             </details>
         @endif
 
-        @if($activeView === 'home')
+        @if($activeView === 'statistics')
+            <section class="mb-5 flex flex-wrap items-end justify-between gap-3">
+                <div><p class="text-xs text-muted">گزارش دسترسی‌محور سامانه</p><h2 class="mt-1 text-2xl font-extrabold">آمار و گزارش‌ها</h2><p class="mt-1 text-xs text-muted">فقط اطلاعاتی محاسبه شده که مجوز مشاهدهٔ آن‌ها را دارید.</p></div>
+            </section>
+            <form method="get" action="{{ url('/newui') }}" class="mb-5 grid gap-3 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <input type="hidden" name="view" value="statistics">
+                <label class="text-xs font-semibold text-slate-600">از تاریخ شمسی<input name="date_from" data-jalali-datepicker autocomplete="off" inputmode="numeric" value="{{ $filterDateValues['date_from'] }}" placeholder="۱۴۰۵/۰۱/۰۱" class="mt-2 w-full rounded-xl border-slate-200 px-3 py-2.5 text-sm"></label>
+                <label class="text-xs font-semibold text-slate-600">تا تاریخ شمسی<input name="date_to" data-jalali-datepicker autocomplete="off" inputmode="numeric" value="{{ $filterDateValues['date_to'] }}" placeholder="۱۴۰۵/۱۲/۲۹" class="mt-2 w-full rounded-xl border-slate-200 px-3 py-2.5 text-sm"></label>
+                <div class="flex gap-2"><button class="rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800">اعمال بازه</button><a href="{{ url('/newui?view=statistics') }}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600">۱۲ ماه اخیر</a></div>
+            </form>
+            <section class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                @foreach(['tasks' => ['فعالیت‌ها', 'check'], 'letters' => ['نامه‌ها', 'mail'], 'minutes' => ['صورت‌جلسه‌ها', 'document']] as $key => [$label, $icon])
+                    @if(in_array($key, $statistics['allowed'], true))
+                        <article class="rounded-3xl border border-slate-100 bg-white p-5 shadow-card"><div class="flex items-center justify-between"><span class="grid h-10 w-10 place-items-center rounded-2xl bg-blue-50 text-brand">@include('newui.partials.icon', ['name' => $icon, 'class' => 'h-5 w-5'])</span><span class="text-[11px] text-muted">{{ $statistics['range']['from'] }} تا {{ $statistics['range']['to'] }}</span></div><p class="mt-4 text-3xl font-extrabold">{{ number_format($statistics['totals'][$key] ?? 0) }}</p><p class="mt-1 text-sm font-semibold text-slate-500">{{ $label }} در بازهٔ انتخابی</p></article>
+                    @endif
+                @endforeach
+            </section>
+            <section class="grid gap-4 lg:grid-cols-2">
+                <article class="min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:p-5 lg:col-span-2"><h3 class="font-extrabold">روند ماهانهٔ ثبت موارد</h3><p class="mt-1 text-xs text-muted">تعداد موارد ثبت‌شده در هر ماه</p><div class="relative mt-4 h-72"><canvas id="statistics-trend"></canvas></div></article>
+                @if(isset($statistics['task_status']))<article class="min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:p-5"><h3 class="font-extrabold">وضعیت فعالیت‌ها</h3><div class="relative mt-4 h-64"><canvas id="statistics-tasks"></canvas></div></article>@endif
+                @if(isset($statistics['letter_kind']))<article class="min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:p-5"><h3 class="font-extrabold">نامه‌های وارده و صادره</h3><div class="relative mt-4 h-64"><canvas id="statistics-letters"></canvas></div></article>@endif
+            </section>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+            <script>
+                (() => {
+                    const data = @json($statistics);
+                    if (!window.Chart || !data) return;
+                    Chart.defaults.font.family = 'Vazirmatn';
+                    Chart.defaults.color = '#64748b';
+                    const colors = { tasks: '#2563eb', letters: '#10b981', minutes: '#f97316' };
+                    const trend = document.getElementById('statistics-trend');
+                    if (trend) new Chart(trend, { type: 'line', data: { labels: data.periods.map(row => row.label), datasets: [
+                        ...(['tasks', 'letters', 'minutes'].filter(key => data.allowed.includes(key))).map(key => ({ label: { tasks: 'فعالیت‌ها', letters: 'نامه‌ها', minutes: 'صورت‌جلسه‌ها' }[key], data: data.periods.map(row => row[key]), borderColor: colors[key], backgroundColor: colors[key] + '22', fill: true, tension: .32, pointRadius: 3 }))
+                    ] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Vazirmatn' } } } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+                    const taskChart = document.getElementById('statistics-tasks');
+                    if (taskChart) new Chart(taskChart, { type: 'doughnut', data: { labels: Object.keys(data.task_status), datasets: [{ data: Object.values(data.task_status), backgroundColor: ['#f59e0b', '#2563eb'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Vazirmatn' } } } } } });
+                    const letterChart = document.getElementById('statistics-letters');
+                    if (letterChart) new Chart(letterChart, { type: 'bar', data: { labels: Object.keys(data.letter_kind), datasets: [{ label: 'تعداد نامه', data: Object.values(data.letter_kind), backgroundColor: ['#0ea5e9', '#10b981'], borderRadius: 10 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+                })();
+                window.dispatchEvent(new Event('newui:page-ready'));
+            </script>
+        @elseif($activeView === 'home')
             <section class="relative mb-6 overflow-hidden rounded-[2rem] bg-gradient-to-l from-[#12316f] via-[#1d4ed8] to-[#3986f6] px-6 py-7 text-white shadow-card sm:px-8 sm:py-9">
                 <div class="relative z-10 max-w-xl">
                     <span class="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-semibold text-blue-50"><span class="h-1.5 w-1.5 rounded-full bg-blue-200"></span> فضای کاری شخصی</span>
@@ -593,6 +636,7 @@
             @if($item['id'] === 'assistant' && !$canAssistant) @continue @endif
             @if($item['id'] === 'letters' && !$canLetters) @continue @endif
             @if($item['id'] === 'minutes' && !$canMinutes) @continue @endif
+            @if($item['id'] === 'statistics' && !$canStatistics) @continue @endif
             <a href="{{ $item['id'] === 'assistant' ? url('/newui/assistant') : url('/newui').($item['id'] === 'home' ? '' : '?view='.$item['id']) }}" class="flex min-w-[64px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold {{ $activeView === $item['id'] ? 'text-brand' : 'text-slate-400' }}">
                 @include('newui.partials.icon', ['name' => $item['icon'], 'class' => 'h-5 w-5'])<span>{{ $item['label'] }}</span>
             </a>
@@ -632,6 +676,7 @@
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeJalaliPickers, { once: true });
     else initializeJalaliPickers();
+    window.addEventListener('newui:page-ready', initializeJalaliPickers);
 </script>
 </div>
 <div id="newui-vue-root"></div>

@@ -22,6 +22,7 @@ class NewUiAssistantService
 
     public function answer(User $user, string $question, Store $session): array
     {
+        if ($this->isStatisticsQuestion($question)) return $this->statisticsAnswer($user, $question);
         $allowed = array_values(array_filter([
             $user->can('view_any_letter') ? 'letters' : null,
             $user->can('view_any_task') ? 'tasks' : null,
@@ -89,6 +90,7 @@ class NewUiAssistantService
     /** Use the same read-only search and answer pipeline for the Bale private chat. */
     public function answerForBale(User $user, string $question): array
     {
+        if ($this->isStatisticsQuestion($question)) return $this->statisticsAnswer($user, $question);
         $allowed = $this->allowedEntities($user);
         if (!$allowed) return ['text' => 'حساب شما دسترسی خواندن نامه، فعالیت یا صورت‌جلسه را ندارد.', 'results' => []];
 
@@ -131,6 +133,109 @@ class NewUiAssistantService
         ], now()->addMinutes(20));
 
         return $this->formatResultPage($results, $label, $token);
+    }
+
+    private function isStatisticsQuestion(string $question): bool
+    {
+        return (bool) preg_match('/آمار|نمودار|روند|درصد|میانگین|جمع کل|تعداد|چند(?:تا)?/u', $question);
+    }
+
+    private function statisticsAnswer(User $user, string $question): array
+    {
+        $allowed = app(NewUiStatisticsService::class)->allowed($user);
+        if (!$allowed) return ['text' => 'برای اطلاعات آماری، مجوز مشاهدهٔ هیچ‌یک از بخش‌ها را ندارید.', 'results' => []];
+
+        $plan = [];
+        $key = trim((string) config('services.gapgpt.api_key'));
+        if ($key !== '') {
+            try {
+                $response = Http::timeout(25)->withToken($key)->acceptJson()->post('https://api.gapgpt.ir/v1/chat/completions', [
+                    'model' => 'gpt-4o', 'temperature' => 0,
+                    'response_format' => ['type' => 'json_object'],
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'پرسش آماری فارسی را فقط به فیلتر JSON تبدیل کن؛ SQL تولید نکن و داده‌ای حدس نزن. کلیدها: entity یکی از all,tasks,letters,minutes و فقط از مجازها؛ place نام شهر/روستا یا null؛ jalali_year عدد سال شمسی یا null؛ from_date و to_date تاریخ شمسی YYYY/MM/DD یا null؛ chart یکی از trend,status یا trend.'],
+                        ['role' => 'user', 'content' => json_encode(['question' => mb_substr($question, 0, 1200), 'allowed_entities' => $allowed], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)],
+                    ],
+                ]);
+                if ($response->successful()) $plan = json_decode((string) $response->json('choices.0.message.content'), true) ?: [];
+            } catch (\Throwable) {
+                $plan = [];
+            }
+        }
+
+        $entity = in_array($plan['entity'] ?? null, $allowed, true) ? $plan['entity'] : null;
+        if (!$entity && preg_match('/نامه/u', $question) && in_array('letters', $allowed, true)) $entity = 'letters';
+        if (!$entity && preg_match('/صورت.?جلسه|جلسه/u', $question) && in_array('minutes', $allowed, true)) $entity = 'minutes';
+        if (!$entity && preg_match('/فعالیت|کار/u', $question) && in_array('tasks', $allowed, true)) $entity = 'tasks';
+        $entities = $entity ? [$entity] : $allowed;
+        $range = $this->statisticsRange($plan, $question);
+        $place = $this->cleanTerm($plan['place'] ?? null);
+        $data = app(NewUiStatisticsService::class)->dashboard($user, $range[0], $range[1], $place, $entities);
+
+        $chartEntities = $data['allowed'];
+        $datasets = [];
+        $labels = ['tasks' => 'فعالیت‌ها', 'letters' => 'نامه‌ها', 'minutes' => 'صورت‌جلسه‌ها'];
+        $colors = ['tasks' => '#2563eb', 'letters' => '#10b981', 'minutes' => '#f97316'];
+        $chartType = 'line';
+        $chartLabels = array_column($data['periods'], 'label');
+        if (($plan['chart'] ?? null) === 'status' && $entity === 'tasks' && isset($data['task_status'])) {
+            $chartType = 'doughnut';
+            $chartLabels = array_keys($data['task_status']);
+            $datasets[] = ['data' => array_values($data['task_status']), 'backgroundColor' => ['#f59e0b', '#2563eb'], 'borderWidth' => 0];
+        } elseif (($plan['chart'] ?? null) === 'status' && $entity === 'letters' && isset($data['letter_kind'])) {
+            $chartType = 'bar';
+            $chartLabels = array_keys($data['letter_kind']);
+            $datasets[] = ['label' => 'تعداد نامه', 'data' => array_values($data['letter_kind']), 'backgroundColor' => ['#0ea5e9', '#10b981'], 'borderRadius' => 10];
+        } else {
+            foreach ($chartEntities as $chartEntity) {
+                $datasets[] = ['label' => $labels[$chartEntity], 'data' => array_column($data['periods'], $chartEntity), 'borderColor' => $colors[$chartEntity], 'backgroundColor' => $colors[$chartEntity] . '33', 'fill' => true, 'tension' => .3];
+            }
+        }
+        $chart = ['type' => $chartType, 'data' => ['labels' => $chartLabels, 'datasets' => $datasets], 'options' => ['plugins' => ['legend' => ['position' => 'bottom']]]];
+        $summary = ['totals' => array_filter($data['totals'], fn ($value) => $value !== null), 'range' => $data['range'], 'place' => $place];
+        $text = $this->summarizeStatistics($question, $summary, $key);
+
+        return ['text' => $text, 'results' => [], 'chart' => $chart, 'statistics' => $summary];
+    }
+
+    private function summarizeStatistics(string $question, array $summary, string $key): string
+    {
+        if ($key !== '') {
+            try {
+                $response = Http::timeout(25)->withToken($key)->acceptJson()->post('https://api.gapgpt.ir/v1/chat/completions', [
+                    'model' => 'gpt-4o', 'temperature' => .2,
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'به فارسی و کوتاه پاسخ بده. فقط آمار JSON داده‌شده را گزارش کن؛ هیچ عدد یا واقعیتی اضافه نکن. توضیح بده نمودار روند ماهانه است.'],
+                        ['role' => 'user', 'content' => json_encode(['question' => $question, 'statistics' => $summary], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)],
+                    ],
+                ]);
+                $answer = trim((string) $response->json('choices.0.message.content'));
+                if ($response->successful() && $answer !== '') return mb_substr($answer, 0, 2000);
+            } catch (\Throwable) {
+            }
+        }
+        $names = ['tasks' => 'فعالیت', 'letters' => 'نامه', 'minutes' => 'صورت‌جلسه'];
+        $counts = [];
+        foreach ($summary['totals'] as $entity => $count) $counts[] = $names[$entity] . ': ' . number_format((int) $count);
+        return 'آمار ' . ($summary['place'] ? 'مربوط به ' . $summary['place'] . ' ' : '') . 'از ' . $summary['range']['from'] . ' تا ' . $summary['range']['to'] . '؛ ' . implode('، ', $counts) . '. نمودار، روند ماهانه را نشان می‌دهد.';
+    }
+
+    private function statisticsRange(array $plan, string $question): array
+    {
+        $year = filter_var($plan['jalali_year'] ?? null, FILTER_VALIDATE_INT);
+        if (!$year) {
+            $digits = strtr($question, ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
+            if (preg_match('/(?<!\d)(1[34]\d{2})(?!\d)/u', $digits, $match)) $year = (int) $match[1];
+        }
+        if ($year && $year >= 1300 && $year <= 1500) return [(new Jalalian($year, 1, 1))->toCarbon()->startOfDay(), (new Jalalian($year + 1, 1, 1))->toCarbon()->subDay()->endOfDay()];
+        $parser = app(PersianJalaliDateParser::class);
+        $from = is_string($plan['from_date'] ?? null) ? $parser->parse($plan['from_date']) : null;
+        $to = is_string($plan['to_date'] ?? null) ? $parser->parse($plan['to_date']) : null;
+        if (!$from && !$to) return [now()->subMonths(11)->startOfMonth(), now()->endOfDay()];
+        $from = $from?->startOfDay() ?? $to->copy()->startOfDay();
+        $to = $to?->endOfDay() ?? $from->copy()->endOfDay();
+        if ($to->lt($from)) [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        return [$from, $to];
     }
 
     public function resultsPageForBale(User $user, string $token, int $page): array

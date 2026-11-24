@@ -198,7 +198,7 @@ class NewUiController extends Controller
         abort_unless($panel && $user->canAccessPanel($panel), 403);
 
         $activeView = $request->query('view', 'home');
-        abort_unless(in_array($activeView, ['home', 'tasks', 'letters', 'minutes', 'calendar', 'cartable'], true), 404);
+        abort_unless(in_array($activeView, ['home', 'tasks', 'letters', 'minutes', 'calendar', 'cartable', 'statistics'], true), 404);
         $taskStatus = $request->query('task_status', $activeView === 'calendar' ? 'all' : 'pending');
         abort_unless(in_array($taskStatus, ['pending', 'done', 'all'], true), 404);
         $jalaliDateParser = app(\App\Services\PersianJalaliDateParser::class);
@@ -243,11 +243,13 @@ class NewUiController extends Controller
         $canMinutes = $user->can('view_any_minutes');
         $canCartable = $user->can('view_any_cartable');
         $canAssistant = $canTasks || $canLetters || $canMinutes;
+        $canStatistics = $canAssistant;
         abort_if($activeView === 'tasks' && !$canTasks, 403);
         abort_if($activeView === 'calendar' && !$canTasks && !$canLetters && !$canMinutes, 403);
         abort_if($activeView === 'letters' && !$canLetters, 403);
         abort_if($activeView === 'minutes' && !$canMinutes, 403);
         abort_if($activeView === 'cartable' && !$canCartable && !$canTasks, 403);
+        abort_if($activeView === 'statistics' && !$canStatistics, 403);
 
         $tasks = Task::query()->with(['project', 'task_group', 'minutes', 'responsible']);
         if (!$canTasks) $tasks->whereRaw('1 = 0');
@@ -354,6 +356,7 @@ class NewUiController extends Controller
         $unreadNotificationCount = $user->unreadNotifications()->count();
 
         $items = collect();
+        $statistics = null;
         if ($activeView === 'tasks') {
             $taskList = clone $tasks;
             if ($taskStatus === 'pending') {
@@ -370,6 +373,14 @@ class NewUiController extends Controller
         } elseif ($activeView === 'minutes') {
             $items = $minutes->latest('date')->paginate(12)->withQueryString();
         } elseif ($activeView === 'calendar') {
+            $items = collect();
+        } elseif ($activeView === 'statistics') {
+            $statistics = app(\App\Services\NewUiStatisticsService::class)->dashboard(
+                $user,
+                $dateFrom,
+                $dateTo?->copy()->endOfDay(),
+                null,
+            );
             $items = collect();
         } else {
             $items = collect([
@@ -417,6 +428,8 @@ class NewUiController extends Controller
             'notifications' => $notifications,
             'unreadNotificationCount' => $unreadNotificationCount,
             'canAssistant' => $canAssistant,
+            'canStatistics' => $canStatistics,
+            'statistics' => $statistics,
             'canCreateTask' => $user->can('create_task'),
             'canCreateLetter' => $user->can('create_letter'),
             'canCreateMinutes' => $user->can('create_minutes'),

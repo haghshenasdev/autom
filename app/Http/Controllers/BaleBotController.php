@@ -1118,6 +1118,25 @@ class BaleBotController extends Controller
         return null;
     }
 
+    private function sendPhotoFromContent($chatId, string $contents, string $filename, string $caption = ''): void
+    {
+        $token = config('bale.token');
+        if (empty($token) || $contents === '') return;
+        try {
+            $response = Http::connectTimeout(8)->timeout(30)->retry(2, 500)
+                ->attach('photo', $contents, $filename, ['Content-Type' => 'image/png'])
+                ->post("https://tapi.bale.ai/bot{$token}/sendPhoto", [
+                    'chat_id' => $chatId,
+                    'caption' => mb_substr($caption, 0, 900),
+                ]);
+            if (!$response->successful()) Log::warning('Bale sendPhoto API returned an unsuccessful response.', [
+                'chat_id' => $chatId, 'status' => $response->status(), 'body' => mb_substr($response->body(), 0, 800),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Bale sendPhoto request failed.', ['chat_id' => $chatId, 'error' => $exception->getMessage()]);
+        }
+    }
+
     /**
      * @param mixed $chatId
      * @param string $text
@@ -1149,6 +1168,12 @@ class BaleBotController extends Controller
         $message = trim((string) ($result['text'] ?? 'پاسخی برای این پرسش پیدا نشد.'));
         $items = $result['results'] ?? [];
         $this->sendMessage($chatId, $message . ($items ? "\n\n📚 موارد مرتبط:" : ''));
+
+        if (is_array($result['chart'] ?? null)) {
+            $png = app(\App\Services\NewUiStatisticsService::class)->renderPng($result['chart']);
+            if ($png) $this->sendPhotoFromContent($chatId, $png, 'karnama-statistics.png', 'نمودار آماری بر اساس مواردی که مجوز مشاهدهٔ آن‌ها را دارید');
+            else $this->sendMessage($chatId, 'ساخت تصویر نمودار انجام نشد؛ آمار متنی در پیام بالا موجود است.');
+        }
 
         foreach ($items as $index => $item) {
             $path = parse_url((string) ($item['url'] ?? ''), PHP_URL_PATH) ?: '';
