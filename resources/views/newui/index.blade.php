@@ -271,6 +271,20 @@
                 @if(isset($statistics['task_status']))<article class="min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:p-5"><h3 class="font-extrabold">وضعیت فعالیت‌ها</h3><div class="relative mt-4 h-64"><canvas id="statistics-tasks"></canvas></div></article>@endif
                 @if(isset($statistics['letter_kind']))<article class="min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:p-5"><h3 class="font-extrabold">نامه‌های وارده و صادره</h3><div class="relative mt-4 h-64"><canvas id="statistics-letters"></canvas></div></article>@endif
             </section>
+            <section class="mb-5 grid gap-4 lg:grid-cols-2">
+                @foreach([
+                    'task_groups' => 'توزیع فعالیت‌ها بر اساس گروه', 'task_cities' => 'فعالیت‌ها بر اساس شهر',
+                    'task_progress' => 'میزان پیشرفت فعالیت‌ها', 'task_duration' => 'زمان انجام فعالیت‌ها (الگوی گزارش فیلامنت)',
+                    'letter_types' => 'نامه‌ها بر اساس نوع', 'letter_status' => 'نامه‌ها بر اساس وضعیت',
+                    'minute_groups' => 'صورت‌جلسه‌ها بر اساس گروه', 'minute_authors' => 'صورت‌جلسه‌ها بر اساس نویسنده',
+                ] as $dimension => $title)
+                    @if(!empty($statistics['dimensions'][$dimension]))
+                        <article class="min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:p-5"><h3 class="font-extrabold">{{ $title }}</h3><div class="relative mt-4 h-64"><canvas id="statistics-{{ $dimension }}"></canvas></div></article>
+                    @endif
+                @endforeach
+                @if(isset($statistics['dimensions']['minutes_with_file']))<article class="min-w-0 rounded-3xl border border-slate-100 bg-white p-4 shadow-card sm:p-5"><h3 class="font-extrabold">پیوست صورت‌جلسه‌ها</h3><div class="relative mt-4 h-64"><canvas id="statistics-minute-files"></canvas></div></article>@endif
+                @if(isset($statistics['dimensions']['task_amount']))<article class="min-w-0 rounded-3xl border border-slate-100 bg-gradient-to-l from-blue-700 to-blue-500 p-5 text-white shadow-card"><p class="text-sm font-semibold text-blue-100">مجموع مبلغ فعالیت‌های این بازه</p><p class="mt-3 text-2xl font-extrabold">{{ number_format($statistics['dimensions']['task_amount']) }} <span class="text-sm">ریال</span></p></article>@endif
+            </section>
             <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
             <script>
                 (() => {
@@ -287,6 +301,20 @@
                     if (taskChart) new Chart(taskChart, { type: 'doughnut', data: { labels: Object.keys(data.task_status), datasets: [{ data: Object.values(data.task_status), backgroundColor: ['#f59e0b', '#2563eb'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Vazirmatn' } } } } } });
                     const letterChart = document.getElementById('statistics-letters');
                     if (letterChart) new Chart(letterChart, { type: 'bar', data: { labels: Object.keys(data.letter_kind), datasets: [{ label: 'تعداد نامه', data: Object.values(data.letter_kind), backgroundColor: ['#0ea5e9', '#10b981'], borderRadius: 10 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
+                    const extraCharts = {
+                        task_groups: ['pie', 'گروه'], task_cities: ['bar', 'شهر'], task_progress: ['doughnut', 'پیشرفت'],
+                        task_duration: ['doughnut', 'مدت انجام'], letter_types: ['doughnut', 'نوع نامه'],
+                        letter_status: ['bar', 'وضعیت نامه'], minute_groups: ['pie', 'گروه'], minute_authors: ['bar', 'نویسنده']
+                    };
+                    Object.entries(extraCharts).forEach(([key, config]) => {
+                        const [type, label] = config;
+                        const canvas = document.getElementById(`statistics-${key}`);
+                        const values = data.dimensions?.[key];
+                        if (!canvas || !values) return;
+                        new Chart(canvas, { type, data: { labels: Object.keys(values), datasets: [{ label, data: Object.values(values), backgroundColor: ['#2563eb','#0ea5e9','#38bdf8','#60a5fa','#1d4ed8','#93c5fd','#0284c7','#7dd3fc','#64748b'], borderRadius: 8, borderWidth: 0 }] }, options: { indexAxis: type === 'bar' && Object.keys(values).length > 5 ? 'y' : 'x', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: ['pie','doughnut'].includes(type), position: 'bottom', labels: { font: { family: 'Vazirmatn' } } } }, scales: ['bar','line'].includes(type) ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : {} } });
+                    });
+                    const fileChart = document.getElementById('statistics-minute-files');
+                    if (fileChart) new Chart(fileChart, { type: 'doughnut', data: { labels: ['دارای پیوست', 'بدون پیوست'], datasets: [{ data: [data.dimensions.minutes_with_file, data.dimensions.minutes_without_file], backgroundColor: ['#2563eb', '#cbd5e1'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Vazirmatn' } } } } } });
                 })();
                 window.dispatchEvent(new Event('newui:page-ready'));
             </script>

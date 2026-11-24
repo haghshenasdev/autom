@@ -115,15 +115,10 @@ class NewUiAssistantService
                 'date_and_type' => $item['meta'],
                 'content_excerpt' => $item['content'],
             ])->values()->all();
-            $token = Str::random(24);
             $consent = $this->makeConsent($user, $question, $entity, $documents, $candidates->pluck('id')->map(fn ($id) => (int) $id)->values()->all());
-            Cache::put('bale_assistant_consent.' . $token, $consent, now()->addMinutes(5));
-
-            return [
-                'text' => 'با فیلترهای جایگزین نتیجهٔ دقیقی پیدا نشد. موارد نزدیک پیدا شده‌اند. اگر اجازه دهید متن‌های زیر برای پاسخ به GapGPT فرستاده می‌شوند.',
-                'results' => [], 'consent_required' => true, 'consent_token' => $token,
-                'consent_destination' => 'GapGPT (api.gapgpt.ir)', 'consent_preview' => $documents,
-            ];
+            $answer = $this->completeConsent($user, $consent);
+            $answer['text'] = 'نتیجهٔ دقیق پیدا نشد؛ موارد نزدیک بررسی شدند. ' . ($answer['text'] ?? '');
+            return $answer;
         }
 
         $token = Str::random(24);
@@ -153,7 +148,7 @@ class NewUiAssistantService
                     'model' => 'gpt-4o', 'temperature' => 0,
                     'response_format' => ['type' => 'json_object'],
                     'messages' => [
-                        ['role' => 'system', 'content' => 'پرسش آماری فارسی را فقط به فیلتر JSON تبدیل کن؛ SQL تولید نکن و داده‌ای حدس نزن. کلیدها: entity یکی از all,tasks,letters,minutes و فقط از مجازها؛ place نام شهر/روستا یا null؛ jalali_year عدد سال شمسی یا null؛ from_date و to_date تاریخ شمسی YYYY/MM/DD یا null؛ chart یکی از trend,status یا trend.'],
+                        ['role' => 'system', 'content' => 'پرسش آماری فارسی را فقط به فیلتر JSON تبدیل کن؛ SQL تولید نکن و داده‌ای حدس نزن. کلیدها: entities آرایه‌ای از صفر یا چند مورد از tasks,letters,minutes که کاربر صریحاً خواسته و فقط از مجازها؛ اگر گفته همه، همه انواع مجاز را برگردان؛ entity فقط برای سازگاری می‌تواند all یا یک نوع باشد؛ place عبارت مکان مانند محله/بلوار/روستا یا null؛ jalali_year عدد سال شمسی یا null؛ from_date و to_date تاریخ شمسی YYYY/MM/DD یا null؛ chart یکی از trend,bar,pie,comparison,status. اگر چند نوع و بازهٔ زمانی پرسیده شد trend مناسب است؛ bar برای مقایسهٔ ماه‌به‌ماه؛ pie برای سهم هر نوع؛ comparison برای مقایسهٔ جمع کل؛ status فقط برای تفکیک وضعیت یک نوع.'],
                         ['role' => 'user', 'content' => json_encode(['question' => mb_substr($question, 0, 1200), 'allowed_entities' => $allowed], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)],
                     ],
                 ]);
@@ -164,12 +159,21 @@ class NewUiAssistantService
         }
 
         $entity = in_array($plan['entity'] ?? null, $allowed, true) ? $plan['entity'] : null;
-        if (!$entity && preg_match('/نامه/u', $question) && in_array('letters', $allowed, true)) $entity = 'letters';
-        if (!$entity && preg_match('/صورت.?جلسه|جلسه/u', $question) && in_array('minutes', $allowed, true)) $entity = 'minutes';
-        if (!$entity && preg_match('/فعالیت|کار/u', $question) && in_array('tasks', $allowed, true)) $entity = 'tasks';
-        $entities = $entity ? [$entity] : $allowed;
+        $mentionedEntities = [];
+        if (preg_match('/نامه/u', $question) && in_array('letters', $allowed, true)) $mentionedEntities[] = 'letters';
+        if (preg_match('/صورت.?جلسه|جلسه/u', $question) && in_array('minutes', $allowed, true)) $mentionedEntities[] = 'minutes';
+        if (preg_match('/فعالیت|تسک|وظیفه/u', $question) && in_array('tasks', $allowed, true)) $mentionedEntities[] = 'tasks';
+        $plannedEntities = array_values(array_intersect($allowed, is_array($plan['entities'] ?? null) ? $plan['entities'] : []));
+        if ($mentionedEntities) $entities = $mentionedEntities;
+        elseif ($plannedEntities) $entities = $plannedEntities;
+        elseif (preg_match('/همه|تمام|کلی/u', $question) || ($plan['entity'] ?? null) === 'all') $entities = $allowed;
+        elseif ($entity) $entities = [$entity];
+        else $entities = $allowed;
         $range = $this->statisticsRange($plan, $question);
         $place = $this->cleanTerm($plan['place'] ?? null);
+        if (!$place && preg_match('/(?:درباره|در\s+باره|درمورد|مربوط\s+به|اطراف|محدوده)\s+(.+?)(?=\s+(?:در\s+سال|در\s+بازه|طی|برای|را|به\s+من|همه\s+انواع|نامه|فعالیت|صورت.?جلسه)|[؟?]|$)/u', $question, $placeMatch)) {
+            $place = $this->cleanTerm($placeMatch[1] ?? null);
+        }
         $data = app(NewUiStatisticsService::class)->dashboard($user, $range[0], $range[1], $place, $entities);
 
         $chartEntities = $data['allowed'];
@@ -178,11 +182,34 @@ class NewUiAssistantService
         $colors = ['tasks' => '#2563eb', 'letters' => '#10b981', 'minutes' => '#f97316'];
         $chartType = 'line';
         $chartLabels = array_column($data['periods'], 'label');
-        if (($plan['chart'] ?? null) === 'status' && $entity === 'tasks' && isset($data['task_status'])) {
+        $explicitComparison = (bool) preg_match('/مقایسه|درصد سهم/u', $question);
+        $explicitStatus = (bool) preg_match('/وضعیت|انجام.?شده|وارده|صادره|سهم هر/u', $question);
+        $rejectChartType = (bool) preg_match('/نمی.?خواهم|نمی.?خوام|مناسب\s+نیست|نامناسب|نباشد/u', $question);
+        $explicitBar = !$rejectChartType && (bool) preg_match('/میله.?ای|ستونی|میله/u', $question);
+        $explicitPie = !$rejectChartType && (bool) preg_match('/دایره.?ای|گردشی|پای.?چارت/u', $question);
+        if ($explicitPie) $chartIntent = 'pie';
+        elseif ($explicitBar) $chartIntent = 'bar';
+        elseif (count($chartEntities) > 1) $chartIntent = $explicitComparison ? 'comparison' : 'trend';
+        elseif ($explicitStatus) $chartIntent = 'status';
+        elseif ($explicitComparison) $chartIntent = 'comparison';
+        elseif (in_array($plan['chart'] ?? null, ['trend', 'bar', 'pie', 'comparison', 'status'], true)) $chartIntent = $plan['chart'];
+        else $chartIntent = 'trend';
+        if ($chartIntent === 'comparison' && count($chartEntities) > 1) {
+            $chartType = 'bar';
+            $chartLabels = array_map(fn ($key) => $labels[$key], $chartEntities);
+            $datasets[] = ['label' => 'تعداد در بازه', 'data' => array_map(fn ($key) => (int) ($data['totals'][$key] ?? 0), $chartEntities), 'backgroundColor' => array_map(fn ($key) => $colors[$key], $chartEntities), 'borderRadius' => 10];
+        } elseif ($chartIntent === 'pie' && count($chartEntities) > 1) {
+            $chartType = 'doughnut';
+            $chartLabels = array_map(fn ($key) => $labels[$key], $chartEntities);
+            $datasets[] = ['data' => array_map(fn ($key) => (int) ($data['totals'][$key] ?? 0), $chartEntities), 'backgroundColor' => array_map(fn ($key) => $colors[$key], $chartEntities), 'borderWidth' => 0];
+        } elseif ($chartIntent === 'bar') {
+            $chartType = 'bar';
+            foreach ($chartEntities as $chartEntity) $datasets[] = ['label' => $labels[$chartEntity], 'data' => array_column($data['periods'], $chartEntity), 'backgroundColor' => $colors[$chartEntity], 'borderRadius' => 6];
+        } elseif (in_array($chartIntent, ['status', 'comparison'], true) && count($chartEntities) === 1 && $entity === 'tasks' && isset($data['task_status'])) {
             $chartType = 'doughnut';
             $chartLabels = array_keys($data['task_status']);
             $datasets[] = ['data' => array_values($data['task_status']), 'backgroundColor' => ['#f59e0b', '#2563eb'], 'borderWidth' => 0];
-        } elseif (($plan['chart'] ?? null) === 'status' && $entity === 'letters' && isset($data['letter_kind'])) {
+        } elseif (in_array($chartIntent, ['status', 'comparison'], true) && count($chartEntities) === 1 && $entity === 'letters' && isset($data['letter_kind'])) {
             $chartType = 'bar';
             $chartLabels = array_keys($data['letter_kind']);
             $datasets[] = ['label' => 'تعداد نامه', 'data' => array_values($data['letter_kind']), 'backgroundColor' => ['#0ea5e9', '#10b981'], 'borderRadius' => 10];
@@ -192,8 +219,9 @@ class NewUiAssistantService
             }
         }
         $chart = ['type' => $chartType, 'data' => ['labels' => $chartLabels, 'datasets' => $datasets], 'options' => ['plugins' => ['legend' => ['position' => 'bottom']]]];
-        $summary = ['totals' => array_filter($data['totals'], fn ($value) => $value !== null), 'range' => $data['range'], 'place' => $place];
+        $summary = ['totals' => array_intersect_key($data['totals'], array_flip($chartEntities)), 'range' => $data['range'], 'place' => $place];
         $text = $this->summarizeStatistics($question, $summary, $key);
+        $text .= "\n\nتعداد دقیق هر بخش: " . implode('، ', array_map(fn ($name, $count) => $name . ': ' . number_format((int) $count), array_map(fn ($key) => $labels[$key], $chartEntities), array_values($summary['totals'])));
 
         return ['text' => $text, 'results' => [], 'chart' => $chart, 'statistics' => $summary];
     }
@@ -222,9 +250,13 @@ class NewUiAssistantService
 
     private function statisticsRange(array $plan, string $question): array
     {
+        $digits = strtr($question, ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
+        if (preg_match('/(?<!\d)(\d{1,2})\s*ماه\s*(?:اخیر|گذشته)/u', $digits, $duration)) {
+            $months = max(1, min(36, (int) $duration[1]));
+            return [now()->startOfMonth()->subMonths($months - 1), now()->endOfDay()];
+        }
         $year = filter_var($plan['jalali_year'] ?? null, FILTER_VALIDATE_INT);
         if (!$year) {
-            $digits = strtr($question, ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
             if (preg_match('/(?<!\d)(1[34]\d{2})(?!\d)/u', $digits, $match)) $year = (int) $match[1];
         }
         if ($year && $year >= 1300 && $year <= 1500) return [(new Jalalian($year, 1, 1))->toCarbon()->startOfDay(), (new Jalalian($year + 1, 1, 1))->toCarbon()->subDay()->endOfDay()];
@@ -615,6 +647,7 @@ class NewUiAssistantService
     private function cleanTerm($value): ?string
     {
         if (!is_string($value)) return null;
+        $value = strtr($value, ['ي' => 'ی', 'ى' => 'ی', 'ك' => 'ک']);
         $value = trim(str_replace(['%', '_'], ['\\%', '\\_'], $value));
         return $value === '' ? null : mb_substr($value, 0, 60);
     }
