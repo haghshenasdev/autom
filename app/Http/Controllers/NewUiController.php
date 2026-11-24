@@ -25,7 +25,8 @@ class NewUiController extends Controller
     {
         $user = $request->user();
         abort_unless(in_array($type, ['task', 'letter', 'minute'], true), 404);
-        abort_unless($user->can('update_' . $type), 403);
+        $permissionType = $type === 'minute' ? 'minutes' : $type;
+        abort_unless($user->can('update_' . $permissionType), 403);
 
         $record = match ($type) {
             'task' => Task::query()->when(!$user->can('restore_any_task'), fn ($q) => $q->where('Responsible_id', $user->id))->findOrFail($recordId),
@@ -544,6 +545,7 @@ class NewUiController extends Controller
         $user = $request->user();
         $panel = Filament::getPanel('admin');
         abort_unless($panel && $user->canAccessPanel($panel), 403);
+        $permissionType = $type === 'minute' ? 'minutes' : $type;
 
         if ($type === 'task') {
             abort_unless($user->can('view_any_task'), 403);
@@ -608,8 +610,8 @@ class NewUiController extends Controller
             'record' => $record,
             'backUrl' => $backUrl,
             'editUrl' => $editUrl,
-            'canEdit' => $user->can('update_' . $type),
-            'editing' => $request->boolean('edit') && $user->can('update_' . $type),
+            'canEdit' => $user->can('update_' . $permissionType),
+            'editing' => $request->boolean('edit') && $user->can('update_' . $permissionType),
             'editOptions' => $editOptions,
         ]);
     }
