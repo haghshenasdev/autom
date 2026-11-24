@@ -194,7 +194,7 @@ class NewUiAssistantController extends Controller
             return 'کلید GapGPT برای دستیار تنظیم نشده است.';
         }
         if ($exception instanceof \Illuminate\Http\Client\ConnectionException) {
-            return 'سرور برنامه به api.gapgpt.app وصل نمی‌شود. DNS و دسترسی خروجی سرور را بررسی کنید.';
+            return 'سرور برنامه به api.gapgpt.ir وصل نمی‌شود. DNS و دسترسی خروجی سرور را بررسی کنید.';
         }
         return 'در ارتباط با دستیار خطایی رخ داد. کمی بعد دوباره تلاش کنید.';
     }

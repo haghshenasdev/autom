@@ -31,7 +31,7 @@ class BaleLetterTextAiService
         $text = trim($text);
         if ($text === '') return '';
 
-        $response = $this->request('https://api.gapgpt.app/v1/chat/completions', [
+        $response = $this->request('https://api.gapgpt.ir/v1/chat/completions', [
             'model' => 'gpt-4o',
             'temperature' => 0.1,
             'messages' => [
@@ -56,7 +56,7 @@ class BaleLetterTextAiService
     {
         if (!$letterText || !$candidates) return [];
 
-        $response = $this->request('https://api.gapgpt.app/v1/chat/completions', [
+        $response = $this->request('https://api.gapgpt.ir/v1/chat/completions', [
             'model' => 'gpt-4o',
             'temperature' => 0,
             'response_format' => ['type' => 'json_object'],

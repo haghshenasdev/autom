@@ -311,7 +311,7 @@ class MobileAiController extends Controller
             $response = Http::timeout(25)->withHeaders([
                 'Authorization' => 'Bearer ' . config('services.gapgpt.api_key'),
                 'Content-Type' => 'application/json',
-            ])->post('https://api.gapgpt.app/v1/chat/completions', [
+            ])->post('https://api.gapgpt.ir/v1/chat/completions', [
                 'model' => 'gpt-4o',
                 'temperature' => 0.1,
                 'messages' => [

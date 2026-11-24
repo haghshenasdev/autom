@@ -208,7 +208,7 @@ class MinuteTextPS extends Controller
                     'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
                     'Content-Type' => 'application/json',
                 ])
-                ->post('https://api.gapgpt.app/v1/chat/completions', [
+                ->post('https://api.gapgpt.ir/v1/chat/completions', [
 
                     'model' => 'gpt-4o',
 

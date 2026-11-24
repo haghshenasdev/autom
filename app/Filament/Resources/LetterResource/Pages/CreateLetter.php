@@ -67,7 +67,7 @@ class CreateLetter extends CreateRecord
                         // 2. ارسال متن OCR به GapGPT برای اصلاح
                         $aiResponse = Http::withHeaders([
                             'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-                        ])->post('https://api.gapgpt.app/v1/chat/completions', [
+                        ])->post('https://api.gapgpt.ir/v1/chat/completions', [
                             'model' => 'gpt-4o',
                             'messages' => [
                                 [
@@ -157,7 +157,7 @@ EOT
                     // فراخوانی API هوش مصنوعی
                     $response = Http::withHeaders([
                         'Authorization' => 'Bearer ' . env('GAPGPT_API_KEY'),
-                    ])->post('https://api.gapgpt.app/v1/chat/completions', [
+                    ])->post('https://api.gapgpt.ir/v1/chat/completions', [
                         'model' => 'gpt-4o',
                         'messages' => [
                             ['role' => 'user', 'content' => <<<EOT
