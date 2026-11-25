@@ -59,7 +59,11 @@ trait FileEventHandler
             $type = $model->appendix_other_type ?? null;
 
             $modeArray = $model->toArray();
-            $modeArray['file'] = explode('.', $modeArray['file'])[1];
+            $fileParts = explode('.', (string) $modeArray['file']);
+            if (count($fileParts) < 2 || $fileParts[1] === '') {
+                return false;
+            }
+            $modeArray['file'] = $fileParts[count($fileParts) - 1];
             $newPath = self::getFilePathByArray($letterId, $modeArray, $type);
             $oldPath = $path . $model->file;
 

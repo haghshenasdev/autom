@@ -124,8 +124,10 @@ class NewUiAssistantController extends Controller
                 'peiroow_letter_id' => $parsed['pirow'] ?? null,
                 'status' => $parsed['status'] ?? 2,
                 'organ_id' => ($parsed['kind'] ?? 1) == 1 ? ($parsed['organ_id'] ?? null) : null,
-                'file' => $extension,
             ]);
+            // FileEventHandler expects a temporary "name.ext" value during the
+            // created event. Set the final extension only after that event runs.
+            $record->forceFill(['file' => $extension])->saveQuietly();
             $record->users()->syncWithoutDetaching($parsed['user_id'] ?? []);
             $record->organs_owner()->syncWithoutDetaching(array_filter($parsed['organ_owners'] ?? []));
             $record->customers()->syncWithoutDetaching(array_filter($parsed['customer_owners'] ?? []));
@@ -147,8 +149,8 @@ class NewUiAssistantController extends Controller
                 'text' => $description,
                 'typer_id' => $user->id,
                 'task_id' => $parsed['task_id'] ?? null,
-                'file' => $extension,
             ]);
+            $record->forceFill(['file' => $extension])->saveQuietly();
             $record->organ()->sync($parsed['organs'] ?? []);
             if (\App\Models\MinutesGroup::query()->whereKey(1)->exists()) $record->group()->sync([1]);
             Storage::disk('private_appendix_other')->put($record->getFilePath(), $contents);
